@@ -25,6 +25,7 @@ docs/
     entity-extraction.md  # Deep spec: two-pass hybrid extraction, source strategies, confidence scoring
     anomaly-engine.md  # Deep spec: detector implementations, false positive control, severity scoring
     phase1-implementation-plan.md  # 7 milestones, build order, tech stack, exit criterion
+    llm-cost-controls.md          # Prompt caching patterns, breakpoint placement, anti-patterns
     adrs/
       001-hybrid-brain-store.md        # Vector DB + Graph DB rationale
       002-mcp-server-interface.md      # Why MCP over bespoke agent SDK
@@ -48,3 +49,17 @@ Currently in pre-development. No code exists yet. Phase 1 scope: GitHub-only ing
 ## Build Order
 
 Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met and documented. See `docs/product/roadmap.md` for exit criteria per phase.
+
+## LLM Cost Controls
+
+Every Anthropic SDK call in this codebase must apply prompt caching. See `docs/technical/llm-cost-controls.md` for full patterns and anti-patterns.
+
+**Rules enforced when writing SDK code:**
+
+- System prompt must be a list of blocks with `cache_control: {"type": "ephemeral"}` on the last block — never a plain string.
+- Do not interpolate timestamps, UUIDs, or per-request IDs into the system prompt. Inject dynamic context as a user message at the end.
+- Tool definitions must be deterministically ordered (sort by name). Never add or remove tools per-request.
+- For session-scoped context (retrieved docs, graph snapshots), add a second `cache_control` breakpoint at the end of the context block in the first user message.
+- In multi-turn sessions, move the `cache_control` marker to the last block of the most-recently-appended turn each call.
+- Verify caching is working: `response.usage.cache_read_input_tokens` must be non-zero on repeated calls with identical prefixes. If it is zero, there is a silent invalidator — find it before shipping.
+- Use 1-hour TTL (`{"type": "ephemeral", "ttl": "1h"}`) for extraction pipelines where calls are bursty with idle gaps; 5-minute (default) for interactive query sessions.
