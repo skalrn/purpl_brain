@@ -68,3 +68,17 @@ Each risk has a **Likelihood** (L: 1–3) and **Impact** (I: 1–3). **Exposure 
 - How does the brain handle projects that span multiple organizations (e.g., a contractor working across client codebases)?
 - What is the data deletion / right-to-be-forgotten model when a team member leaves?
 - At what point does the brain's knowledge graph become too large for the graph DB to query efficiently, and what is the sharding strategy?
+
+---
+
+## Open Questions (Must Resolve Before or During Phase 1)
+
+| ID | Question | Why It Matters | When to Resolve |
+|---|---|---|---|
+| OQ1 | What is the baseline context-reconstruction time without the brain? | Without a before-measurement, the Phase 1 exit criterion cannot prove value even if the product works correctly. | Before Phase 1 exit — set up measurement at beta launch |
+| OQ2 | How will feedback be collected from beta users in practice? | A 5-question survey exists but no collection mechanism. Users won't fill out forms unprompted; structured signal requires a built-in habit (weekly check-in, Slack thread). | Before first user is onboarded |
+| OQ3 | Which repos and PRs will be used for the Milestone 2 extraction eval, and are they labeled? | The eval checkpoint requires 10 labeled PRs before moving to Milestone 3. Labeling is pre-work that shapes the extraction prompt design — skipping it means tuning blind. | Before Milestone 2 starts |
+| OQ4 | Is the GitHub OAuth app created and does the callback URL point to a stable host? | The beta setup flow requires a registered GitHub OAuth app with read-only scopes. This blocks the first user onboarding and requires the ngrok → VM transition to be complete first. | Before first user is onboarded |
+| OQ5 | What is the operator's explicit stance on ingesting private repo content via the Anthropic API? | Beta users with private repos containing sensitive business logic or unreleased product details will ask. Referencing Anthropic's data policy is not sufficient — a clear operator position is needed before anyone connects a private repo. | Before first user is onboarded |
+| OQ6 | What specific agent will write to the brain in Phase 2, and what does its write-back look like? | Phase 2 (agent write-back loop) has no concrete entry point without a named agent. Without this, the Phase 1 → Phase 2 transition has no defined first step. | Before Phase 1 exit criterion is declared met |
+| OQ7 | What is the incident response plan when the beta VM or a pipeline component goes down? | Beta users hitting a broken brain have no way to distinguish a system failure from a bad query. Minimum needed: a status signal, a webhook consumer health check, and a user-facing issue reporting path. | Before first user is onboarded |
