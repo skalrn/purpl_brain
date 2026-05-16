@@ -18,7 +18,7 @@ Citation rules:
 
 Response format:
 - Answer in plain prose, 2-5 sentences per point
-- End with a "Sources:" section listing each cited chunk's URL and timestamp`;
+- Do not add a Sources section — citations are shown separately`;
 
 interface QdrantResult {
   id: string | number;
@@ -155,7 +155,7 @@ ${context}
 
 Answer the question using only the context above. Cite every claim with [N].`;
 
-  const answer = await chat(
+  const raw = await chat(
     MODELS.QUERY,
     [
       { role: "system", content: ANSWER_SYSTEM_PROMPT },
@@ -163,6 +163,9 @@ Answer the question using only the context above. Cite every claim with [N].`;
     ],
     { maxTokens: 1024, temperature: 0 }
   );
+
+  // Strip the Sources section — citations are shown via UI cards
+  const answer = raw.replace(/\n+Sources:[\s\S]*$/i, "").trim();
 
   // Step 7: validate citations
   const citationWarning = !validateCitations(answer, chunks);

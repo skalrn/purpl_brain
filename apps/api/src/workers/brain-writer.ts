@@ -132,20 +132,15 @@ async function writeToNeo4j(result: ExtractionResult) {
 }
 
 async function writeToQdrant(result: ExtractionResult) {
-  const chunks = chunkContent(
-    result.decisions.length > 0
-      ? result.decisions.map((d: Decision) => d.quoted_text + "\n" + (d.summary ?? "")).join("\n\n")
-      : "",
-    result.event_id
-  );
+  // Index decision chunks when present, otherwise index raw content
+  const textToChunk = result.decisions.length > 0
+    ? result.decisions
+        .map((d: Decision) => [d.quoted_text, d.summary, d.rationale].filter(Boolean).join("\n"))
+        .join("\n\n")
+    : result.source_url; // fallback for non-decision events
 
-  // Always index a chunk for the event itself
-  const eventChunk = {
-    id: `${result.event_id}_event`,
-    text: `Source: ${result.source_url}\nActor: ${result.actor.name}\n\n` +
-      result.decisions.map((d: Decision) => `Decision: ${d.summary}\n${d.rationale ?? ""}`).join("\n\n"),
-  };
-  const allChunks = [eventChunk, ...chunks];
+  const allChunks = chunkContent(textToChunk, result.event_id);
+  if (allChunks.length === 0) allChunks.push({ id: `${result.event_id}_0`, text: result.source_url });
 
   if (allChunks.length === 0) return;
 
