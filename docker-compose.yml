@@ -25,15 +25,8 @@ services:
     volumes:
       - neo4j_data:/data
 
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-
 volumes:
   redis_data:
   qdrant_data:
   neo4j_data:
-  ollama_data:
+  # Ollama runs natively on the host — no container needed
