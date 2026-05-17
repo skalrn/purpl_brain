@@ -1,0 +1,364 @@
+[
+  {
+    "id": "Q01",
+    "query": "What is the httpx 1.0 compression policy? What formats will be supported?",
+    "citation_warning": false,
+    "citation_count": 3,
+    "checks": [
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3364099353",
+        "quoted_text": "supporting gzip only would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\nThe project decided to support only gzip compression for the 1.0 re",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.57
+      },
+      {
+        "chunk_index": 3,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302470811",
+        "quoted_text": "supporting gzip only would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\nThe project will adopt a policy of supporting only gzip compression",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.52
+      },
+      {
+        "chunk_index": 4,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302376638",
+        "quoted_text": "supporting gzip only would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\nThe project will adopt a policy of supporting gzip compression only",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.52
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 40256
+  },
+  {
+    "id": "Q02",
+    "query": "Was there a decision about Zstandard compression support in httpx?",
+    "citation_warning": false,
+    "citation_count": 4,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3265958952",
+        "quoted_text": "I would suggest dropping `zstandard` and switch to stdlib-compatible `backports.zstd` on Python 3.9-3.13, as `httpx` has dropped Python 3.8 support already.\nSuggestion to replace the `zstandard` libra",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.38
+      },
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3364099353",
+        "quoted_text": "supporting gzip only would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\nThe project decided to support only gzip compression for the 1.0 re",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.47
+      },
+      {
+        "chunk_index": 3,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302470811",
+        "quoted_text": "supporting gzip only would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\nThe project will adopt a policy of supporting only gzip compression",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.41
+      },
+      {
+        "chunk_index": 4,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302376638",
+        "quoted_text": "supporting gzip only would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\nThe project will adopt a policy of supporting gzip compression only",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.39
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 37839
+  },
+  {
+    "id": "Q03",
+    "query": "What was decided about showing user credentials in URL string representation?",
+    "citation_warning": false,
+    "citation_count": 2,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3513",
+        "quoted_text": "I believe this is the correct default behaviour for a library like this, as it avoids any risk of leakage. Removing the user & password entirely seems both (a) the safest option, and (b) the simplest ",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.33
+      },
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3513#issuecomment-2689151434",
+        "quoted_text": "I do think this is the most secure implementation, and I don't think we really lose anything..\nThe most secure implementation is to prevent user credentials (username & password) from being exposed in",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.24
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 27779
+  },
+  {
+    "id": "Q04",
+    "query": "Which Python versions were dropped from the test matrix?",
+    "citation_warning": false,
+    "citation_count": 1,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3730",
+        "quoted_text": "Removed Python 3.10 from the test matrix.\nThe project decided to drop Python 3.10 from the supported test matrix.\nDecisions: The project decided to drop Python 3.10 from the supported test matrix.",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.83
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 32100
+  },
+  {
+    "id": "Q05",
+    "query": "What asyncio changes were made for Python 3.14 compatibility?",
+    "citation_warning": false,
+    "citation_count": 5,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3739",
+        "quoted_text": "chore: add support for Python 3.14\n\n# Summary\r\n\r\nSimilar to PR #3460, we add support for Python 3.14 to the classifiers and the CI test matrix.\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.5
+      },
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3613#issuecomment-3240235628",
+        "quoted_text": "I suggest adding Python 3.14 to the test suite as in:\r\n* #3645\nLinked tickets: #3645",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": false,
+        "support_score": 0.14
+      },
+      {
+        "chunk_index": 3,
+        "source_url": "https://github.com/encode/httpx/pull/3720",
+        "quoted_text": "Replace deprecated `asyncio.get_event_loop()` pattern with `asyncio.create_task()` which is the modern way to create tasks when already inside an async context.\nThe test server's `TestServer.serve()` ",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.35
+      },
+      {
+        "chunk_index": 5,
+        "source_url": "https://github.com/encode/httpx/pull/3645",
+        "quoted_text": "GitHub Actions: Add Python 3.14 to test matrix\n\nUPDATE: Python 3.14 (the π version) was released today.\r\nhttps://www.python.org/downloads/release/python-3140/\r\nhttps://github.com/actions/python-versio",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.21
+      },
+      {
+        "chunk_index": 8,
+        "source_url": "https://github.com/encode/httpx/pull/3664",
+        "quoted_text": "Add Python 3.14 to test matrix\n\nTests here were hanging on a previous run, let's see if that's resolved.",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.21
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 41844
+  },
+  {
+    "id": "Q06",
+    "query": "What happens when the brotli extra is missing but a server sends brotli-encoded content?",
+    "citation_warning": false,
+    "citation_count": 1,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3694",
+        "quoted_text": "add explicit warning if server sends Content-Encoding: br without brotli support\nThe PR proposes adding an explicit warning if a server sends Content-Encoding: br but brotli support is missing.\n\nsurfa",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.44
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 29103
+  },
+  {
+    "id": "Q07",
+    "query": "What is the purpose of the .wait_ready() method added to HTTPParser?",
+    "citation_warning": false,
+    "citation_count": 1,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3690",
+        "quoted_text": "Add `.wait_ready()` to `HTTPParser`...\nThe parser will be updated to include a `.wait_ready()` method.\nThis is necessary to differentiate between clean disconnects at the start of a new request/respon",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.54
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 22264
+  },
+  {
+    "id": "Q08",
+    "query": "What decision was made about enforcing minimum h11 or httpcore versions for the security fix?",
+    "citation_warning": false,
+    "citation_count": 2,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3691#issuecomment-3411962215",
+        "quoted_text": "Yes there's no need to change the minimum required version for users to receive the security fix as was discussed at length in https://github.com/encode/httpx/pull/3564#issuecomment-2858720787\nDecisio",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.42
+      },
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3564#issuecomment-2921654330",
+        "quoted_text": "there's no need for HTTPX to actually enforce this.\nDecision not to enforce a specific behavior within HTTPX.\nThe behavior is only problematic if HTTPX prevents the installation of the safe h11 versio",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.52
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 27004
+  },
+  {
+    "id": "Q09",
+    "query": "What is the status of the MockTransport elapsed time feature?",
+    "citation_warning": false,
+    "citation_count": 0,
+    "checks": [],
+    "fabricated_count": 0,
+    "latency_ms": 23435
+  },
+  {
+    "id": "Q11",
+    "query": "How does httpx handle merging query parameters in Request.__init__?",
+    "citation_warning": false,
+    "citation_count": 2,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3759",
+        "quoted_text": "Fix: Merge URL query parameters instead of replacing them\n\n## Summary\n\nFixes #3621\n\nWhen a URL already contains query parameters and additional `params` are passed, httpx was dropping the original URL",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.29
+      },
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3759#issuecomment-3888375551",
+        "quoted_text": "Closing in favor of #3761 which takes a simpler approach - using the existing `copy_merge_params()` method in `Request.__init__` rather than modifying the `URL` constructor. Less invasive and leverage",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.39
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 32760
+  },
+  {
+    "id": "Q12",
+    "query": "How does httpx prevent SSL context reference cycles from blocking garbage collection?",
+    "citation_warning": false,
+    "citation_count": 1,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3746",
+        "quoted_text": "Use `weakref.ref` to break the reference cycle. The stream now holds a weak reference to the response instead of a strong reference:\nThe implementation was changed to use `weakref.ref` to break a refe",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.33
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 28833
+  },
+  {
+    "id": "Q13",
+    "query": "What did the team do in response to CVE-2025-43859?",
+    "citation_warning": false,
+    "citation_count": 0,
+    "checks": [],
+    "fabricated_count": 0,
+    "latency_ms": 29502
+  },
+  {
+    "id": "Q14",
+    "query": "What design decisions are currently deferred or pending?",
+    "citation_warning": false,
+    "citation_count": 2,
+    "checks": [
+      {
+        "chunk_index": 1,
+        "source_url": "https://github.com/encode/httpx/pull/3719#issuecomment-3637325517",
+        "quoted_text": "I'll close this for now until we have a good design decision around it\nThe discussion is being closed and deferred until a proper design decision is made.\nA design decision is required before proceedi",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.52
+      },
+      {
+        "chunk_index": 2,
+        "source_url": "https://github.com/encode/httpx/pull/3715#issuecomment-3637326201",
+        "quoted_text": "I'll close this for now until we have a good design decision around it\nThe discussion is being closed and deferred until a proper design decision is made.\nA design decision is required before proceedi",
+        "valid_url": true,
+        "non_empty_text": true,
+        "supported": true,
+        "support_score": 0.52
+      }
+    ],
+    "fabricated_count": 0,
+    "latency_ms": 35256
+  },
+  {
+    "id": "Q17",
+    "query": "What are the most significant architectural decisions made in the httpx project?",
+    "citation_warning": false,
+    "citation_count": 0,
+    "checks": [],
+    "fabricated_count": 0,
+    "latency_ms": 40048
+  },
+  {
+    "id": "Q18",
+    "query": "What decisions did the httpx maintainers make about closing or deferring PRs?",
+    "citation_warning": false,
+    "citation_count": 0,
+    "checks": [],
+    "fabricated_count": 0,
+    "latency_ms": 41894
+  }
+]
