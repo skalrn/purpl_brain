@@ -80,7 +80,7 @@ Which Python versions were dropped from the test matrix?
 
 **Query 3 — Security**
 ```
-What did the team do in response to CVE-2025-43859?
+What decision was made about enforcing minimum h11 or httpcore versions for the security fix?
 ```
 *Expected:* No minimum version enforced; users upgrade directly. Citations: PR #3691, #3564.  
 *Talking point:* "Security decision — it found the rationale, not just the PR title."

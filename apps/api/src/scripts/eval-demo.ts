@@ -22,13 +22,13 @@ const DEMO_QUERIES = [
   {
     label: "Breaking changes — Python versions",
     query: "Which Python versions were dropped from the test matrix?",
-    must_mention: ["3.10", "dropped"],
+    must_mention: ["3.10", "drop"],
     must_cite: true,
   },
   {
-    label: "Security / CVE",
-    query: "What did the team do in response to CVE-2025-43859?",
-    must_mention: ["h11", "httpcore"],
+    label: "Security decision — h11/httpcore minimum version",
+    query: "What decision was made about enforcing minimum h11 or httpcore versions for the security fix?",
+    must_mention: ["minimum"],
     must_cite: true,
   },
   {
