@@ -1,0 +1,227 @@
+{
+  "provider": "ollama",
+  "p50": 41337,
+  "p75": 61308,
+  "p95": 73980,
+  "avg": 46043,
+  "runs": 36,
+  "errors": 0,
+  "rows": [
+    {
+      "run": 1,
+      "query": "What is the httpx 1.0 compression policy?",
+      "latency_ms": 35912,
+      "citation_count": 3
+    },
+    {
+      "run": 2,
+      "query": "Was there a decision about Zstandard compression?",
+      "latency_ms": 41337,
+      "citation_count": 5
+    },
+    {
+      "run": 3,
+      "query": "What was decided about URL credential representation?",
+      "latency_ms": 35018,
+      "citation_count": 2
+    },
+    {
+      "run": 4,
+      "query": "Which Python versions were dropped?",
+      "latency_ms": 29539,
+      "citation_count": 2
+    },
+    {
+      "run": 5,
+      "query": "What asyncio changes were made for Python 3.14?",
+      "latency_ms": 73773,
+      "citation_count": 4
+    },
+    {
+      "run": 6,
+      "query": "What happens when brotli extra is missing?",
+      "latency_ms": 61308,
+      "citation_count": 1
+    },
+    {
+      "run": 7,
+      "query": "What is the purpose of .wait_ready() in HTTPParser?",
+      "latency_ms": 52762,
+      "citation_count": 1
+    },
+    {
+      "run": 8,
+      "query": "What decision was made about minimum h11 versions?",
+      "latency_ms": 56467,
+      "citation_count": 1
+    },
+    {
+      "run": 9,
+      "query": "What is the status of MockTransport elapsed time?",
+      "latency_ms": 58102,
+      "citation_count": 0
+    },
+    {
+      "run": 10,
+      "query": "How does httpx merge query parameters?",
+      "latency_ms": 28258,
+      "citation_count": 2
+    },
+    {
+      "run": 11,
+      "query": "How does httpx prevent SSL context reference cycles?",
+      "latency_ms": 29317,
+      "citation_count": 1
+    },
+    {
+      "run": 12,
+      "query": "What did the team do about CVE-2025-43859?",
+      "latency_ms": 54668,
+      "citation_count": 0
+    },
+    {
+      "run": 13,
+      "query": "What design decisions are currently deferred?",
+      "latency_ms": 62268,
+      "citation_count": 2
+    },
+    {
+      "run": 14,
+      "query": "What are the most significant httpx architectural decisions?",
+      "latency_ms": 65795,
+      "citation_count": 5
+    },
+    {
+      "run": 15,
+      "query": "What decisions were made about closing or deferring PRs?",
+      "latency_ms": 75901,
+      "citation_count": 4
+    },
+    {
+      "run": 16,
+      "query": "What is the httpx authentication model?",
+      "latency_ms": 68974,
+      "citation_count": 2
+    },
+    {
+      "run": 17,
+      "query": "How is httpx structured for async vs sync?",
+      "latency_ms": 40274,
+      "citation_count": 1
+    },
+    {
+      "run": 18,
+      "query": "What breaking changes were made in recent httpx versions?",
+      "latency_ms": 73980,
+      "citation_count": 0
+    },
+    {
+      "run": 19,
+      "query": "What is the httpx 1.0 compression policy?",
+      "latency_ms": 60409,
+      "citation_count": 3
+    },
+    {
+      "run": 20,
+      "query": "Was there a decision about Zstandard compression?",
+      "latency_ms": 67819,
+      "citation_count": 5
+    },
+    {
+      "run": 21,
+      "query": "What was decided about URL credential representation?",
+      "latency_ms": 69813,
+      "citation_count": 2
+    },
+    {
+      "run": 22,
+      "query": "Which Python versions were dropped?",
+      "latency_ms": 59792,
+      "citation_count": 2
+    },
+    {
+      "run": 23,
+      "query": "What asyncio changes were made for Python 3.14?",
+      "latency_ms": 41851,
+      "citation_count": 4
+    },
+    {
+      "run": 24,
+      "query": "What happens when brotli extra is missing?",
+      "latency_ms": 29739,
+      "citation_count": 1
+    },
+    {
+      "run": 25,
+      "query": "What is the purpose of .wait_ready() in HTTPParser?",
+      "latency_ms": 23103,
+      "citation_count": 1
+    },
+    {
+      "run": 26,
+      "query": "What decision was made about minimum h11 versions?",
+      "latency_ms": 20671,
+      "citation_count": 1
+    },
+    {
+      "run": 27,
+      "query": "What is the status of MockTransport elapsed time?",
+      "latency_ms": 27968,
+      "citation_count": 0
+    },
+    {
+      "run": 28,
+      "query": "How does httpx merge query parameters?",
+      "latency_ms": 28160,
+      "citation_count": 2
+    },
+    {
+      "run": 29,
+      "query": "How does httpx prevent SSL context reference cycles?",
+      "latency_ms": 29294,
+      "citation_count": 1
+    },
+    {
+      "run": 30,
+      "query": "What did the team do about CVE-2025-43859?",
+      "latency_ms": 22725,
+      "citation_count": 0
+    },
+    {
+      "run": 31,
+      "query": "What design decisions are currently deferred?",
+      "latency_ms": 30578,
+      "citation_count": 2
+    },
+    {
+      "run": 32,
+      "query": "What are the most significant httpx architectural decisions?",
+      "latency_ms": 39955,
+      "citation_count": 5
+    },
+    {
+      "run": 33,
+      "query": "What decisions were made about closing or deferring PRs?",
+      "latency_ms": 41107,
+      "citation_count": 4
+    },
+    {
+      "run": 34,
+      "query": "What is the httpx authentication model?",
+      "latency_ms": 38706,
+      "citation_count": 2
+    },
+    {
+      "run": 35,
+      "query": "How is httpx structured for async vs sync?",
+      "latency_ms": 40214,
+      "citation_count": 1
+    },
+    {
+      "run": 36,
+      "query": "What breaking changes were made in recent httpx versions?",
+      "latency_ms": 41997,
+      "citation_count": 0
+    }
+  ]
+}
