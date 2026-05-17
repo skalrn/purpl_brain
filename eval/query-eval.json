@@ -7,9 +7,9 @@
       "zstd/zstandard deferred or not included"
     ],
     "should_have_answer": true,
-    "answer": "The project decided that the compression policy for the 1.0 release will be to support only gzip compression [2][3][4]. This policy was adopted as a sensible approach to maintain simplicity and avoid further complexity with other algorithms [3][4]. Consequently, the project will not implement support for zstd compression [2][4].\n\nThe only compression format explicitly supported for the 1.0 release is gzip [2][3][4]. The decision to focus solely on gzip was made to streamline development and avoid spending time on other compression methods [2][3][4].",
-    "citations": 3,
-    "latency_ms": 37313,
+    "answer": "The project's policy for the 1.0 release is to support only gzip compression [9][10][11]. This decision was made to maintain simplicity and avoid the complexity of implementing zstd support [10][11]. While there were discussions suggesting the addition of zstd support, particularly because zstd became stable in CPython 3.13, the final decision was to stick with gzip for the 1.0 release [5][6][7][8][9][10][11].\n\nThe supported compression format for the 1.0 release is gzip [9][10][11].",
+    "citations": 7,
+    "latency_ms": 43990,
     "grade": "correct"
   },
   {
@@ -20,10 +20,10 @@
       "zstd not included in 1.0"
     ],
     "should_have_answer": true,
-    "answer": "The project ultimately decided to support only gzip compression for the 1.0 release [2][3][4]. This policy was adopted because it was deemed a sensible approach to maintain simplicity and avoid spending further time on Zstandard (zstd) implementation [2][3][4].\n\nWhile one suggestion proposed replacing the `zstandard` library with `backports.zstd` for Python versions 3.9 through 3.13, this was suggested to align with `httpx` having already dropped support for Python 3.8 [1]. However, the final decision was to focus solely on gzip support for the 1.0 release [2][3][4].",
-    "citations": 4,
-    "latency_ms": 37708,
-    "grade": "correct"
+    "answer": "There were several discussions regarding Zstandard (zstd) compression support for `httpx`. Some suggestions proposed adding zstd support, noting that it was stable in CPython 3.13 via the compression module [5][6][7][8]. Additionally, one suggestion was made to replace the `zstandard` library with `backports.zstd` for Python versions 3.9 through 3.13 [4].\n\nDespite these suggestions, the project made decisions to limit support to gzip compression for the 1.0 release [9][10][11]. The rationale for this decision was to",
+    "citations": 8,
+    "latency_ms": 41410,
+    "grade": "partial"
   },
   {
     "id": "Q03",
@@ -34,9 +34,9 @@
       "URL.__str__ unchanged"
     ],
     "should_have_answer": true,
-    "answer": "The decision was made that user credentials should not be included in the URL string representation to prevent potential leakage [1][2]. Specifically, the default behavior for the library should be to remove both the user and password credentials from these representations [1]. This approach is recommended because credentials are actually passed as headers, and including them in the URL string poses a risk of leakage [1]. Furthermore, the most secure implementation suggested was preventing user credentials (username and password) from being exposed in either the string representation (`str`) or the debugging representation (`repr`) of the URL object [2].",
+    "answer": "The decision was made that the default behavior for the library should be to remove user and password credentials from URL string representations to prevent leakage [1]. This approach was deemed both the safest option and the simplest implementation [1]. The rationale for this is that credentials are passed as headers in reality, and including them in the URL string poses a risk of leakage [1]. To ensure maximum security, the most secure implementation suggested is preventing user credentials (username & password) from being exposed in either the string representation (`str`) or the debugging representation (`repr`) of the URL object [2].",
     "citations": 2,
-    "latency_ms": 27772,
+    "latency_ms": 27737,
     "grade": "partial"
   },
   {
@@ -46,9 +46,9 @@
       "Python 3.10 dropped"
     ],
     "should_have_answer": true,
-    "answer": "The project decided to drop Python 3.10 from the supported test matrix [1]. Specifically, Python 3.10 was removed from the test matrix [1]. This decision was made by the project team [1].",
-    "citations": 1,
-    "latency_ms": 32118,
+    "answer": "Python 3.10 was removed from the supported test matrix [1]. The project made the decision to drop Python 3.10 from the supported test matrix [1].\n\nAdditionally, Python 3.11 was slated to be dropped from the CI matrix in the next release cycle [2][3][4]. This action was taken with the goal of keeping the overall test matrix manageable [2][3][4].",
+    "citations": 4,
+    "latency_ms": 38005,
     "grade": "correct"
   },
   {
@@ -60,9 +60,9 @@
       "background threads"
     ],
     "should_have_answer": true,
-    "answer": "Support for Python 3.14 was added to the project's classifiers and CI test matrix [1]. This addition was suggested multiple times, including updating the test matrix to include Python 3.14 [2][5][8]. While the context details general `asyncio` updates, such as replacing the deprecated `asyncio.get_event_loop()` pattern with `asyncio.create_task()` and manually managing the event loop in background threads [3], it does not specify that these particular changes were made solely for Python 3.14 compatibility. Additionally, one suggestion was made to create an alternative pull request",
-    "citations": 5,
-    "latency_ms": 41848,
+    "answer": "The provided context confirms that support for Python 3.14 was added to the project's classifiers and CI test matrix [1][5]. This involved adding Python 3.14 to the test suite [2][5]. However, the sources do not specify any particular `asyncio` API changes that were made specifically for Python 3.14 compatibility.\n\nThe context does detail general updates to `asyncio` usage, such as replacing the deprecated `asyncio.get_event_loop()` pattern with `asyncio.create_task()` when creating tasks within an asynchronous context [3]. Additionally, event loop management was modified to manually handle the event loop in background threads using `asyncio.new_event_loop()` and `asyncio.set_event_loop()` to resolve conflicts with websockets' asyncio implementation [3].",
+    "citations": 4,
+    "latency_ms": 34747,
     "grade": "correct"
   },
   {
@@ -74,10 +74,10 @@
       "brotli extra missing"
     ],
     "should_have_answer": true,
-    "answer": "The provided context indicates that a proposed improvement is to add an explicit warning if a server sends content with the `Content-Encoding: br` header [1]. This warning is specifically intended for situations where the client lacks brotli support [1]. The proposal suggests adding this explicit warning to handle the scenario where brotli encoding is used but the necessary support is missing [1].",
+    "answer": "The proposed solution to this scenario is to add an explicit warning if a server sends content with the `Content-Encoding: br` header, but the necessary `brotli` support is absent [1]. This proposal was part of efforts to improve the library's handling of various encoding types [1]. Additionally, related changes included exposing decoder availability through optional feature flags and ensuring that the behavior is covered by tests [1].",
     "citations": 1,
-    "latency_ms": 29039,
-    "grade": "correct"
+    "latency_ms": 32233,
+    "grade": "partial"
   },
   {
     "id": "Q07",
@@ -87,9 +87,9 @@
       "server disconnect"
     ],
     "should_have_answer": true,
-    "answer": "The `.wait_ready()` method is being added to `HTTPParser` [1]. Its purpose is to differentiate between clean disconnects that occur at the beginning of a new request/response cycle [1]. By implementing this method, the system can prevent the occurrence of false `ProtocolError` exceptions [1].",
+    "answer": "The `.wait_ready()` method is being added to `HTTPParser` [1]. This addition is necessary to differentiate between clean disconnects that happen at the start of a new request/response cycle [1]. By doing this, the method helps prevent the occurrence of false `ProtocolError` exceptions [1].",
     "citations": 1,
-    "latency_ms": 22307,
+    "latency_ms": 20313,
     "grade": "correct"
   },
   {
@@ -101,9 +101,9 @@
       "no minimum version enforced"
     ],
     "should_have_answer": true,
-    "answer": "The decision regarding the minimum required version was that there is no need to change it in order to ensure that users can receive the security fix [1]. Additionally, it was determined that HTTPX does not need to actually enforce this specific behavior [2]. Consequently, the decision was made not to enforce a specific behavior within HTTPX [2].",
+    "answer": "Regarding the security fix, the decision was made not to change the minimum required version for users, which ensures that users can still receive the security fix [1]. Furthermore, it was determined that there is no need for HTTPX to actively enforce a specific behavior [2]. This specific behavior is only problematic if HTTPX were to prevent the installation of the safe `h11` version [2].",
     "citations": 2,
-    "latency_ms": 27013,
+    "latency_ms": 25948,
     "grade": "partial"
   },
   {
@@ -115,9 +115,9 @@
       "closed"
     ],
     "should_have_answer": true,
-    "answer": "The provided source chunks do not contain any information regarding the status of a \"MockTransport elapsed time feature.\"",
+    "answer": "Based on the provided context, there is no information regarding the status of the MockTransport elapsed time feature.",
     "citations": 0,
-    "latency_ms": 23449,
+    "latency_ms": 35834,
     "grade": "incorrect"
   },
   {
@@ -130,9 +130,9 @@
       "httpx.FunctionAuth"
     ],
     "should_have_answer": true,
-    "answer": "Based on the provided context, there is no information regarding whether `FunctionAuth` is part of the public `httpx` API. The retrieved chunks discuss various topics such as merging URL query parameters [2], handling asynchronous file uploads [11], updating Python version support [6][7][13], and security improvements for URL objects [15], but they do not mention `FunctionAuth`.",
-    "citations": 6,
-    "latency_ms": 32378,
+    "answer": "Based on the provided context, there is no information regarding whether `FunctionAuth` is part of the public `httpx` API. The sources discuss topics such as the public API's authentication flow needing to be synchronous [8][9][10], the transport layer interface being read-only [5][6][7], and changes to URL parameter handling [11], but they do not mention `FunctionAuth`.",
+    "citations": 7,
+    "latency_ms": 31958,
     "grade": "partial"
   },
   {
@@ -143,10 +143,10 @@
       "URL constructor unchanged"
     ],
     "should_have_answer": true,
-    "answer": "The handling of query parameter merging is designed to ensure that existing parameters in a URL are not lost when additional parameters are provided [1]. The preferred approach for this functionality is to utilize the existing `copy_merge_params()` method within `Request.__init__`, as this method is considered less invasive and leverages the existing API of the library [2].\n\nWhen merging parameters, the process extracts the existing query parameters from the URL and combines them with the new parameters passed via the `params` argument [1]. This merging process ensures that all parameters are retained, which fixes a previous issue where original URL parameters were dropped [1]. Furthermore, if the same key exists in both the original URL and the new parameters, the new values will override the old ones [1].",
+    "answer": "The handling of query parameter merging was updated to utilize the existing `copy_merge_params()` method within `Request.__init__`, which was deemed a less invasive approach than modifying the `URL` constructor [2]. Previously, if a URL already contained query parameters and additional `params` were passed, the original URL parameters were incorrectly dropped instead of being merged [1]. The updated process now extracts existing query parameters from the URL and merges them with the new parameters provided in the `params` argument [1]. When the same key is present in both the original URL and the new parameters, the new values override the old ones, ensuring all intended parameters are present in the final URL [1].",
     "citations": 2,
-    "latency_ms": 33086,
-    "grade": "partial"
+    "latency_ms": 34016,
+    "grade": "correct"
   },
   {
     "id": "Q12",
@@ -157,9 +157,9 @@
       "SSL context"
     ],
     "should_have_answer": true,
-    "answer": "The issue was that the original strong reference between the response and the stream created a reference cycle [1]. This cycle prevented the timely garbage collection of SSL contexts, which led to excessive memory usage [1]. To resolve this, the implementation was changed to utilize `weakref.ref` [1]. By doing this, the stream now maintains a weak reference to the response rather than a strong one, effectively breaking the reference cycle [1].",
+    "answer": "The issue of SSL context reference cycles was addressed by changing the implementation to use `weakref.ref` [1]. Previously, the original strong reference created a reference cycle between the response and the stream [1]. This cycle was responsible for preventing the timely garbage collection of SSL contexts, which resulted in excessive memory usage [1]. By adopting `weakref.ref`, the stream now maintains only a weak reference to the response, thereby breaking the reference cycle [1].",
     "citations": 1,
-    "latency_ms": 28806,
+    "latency_ms": 23379,
     "grade": "correct"
   },
   {
@@ -171,10 +171,10 @@
       "h11 or httpcore"
     ],
     "should_have_answer": true,
-    "answer": "Based on the provided context, there is no information regarding any actions taken by the team in response to CVE-2025-43859.",
+    "answer": "The provided source chunks do not contain any information regarding CVE-2025-43859.",
     "citations": 0,
-    "latency_ms": 29499,
-    "grade": "partial"
+    "latency_ms": 28986,
+    "grade": "incorrect"
   },
   {
     "id": "Q14",
@@ -185,9 +185,9 @@
       "deferred"
     ],
     "should_have_answer": true,
-    "answer": "Currently, there are instances where discussions are being closed and deferred because a proper design decision is required before any further progress can be made [1][2]. In these cases, the discussion is explicitly being closed and put on hold until a suitable design decision is reached [1][2]. The sources indicate that a design decision is necessary before proceeding with the work [1][2].",
+    "answer": "Some discussions have been closed and are currently deferred until a proper design decision can be made [1][2]. The context explicitly states that a design decision is required before any further progress can be made on these topics [1][2].",
     "citations": 2,
-    "latency_ms": 35253,
+    "latency_ms": 36906,
     "grade": "partial"
   },
   {
@@ -195,20 +195,20 @@
     "query": "What is the httpx 1.0 release date?",
     "expected_facts": [],
     "should_have_answer": false,
-    "answer": "The provided context does not contain the release date for httpx 1.0. While the sources discuss decisions and policies related to the 1.0 release, such as adopting a policy of supporting only gzip compression for that version [9][11][14], no specific date is mentioned.",
-    "citations": 3,
-    "latency_ms": 30680,
-    "grade": "no-info"
+    "answer": "The provided source chunks discuss several decisions related to the 1.0 release of httpx, including the decision to support only gzip compression [16] and changes to the connection pool default behavior [15]. However, none of the available information specifies the release date for httpx 1.0.",
+    "citations": 2,
+    "latency_ms": 28376,
+    "grade": "incorrect"
   },
   {
     "id": "Q16",
     "query": "What Slack discussions happened about the httpx authentication redesign?",
     "expected_facts": [],
     "should_have_answer": false,
-    "answer": "Based on the provided context, there is no information regarding any Slack discussions about an httpx authentication redesign. The retrieved chunks discuss various topics, including:\n\n*   The merging of URL query parameters when passing `params` to `httpx.get` [2].\n*   Security best practices for preventing user credentials from being exposed in the URL object's string or debugging representation [8].\n*   Updates to Python version support and test matrices [1] [7] [9] [12].\n*   Implementing support for chunked uploads in async file-like interfaces [13].\n*   Closing or deferring various technical discussions [3] [5] [6] [11].",
-    "citations": 11,
-    "latency_ms": 34930,
-    "grade": "no-info"
+    "answer": "The discussions covered the requirement that the public API's authentication flow must be synchronous, even if the underlying transport layer is asynchronous [8][9][10]. This decision was made specifically to simplify the user's code [8][9][10]. Additionally, a separate discussion addressed security concerning credentials, concluding that the most secure implementation is to prevent user credentials, such as usernames and passwords, from being exposed in either the string representation (`str`) or the debugging representation (`repr`) of the URL object [15].",
+    "citations": 4,
+    "latency_ms": 40541,
+    "grade": "incorrect"
   },
   {
     "id": "Q17",
@@ -220,10 +220,10 @@
       "Python versions"
     ],
     "should_have_answer": true,
-    "answer": "",
-    "citations": 0,
-    "latency_ms": 40103,
-    "grade": "incorrect"
+    "answer": "Several significant architectural and policy decisions have been made for the `httpx` project.\n\nRegarding versioning and policy, the project adopted Semantic Versioning (semver) for the 1.x release, officially closing the discussion on CalVer [1][2][3]. Furthermore, a policy was established requiring a minimum one-major-version warning period for all deprecations [11][12][13]. In terms of compatibility, the project decided to drop Python 3.11 from the CI matrix to keep the test matrix manageable, prioritizing support for Python 3.12 and 3.13 [15][16][17].\n\nKey functional improvements include modifying how URL query parameters are handled, ensuring that when additional parameters are passed, they merge with existing parameters rather than replacing them [18]. Additionally, the connection pool's default behavior was changed to close connections after each request unless a keep-alive header is present, prioritizing correctness",
+    "citations": 10,
+    "latency_ms": 41274,
+    "grade": "partial"
   },
   {
     "id": "Q18",
@@ -234,9 +234,9 @@
       "closed"
     ],
     "should_have_answer": true,
-    "answer": "",
-    "citations": 0,
-    "latency_ms": 41994,
-    "grade": "incorrect"
+    "answer": "Maintainers made several decisions regarding the closure or deferral of discussions and pull requests. For instance, the project adopted Semantic Versioning (semver) for httpx 1.x and closed the discussion concerning CalVer [1][2][3]. Furthermore, discussions were closed and deferred when a proper design decision was required [4][5], and at other times, a discussion was closed in",
+    "citations": 5,
+    "latency_ms": 41301,
+    "grade": "correct"
   }
 ]

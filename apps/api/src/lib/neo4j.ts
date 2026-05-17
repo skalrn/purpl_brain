@@ -98,6 +98,39 @@ export async function getDecisionsForDriftCheck(projectId: string): Promise<Arra
   }
 }
 
+/** Given event_ids from Qdrant chunks, return the decisions extracted from those events. */
+export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<{
+  decision_id: string;
+  event_id: string;
+  summary: string;
+  quoted_text: string;
+  status: string;
+}>> {
+  if (eventIds.length === 0) return [];
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+       WHERE e.event_id IN $event_ids AND d.status = "confirmed"
+       RETURN d.decision_id AS decision_id,
+              e.event_id AS event_id,
+              d.summary AS summary,
+              d.quoted_text AS quoted_text,
+              d.status AS status`,
+      { event_ids: eventIds }
+    );
+    return result.records.map((r) => ({
+      decision_id: r.get("decision_id") as string,
+      event_id: r.get("event_id") as string,
+      summary: r.get("summary") as string,
+      quoted_text: r.get("quoted_text") as string,
+      status: r.get("status") as string,
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
 export async function getDriftAlerts(projectId: string): Promise<Array<{
   alert_id: string;
   decision_id: string;

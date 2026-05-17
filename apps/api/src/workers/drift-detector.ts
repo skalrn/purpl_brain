@@ -19,7 +19,7 @@ import { STREAMS } from "../lib/redis.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { embed } from "../lib/embed.js";
 import { chat, chatJSON, MODELS } from "../lib/llm.js";
-import { writeDriftAlert, getDecisionsForDriftCheck } from "../lib/neo4j.js";
+import { writeDriftAlert, getDecisionsByEventIds } from "../lib/neo4j.js";
 import type { ExtractionResult, DriftAlert, EventSource } from "@purpl/types";
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
@@ -31,6 +31,7 @@ const BLOCK_MS = 5000;
 
 const SEMANTIC_THRESHOLD = parseFloat(process.env.DRIFT_SEMANTIC_THRESHOLD ?? "0.55");
 const TOP_K = parseInt(process.env.DRIFT_TOP_K ?? "3");
+const EMBED_MAX_CHARS = 1200; // keep well within nomic-embed-text context window
 
 async function ensureGroup() {
   try {
@@ -54,11 +55,11 @@ async function stageA(
   projectId: string,
   excludeEventIds: string[]
 ): Promise<CandidateDecision[]> {
-  const vector = await embed(text);
+  const vector = await embed(text.slice(0, EMBED_MAX_CHARS));
 
   const results = await qdrant.search(COLLECTION, {
     vector,
-    limit: TOP_K * 3, // over-fetch then filter
+    limit: TOP_K * 4, // over-fetch: we'll filter by has_decisions and exclude list
     filter: {
       must: [
         { key: "project_id", match: { value: projectId } },
@@ -69,34 +70,38 @@ async function stageA(
     score_threshold: SEMANTIC_THRESHOLD,
   });
 
-  // Fetch confirmed decisions from Neo4j for filtering
-  const confirmedDecisions = await getDecisionsForDriftCheck(projectId);
-  const confirmedMap = new Map(confirmedDecisions.map((d) => [d.decision_id, d]));
+  // Collect event_ids from the matching chunks, excluding the event being processed
+  const matchingEventIds = [
+    ...new Set(
+      results
+        .map((r) => r.payload?.graph_node_id as string | undefined)
+        .filter((id): id is string => !!id && !excludeEventIds.includes(id))
+    ),
+  ].slice(0, TOP_K * 2);
 
-  const candidates: CandidateDecision[] = [];
-  const seenDecisionIds = new Set<string>();
+  if (matchingEventIds.length === 0) return [];
 
+  // Look up which confirmed Decision nodes were extracted from those events
+  const decisions = await getDecisionsByEventIds(matchingEventIds);
+
+  // Map back to candidates, preserving the best Qdrant score per decision
+  const scoreByEventId = new Map<string, number>();
   for (const r of results) {
-    const graphNodeId = r.payload?.graph_node_id as string | undefined;
-    if (!graphNodeId || excludeEventIds.includes(graphNodeId)) continue;
+    const id = r.payload?.graph_node_id as string | undefined;
+    if (id && !scoreByEventId.has(id)) scoreByEventId.set(id, r.score);
+  }
 
-    // We need to find which Decision nodes are linked to this chunk's event
-    // For now, use content similarity as proxy — find confirmed decisions that match
-    for (const [decId, dec] of confirmedMap) {
-      if (seenDecisionIds.has(decId)) continue;
-      // Only flag if the chunk belongs to an event that IS the decision source
-      // and the similarity is high enough
-      if (r.score >= SEMANTIC_THRESHOLD) {
-        candidates.push({
-          decision_id: decId,
-          summary: dec.summary,
-          quoted_text: dec.quoted_text,
-          score: r.score,
-        });
-        seenDecisionIds.add(decId);
-        if (candidates.length >= TOP_K) break;
-      }
-    }
+  const seen = new Set<string>();
+  const candidates: CandidateDecision[] = [];
+  for (const dec of decisions) {
+    if (seen.has(dec.decision_id)) continue;
+    seen.add(dec.decision_id);
+    candidates.push({
+      decision_id: dec.decision_id,
+      summary: dec.summary,
+      quoted_text: dec.quoted_text,
+      score: scoreByEventId.get(dec.event_id) ?? SEMANTIC_THRESHOLD,
+    });
     if (candidates.length >= TOP_K) break;
   }
 
@@ -151,9 +156,17 @@ Does this message contradict any of these decisions?`;
 // ── Main processing ────────────────────────────────────────────────────────
 
 async function processMessage(id: string, result: ExtractionResult) {
-  // Skip events that are the source of decisions (they can't drift against themselves)
-  // Also skip events with no meaningful content
   if (!result.raw_content || result.raw_content.trim().length < 20) {
+    await redis.xack(STREAMS.EXTRACTED, GROUP, id);
+    return;
+  }
+
+  // Only run drift detection on non-GitHub events (Slack, meetings, Jira).
+  // GitHub-on-GitHub is intra-PR debate — expected, not drift.
+  // Remove this guard when GitHub issues/commits are added in M5.
+  const isGithub = result.event_id.startsWith("seed_") || result.event_id.startsWith("gh_")
+    || (!result.event_id.startsWith("slack_") && !result.event_id.startsWith("meeting_") && !result.event_id.startsWith("jira_"));
+  if (isGithub) {
     await redis.xack(STREAMS.EXTRACTED, GROUP, id);
     return;
   }
