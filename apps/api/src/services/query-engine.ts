@@ -5,7 +5,7 @@ import { chat, MODELS } from "../lib/llm.js";
 import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
 
 const TOP_K = 20;
-const CONTEXT_BUDGET_CHARS = 24000; // ~6000 tokens at 4 chars/token
+const CONTEXT_BUDGET_CHARS = 12000; // ~3000 tokens — keeps gemma3:4b within context limit
 
 const ANSWER_SYSTEM_PROMPT = `You are a precise knowledge assistant for software engineering teams.
 Answer questions using ONLY the provided source chunks. Every claim must be cited with [N] where N is the chunk number.
