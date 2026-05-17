@@ -4,8 +4,9 @@ import { getSession } from "../lib/neo4j.js";
 import { chat, MODELS } from "../lib/llm.js";
 import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
 
-const TOP_K = 20;
-const CONTEXT_BUDGET_CHARS = 12000; // ~3000 tokens — keeps gemma3:4b within context limit
+// Tuned per LLM provider — see .env.local vs .env.aws
+const TOP_K = parseInt(process.env.QUERY_TOP_K ?? "20");
+const CONTEXT_BUDGET_CHARS = parseInt(process.env.QUERY_CONTEXT_BUDGET ?? "12000");
 
 const ANSWER_SYSTEM_PROMPT = `You are a precise knowledge assistant for software engineering teams.
 Answer questions using ONLY the provided source chunks. Every claim must be cited with [N] where N is the chunk number.

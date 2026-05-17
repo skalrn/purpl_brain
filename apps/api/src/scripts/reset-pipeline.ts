@@ -29,7 +29,7 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 const REDIS_URL   = process.env.REDIS_URL    ?? "redis://localhost:6379";
 const NEO4J_URL   = process.env.NEO4J_URI    ?? "bolt://localhost:7687";
 const NEO4J_USER  = process.env.NEO4J_USER   ?? "neo4j";
-const NEO4J_PASS  = process.env.NEO4J_PASS   ?? "password";
+const NEO4J_PASS  = process.env.NEO4J_PASSWORD ?? process.env.NEO4J_PASS ?? "password";
 const QDRANT_URL  = process.env.QDRANT_URL   ?? "http://localhost:6333";
 const COLLECTION  = process.env.QDRANT_COLLECTION ?? "brain_chunks";
 
