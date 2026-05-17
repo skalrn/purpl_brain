@@ -11,6 +11,7 @@
     "seed:github": "tsx src/scripts/seed-github.ts",
     "eval:scaffold": "tsx src/scripts/generate-label-scaffold.ts",
     "eval:extraction": "tsx src/scripts/eval-extraction.ts",
+    "pipeline:reset": "tsx src/scripts/reset-pipeline.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
