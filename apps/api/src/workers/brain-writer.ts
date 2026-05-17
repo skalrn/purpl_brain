@@ -175,9 +175,51 @@ async function processMessage(id: string, result: ExtractionResult) {
   console.log(`[brain-writer] done: ${result.event_id}`);
 }
 
+async function drainPending() {
+  console.log("[brain-writer] checking for pending messages...");
+  let recovered = 0;
+
+  while (true) {
+    const results = await redis.xreadgroup(
+      "GROUP",
+      GROUP,
+      CONSUMER,
+      "COUNT",
+      10,
+      "STREAMS",
+      STREAMS.EXTRACTED,
+      "0" // "0" delivers already-claimed pending messages, not new ones
+    );
+
+    if (!results) break;
+    const messages = (results as [string, [string, string[]][]][])[0]?.[1];
+    if (!messages || messages.length === 0) break;
+
+    for (const [id, fields] of messages) {
+      const resultJson = fields[fields.indexOf("result") + 1];
+      if (!resultJson) {
+        await redis.xack(STREAMS.EXTRACTED, GROUP, id);
+        continue;
+      }
+      try {
+        const result = JSON.parse(resultJson) as ExtractionResult;
+        await processMessage(id, result);
+        recovered++;
+      } catch (e) {
+        console.error(`[brain-writer] pending retry failed for ${id}:`, e);
+      }
+    }
+  }
+
+  if (recovered > 0) {
+    console.log(`[brain-writer] recovered ${recovered} pending messages`);
+  }
+}
+
 async function run() {
   await ensureCollection();
   await ensureGroup();
+  await drainPending();
   console.log("[brain-writer] started, reading from", STREAMS.EXTRACTED);
 
   while (true) {
