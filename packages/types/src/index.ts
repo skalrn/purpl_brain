@@ -14,6 +14,7 @@ export type EventType =
   | "comment"
   | "commit"
   | "agent_log"
+  | "agent_session"
   | "slack_message"
   | "meeting_transcript"
   | "jira_issue"
