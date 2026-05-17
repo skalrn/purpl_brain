@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+.env.claude
 .env.aws
 *.env.local
 .DS_Store
