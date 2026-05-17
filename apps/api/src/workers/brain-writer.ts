@@ -132,12 +132,17 @@ async function writeToNeo4j(result: ExtractionResult) {
 }
 
 async function writeToQdrant(result: ExtractionResult) {
-  // Index decision chunks when present, otherwise index raw content
+  // Decision events: index clean decision text for precise retrieval
+  // Candidate events with no extracted decision: index raw_content (relevant but LLM missed)
+  // Non-candidate events: skip Qdrant (not semantically meaningful for decision queries)
+  if (result.decisions.length === 0 && !result.decision_candidate) return;
+
+  const rawFallback = (result.raw_content?.trim() || result.source_url).slice(0, CHUNK_MAX_CHARS);
   const textToChunk = result.decisions.length > 0
     ? result.decisions
         .map((d: Decision) => [d.quoted_text, d.summary, d.rationale].filter(Boolean).join("\n"))
         .join("\n\n")
-    : result.source_url; // fallback for non-decision events
+    : rawFallback;
 
   const allChunks = chunkContent(textToChunk, result.event_id);
   if (allChunks.length === 0) allChunks.push({ id: `${result.event_id}_0`, text: result.source_url });
@@ -207,6 +212,8 @@ async function drainPending() {
         recovered++;
       } catch (e) {
         console.error(`[brain-writer] pending retry failed for ${id}:`, e);
+        // ACK to prevent infinite retry loop — event goes to dead-letter inspection
+        await redis.xack(STREAMS.EXTRACTED, GROUP, id);
       }
     }
   }

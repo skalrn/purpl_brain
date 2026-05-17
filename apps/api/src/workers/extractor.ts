@@ -125,6 +125,7 @@ async function processMessage(id: string, event: NormalizedEvent) {
     event_id: event.event_id,
     project_id: event.project_id,
     source_url: event.url,
+    raw_content: event.raw_content,
     actor: event.actor,
     timestamp: event.timestamp,
     decisions,
