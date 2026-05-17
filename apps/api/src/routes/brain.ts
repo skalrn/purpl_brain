@@ -5,11 +5,12 @@
  * POST /brain/drift-alerts/:id/resolve  — resolve a drift alert
  * POST /brain/ingest/transcript         — paste-in meeting transcript (M3)
  * POST /brain/agent-log                 — agent writes decisions back into the brain (M2/Phase 3)
+ * GET  /brain/seats                     — count active seats for billing (M5)
  */
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, resolveDriftAlert } from "../lib/neo4j.js";
+import { getDriftAlerts, resolveDriftAlert, countActiveSeats } from "../lib/neo4j.js";
 import type { CanonicalEvent, DriftResolution } from "@purpl/types";
 
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
@@ -207,4 +208,16 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       };
     }
   );
+
+  // ── GET /brain/seats (M5) ────────────────────────────────────────────────
+  fastify.get("/brain/seats", async (_req, reply) => {
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const seats = await countActiveSeats(since);
+      return { seats, since };
+    } catch (e) {
+      fastify.log.error(e);
+      return reply.status(500).send({ error: "Failed to count seats" });
+    }
+  });
 };

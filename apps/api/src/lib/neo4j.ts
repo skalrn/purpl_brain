@@ -131,6 +131,144 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
   }
 }
 
+// ── Person identity (M5) ──────────────────────────────────────────────────────
+
+export interface PersonRecord {
+  person_id: string;
+  email: string;
+  name: string;
+  github_login?: string;
+  avatar_url?: string;
+  api_key: string;
+  aliases: string[];     // per-source IDs merged under this canonical person
+  created_at: string;
+  last_active_at: string;
+}
+
+/**
+ * Upsert a canonical Person by email. If a Person with this email already
+ * exists, updates name/avatar and merges the source alias. If not, creates one.
+ * Returns the canonical person_id and api_key.
+ */
+export async function upsertPersonByEmail(params: {
+  email: string;
+  name: string;
+  github_login: string;
+  avatar_url?: string;
+  api_key: string;
+}): Promise<PersonRecord> {
+  const session = getSession();
+  try {
+    const now = new Date().toISOString();
+    const result = await session.run(
+      `MERGE (p:Person {email: $email})
+       ON CREATE SET
+         p.person_id  = randomUUID(),
+         p.name       = $name,
+         p.github_login = $github_login,
+         p.avatar_url = $avatar_url,
+         p.api_key    = $api_key,
+         p.aliases    = [$github_login],
+         p.created_at = $now,
+         p.last_active_at = $now
+       ON MATCH SET
+         p.name           = $name,
+         p.github_login   = $github_login,
+         p.avatar_url     = COALESCE($avatar_url, p.avatar_url),
+         p.last_active_at = $now,
+         p.aliases        = CASE
+           WHEN $github_login IN p.aliases THEN p.aliases
+           ELSE p.aliases + [$github_login]
+         END
+       RETURN p`,
+      { ...params, now }
+    );
+    const p = result.records[0].get("p").properties as Record<string, unknown>;
+    return {
+      person_id: p.person_id as string,
+      email: p.email as string,
+      name: p.name as string,
+      github_login: p.github_login as string,
+      avatar_url: p.avatar_url as string | undefined,
+      api_key: p.api_key as string,
+      aliases: (p.aliases as string[]) ?? [],
+      created_at: p.created_at as string,
+      last_active_at: p.last_active_at as string,
+    };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Merge a source-specific alias (e.g. Slack user ID, Jira account ID) into an
+ * existing Person by matching on email. No-op if person not found.
+ */
+export async function mergePersonAlias(email: string, alias: string): Promise<void> {
+  const session = getSession();
+  try {
+    await session.run(
+      `MATCH (p:Person {email: $email})
+       SET p.aliases = CASE
+         WHEN $alias IN p.aliases THEN p.aliases
+         ELSE p.aliases + [$alias]
+       END`,
+      { email, alias }
+    );
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Look up a Person by API key — used for request authentication.
+ * Returns null if not found.
+ */
+export async function getPersonByApiKey(api_key: string): Promise<PersonRecord | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (p:Person {api_key: $api_key})
+       RETURN p`,
+      { api_key }
+    );
+    if (result.records.length === 0) return null;
+    const p = result.records[0].get("p").properties as Record<string, unknown>;
+    return {
+      person_id: p.person_id as string,
+      email: p.email as string,
+      name: p.name as string,
+      github_login: p.github_login as string | undefined,
+      avatar_url: p.avatar_url as string | undefined,
+      api_key: p.api_key as string,
+      aliases: (p.aliases as string[]) ?? [],
+      created_at: p.created_at as string,
+      last_active_at: p.last_active_at as string,
+    };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Count distinct active Person nodes (last_active_at within cutoff) — used
+ * for per-seat billing.
+ */
+export async function countActiveSeats(since: string): Promise<number> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (p:Person)
+       WHERE p.last_active_at >= $since AND p.email IS NOT NULL
+       RETURN count(p) AS seats`,
+      { since }
+    );
+    return (result.records[0]?.get("seats") as number) ?? 0;
+  } finally {
+    await session.close();
+  }
+}
+
 export async function getDriftAlerts(projectId: string): Promise<Array<{
   alert_id: string;
   decision_id: string;

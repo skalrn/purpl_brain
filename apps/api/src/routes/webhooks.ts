@@ -2,7 +2,29 @@ import type { FastifyPluginAsync } from "fastify";
 import { createHmac, timingSafeEqual } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
+import { mergePersonAlias } from "../lib/neo4j.js";
 import type { CanonicalEvent, EventType } from "@purpl/types";
+
+// Resolve Jira account ID → email via Jira REST API (M5 identity resolution)
+async function resolveJiraEmail(accountId: string): Promise<string | null> {
+  const baseUrl = process.env.JIRA_BASE_URL;
+  const token = process.env.JIRA_API_TOKEN;
+  const email = process.env.JIRA_API_EMAIL;
+  if (!baseUrl || !token || !email) return null;
+  try {
+    const res = await fetch(`${baseUrl}/rest/api/3/user?accountId=${encodeURIComponent(accountId)}`, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${email}:${token}`).toString("base64")}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return null;
+    const user = await res.json() as { emailAddress?: string };
+    return user.emailAddress ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const EVENT_TYPE_MAP: Record<string, EventType | null> = {
   "pull_request.opened": "pr_opened",
@@ -184,6 +206,16 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
     const actor = payload.user as Record<string, unknown> | undefined;
     const actorName = String(actor?.displayName ?? actor?.name ?? "jira");
     const actorId = String(actor?.accountId ?? actor?.name ?? "jira");
+
+    // M5: resolve Jira account ID → email and merge alias onto canonical Person
+    if (actor?.accountId) {
+      const jiraEmail = await resolveJiraEmail(String(actor.accountId));
+      if (jiraEmail) {
+        await mergePersonAlias(jiraEmail, String(actor.accountId)).catch(() => {
+          // Non-fatal — person may not exist yet if they haven't logged in via OAuth
+        });
+      }
+    }
 
     const eventType: EventType = webhookEvent.startsWith("comment_") ? "jira_comment" : "jira_issue";
     const jiraBaseUrl = process.env.JIRA_BASE_URL ?? "https://jira.example.com";
