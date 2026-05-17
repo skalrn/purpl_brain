@@ -1,0 +1,855 @@
+[
+  {
+    "pr_number": "3773",
+    "url": "https://github.com/encode/httpx/pull/3773",
+    "event_id": "seed_pr_3773",
+    "pr_content": "Adapt test_response_decode_text_using_autodetect for chardet 6.0\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\nSee https://github.com/encode/httpx/discussions/3772. Version 6.0.0 of `chardet` detects this byte string as `WINDOWS-1252`, while previous versions detected `ISO-8859-1`. Since both are plausible (the encoded byte string decodes to the same Unicode string under either encoding), this PR adjusts the test to accept either claim.\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change. **No new test required, as this fixes a test regression.**\r\n- [x] I've updated the documentation accordingly. **No documentation changes required.**\r\n",
+    "context": [
+      {
+        "event_id": "seed_review_3840284987",
+        "event_type": "pr_review",
+        "actor": "lovelydinosaur",
+        "content": "There's more we could say about this, though... yep. Thanks",
+        "url": "https://github.com/encode/httpx/pull/3773#pullrequestreview-3840284987"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3765",
+    "url": "https://github.com/encode/httpx/pull/3765",
+    "event_id": "seed_pr_3765",
+    "pr_content": "docs: use canonical Requests docs URL\n\nUpdate Requests docs link to `/en/latest/` (canonical stable URL).",
+    "context": [
+      {
+        "event_id": "seed_comment_3938943756",
+        "event_type": "comment",
+        "actor": "droppingbeans",
+        "content": "Closing to focus PR bandwidth on higher-priority repos. Thanks for considering!",
+        "url": "https://github.com/encode/httpx/pull/3765#issuecomment-3938943756"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3762",
+    "url": "https://github.com/encode/httpx/pull/3762",
+    "event_id": "seed_pr_3762",
+    "pr_content": "Bump cryptography from 45.0.7 to 46.0.5\n\nBumps [cryptography](https://github.com/pyca/cryptography) from 45.0.7 to 46.0.5.\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst\">cryptography's changelog</a>.</em></p>\n<blockquote>\n<p>46.0.5 - 2026-02-10</p>\n<pre><code>\n* An attacker could create a malicious public key that reveals portions of your\n  private key when using certain uncommon elliptic curves (binary curves).\n  This version now includes additional security checks to prevent this attack.\n  This issue only affects binary elliptic curves, which are rarely used in\n  real-world applications. Credit to **XlabAI Team of Tencent Xuanwu Lab and\n  Atuin Automated Vulnerability Discovery Engine** for reporting the issue.\n  **CVE-2026-26007**\n* Support for ``SECT*`` binary elliptic curves is deprecated and will be\n  removed in the next release.\n<p>.. v46-0-4:</p>\n<p>46.0.4 - 2026-01-27<br />\n</code></pre></p>\n<ul>\n<li><code>Dropped support for win_arm64 wheels</code>_.</li>\n<li>Updated Windows, macOS, and Linux wheels to be compiled with OpenSSL 3.5.5.</li>\n</ul>\n<p>.. _v46-0-3:</p>\n<p>46.0.3 - 2025-10-15</p>\n<pre><code>\n* Fixed compilation when using LibreSSL 4.2.0.\n<p>.. _v46-0-2:</p>\n<p>46.0.2 - 2025-09-30<br />\n</code></pre></p>\n<ul>\n<li>Updated Windows, macOS, and Linux wheels to be compiled with OpenSSL 3.5.4.</li>\n</ul>\n<p>.. _v46-0-1:</p>\n<p>46.0.1 - 2025-09-16</p>\n<pre><code>\n* Fixed an issue where users installing via ``pip`` on Python 3.14 development\n  versions would not properly install a dependency.\n* Fixed an issue building the free-threaded macOS 3.14 wheels.\n<p>.. _v46-0-0:</p>\n<p>46.0.0 - 2025-09-16<br />\n</code></pre></p>\n<ul>\n<li><strong>BACKWARDS INCOMPATIBLE:</strong> Support for Python 3.7 has been removed.</li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pyca/cryptography/commit/06e120e682cb200e3f7050c02f0bcdac90c4c6ad\"><code>06e120e</code></a> bump version for 46.0.5 release (<a href=\"https://redirect.github.com/pyca/cryptography/issues/14289\">#14289</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/0eebb9dbb6343d9bc1d91e5a2482ed4e054a6d8c\"><code>0eebb9d</code></a> EC check key on cofactor &gt; 1 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/14287\">#14287</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/bedf6e186b814f69a3f54f51252c23a71d44ed2e\"><code>bedf6e1</code></a> fix openssl version on 46 branch (<a href=\"https://redirect.github.com/pyca/cryptography/issues/14220\">#14220</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/e6f44fc8e6391f05d719fb9d369692325b87a471\"><code>e6f44fc</code></a> bump for 46.0.4 and drop win arm64 due to CI issues (<a href=\"https://redirect.github.com/pyca/cryptography/issues/14217\">#14217</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/c0af4dd7b75921bbe9f1d41a03dbd4b64a9e3403\"><code>c0af4dd</code></a> release 46.0.3 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13681\">#13681</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/99efe5ad150a56efadafacaffd0e3ee319373904\"><code>99efe5a</code></a> bump version for 46.0.2 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13531\">#13531</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/e735cfc27502320101c130335c556394a125ba52\"><code>e735cfc</code></a> release 46.0.1 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13450\">#13450</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/4e457ffba43a6d87efc63c33041e2081438dd8a4\"><code>4e457ff</code></a> Explicitly specify python in mac uv build invocation (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13447\">#13447</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/2726efdb6d67f1c90cf9c6062d9fe051965586f8\"><code>2726efd</code></a> Depend on CFFI 2.0.0 or newer on Python &gt; 3.8 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13448\">#13448</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/62230623d183706632c0eb7822c96ac95e3710a8\"><code>6223062</code></a> release 46.0.0 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13446\">#13446</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/pyca/cryptography/compare/45.0.7...46.0.5\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=cryptography&package-manager=pip&previous-version=45.0.7&new-version=46.0.5)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency\n- `@dependabot ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself)\nYou can disable automated security fix PRs for this repo from the [Security Alerts page](https://github.com/encode/httpx/network/alerts).\n\n</details>",
+    "context": [
+      {
+        "event_id": "seed_comment_4149091286",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Superseded by #3785.",
+        "url": "https://github.com/encode/httpx/pull/3762#issuecomment-4149091286"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3759",
+    "url": "https://github.com/encode/httpx/pull/3759",
+    "event_id": "seed_pr_3759",
+    "pr_content": "Fix: Merge URL query parameters instead of replacing them\n\n## Summary\n\nFixes #3621\n\nWhen a URL already contains query parameters and additional `params` are passed, httpx was dropping the original URL parameters instead of merging them. This was inconsistent with the `requests` library behavior.\n\n## Problem\n\n```python\nurl = 'https://api.com/get?page=1&sort=desc'\nparams = {'size': 10, 'filter': 'active'}\n\n# Before this fix\nresponse = httpx.get(url=url, params=params)\n# URL sent: https://api.com/get?size=10&filter=active\n# (page=1 and sort=desc were lost!)\n\n# After this fix\nresponse = httpx.get(url=url, params=params)\n# URL sent: https://api.com/get?page=1&sort=desc&size=10&filter=active\n# (all parameters are present)\n```\n\n## Solution\n\nModified `URL.__init__()` in `_urls.py` to:\n1. Extract existing query parameters from the URL\n2. Merge them with new parameters from the `params` argument\n3. When the same key exists in both, new params override old ones (merge semantics)\n\n## Changes\n\n- Modified `httpx/_urls.py`: Updated param handling to merge instead of replace\n- Added comprehensive tests in `tests/models/test_url.py`\n\n## Test Cases\n\n**Merge existing and new params:**\n```python\nurl = httpx.URL(\"https://example.com/get?page=post&s=list\", params={\"pid\": 0, \"tags\": \"test\"})\n# Result: page=post&s=list&pid=0&tags=test\n```\n\n**Override with same key:**\n```python\nurl = httpx.URL(\"https://example.com/get?a=old\", params={\"a\": \"new\", \"b\": \"2\"})\n# Result: a=new&b=2 (a was overridden)\n```\n\n**Empty params preserves existing:**\n```python\nurl = httpx.URL(\"https://example.com/get?x=5\", params={})\n# Result: x=5 (preserved)\n```\n\n**No existing params works normally:**\n```python\nurl = httpx.URL(\"https://example.com/get\", params={\"a\": \"1\"})\n# Result: a=1\n```\n\n## Testing\n- ✅ Manual testing with various URL/param combinations\n- ✅ Added regression tests\n- ✅ Verified backward compatibility with existing tests",
+    "context": [
+      {
+        "event_id": "seed_comment_3866665181",
+        "event_type": "comment",
+        "actor": "veeceey",
+        "content": "All CI passing on Python 3.9-3.13, ready for merge",
+        "url": "https://github.com/encode/httpx/pull/3759#issuecomment-3866665181"
+      },
+      {
+        "event_id": "seed_comment_3888375551",
+        "event_type": "comment",
+        "actor": "veeceey",
+        "content": "Closing in favor of #3761 which takes a simpler approach - using the existing `copy_merge_params()` method in `Request.__init__` rather than modifying the `URL` constructor. Less invasive and leverages existing API.",
+        "url": "https://github.com/encode/httpx/pull/3759#issuecomment-3888375551"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3746",
+    "url": "https://github.com/encode/httpx/pull/3746",
+    "event_id": "seed_pr_3746",
+    "pr_content": "Fix SSL context memory issue by breaking reference cycles (#3734)\n\n## Summary\r\n\r\nThis PR fixes issue #3734 by breaking reference cycles in `BoundSyncStream` and `BoundAsyncStream` that prevent timely garbage collection of SSL contexts.\r\n\r\n## Problem\r\n\r\nWhen using `httpx.Client` or `httpx.AsyncClient`, the `create_ssl_context()` function is called for each Transport instantiation. Each SSL context can consume 10s or 100s of MB of memory.\r\n\r\nThe issue is exacerbated by reference cycles between `Response` objects and their associated `BoundSyncStream`/`BoundAsyncStream` instances:\r\n\r\n```\r\nresponse.stream → BoundSyncStream\r\nBoundSyncStream._response → response  ← creates cycle!\r\n```\r\n\r\nThis cycle prevents the garbage collector from immediately reclaiming response objects and their associated resources (including SSL contexts), leading to excessive memory usage.\r\n\r\n## Solution\r\n\r\nUse `weakref.ref` to break the reference cycle. The stream now holds a weak reference to the response instead of a strong reference:\r\n\r\n```python\r\n# Before\r\nself._response = response\r\n\r\n# After  \r\nself._response_ref = weakref.ref(response)\r\n```\r\n\r\nWhen closing the stream, we safely dereference and only set `elapsed` if the response is still alive:\r\n\r\n```python\r\nresponse = self._response_ref()\r\nif response is not None:\r\n    response.elapsed = datetime.timedelta(seconds=elapsed)\r\n```\r\n\r\n## Changes\r\n\r\n- `httpx/_client.py`: Modified `BoundSyncStream` and `BoundAsyncStream` to use `weakref.ref`\r\n- `tests/test_bound_stream.py`: Added 9 new tests covering:\r\n  - Normal behavior (elapsed is set correctly)\r\n  - Graceful handling when response is already garbage collected\r\n  - Verification that no reference cycle exists\r\n\r\n## Testing\r\n\r\n- All linting checks pass (`ruff format`, `ruff check`, `mypy`)\r\n- New tests pass (9 tests in `test_bound_stream.py`)\r\n- Model tests pass (831 tests)\r\n- ASGI tests pass (24 tests)\r\n- WSGI tests pass (12 tests)\r\n\r\n## Risk Assessment\r\n\r\n**Low risk** because:\r\n1. The weakref is valid during normal operation (caller holds the response)\r\n2. We only skip setting `elapsed` if the response was already garbage collected (edge case)\r\n3. Existing functionality is fully preserved\r\n\r\nFixes #3734\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [x] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_3752981560",
+        "event_type": "comment",
+        "actor": "rodrigobnogueira",
+        "content": "duplicate",
+        "url": "https://github.com/encode/httpx/pull/3746#issuecomment-3752981560"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3739",
+    "url": "https://github.com/encode/httpx/pull/3739",
+    "event_id": "seed_pr_3739",
+    "pr_content": "chore: add support for Python 3.14\n\n# Summary\r\n\r\nSimilar to PR #3460, we add support for Python 3.14 to the classifiers and the CI test matrix.\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly.\r\n",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3731",
+    "url": "https://github.com/encode/httpx/pull/3731",
+    "event_id": "seed_pr_3731",
+    "pr_content": "[WIP] Fix errors for invalid request schemes and missing host\n\nThanks for the feedback on #3729. I've created this new PR, which merges into #3729, to address your comment. I will work on the changes and keep this PR's description up to date as I make progress.\n\nOriginal PR: #3729\nTriggering comment (https://github.com/encode/httpx/pull/3729#issuecomment-3665379256):\n> @copilot Are you able to re-run these tests merging against the latest v1.\n\n\n<!-- START COPILOT CODING AGENT TIPS -->\n---\n\n💡 You can make Copilot smarter by setting up custom instructions, customizing its development environment and configuring Model Context Protocol (MCP) servers. Learn more [Copilot coding agent tips](https://gh.io/copilot-coding-agent-tips) in the docs.",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3730",
+    "url": "https://github.com/encode/httpx/pull/3730",
+    "event_id": "seed_pr_3730",
+    "pr_content": "3.11+\n\nRemoved Python 3.10 from the test matrix.",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3720",
+    "url": "https://github.com/encode/httpx/pull/3720",
+    "event_id": "seed_pr_3720",
+    "pr_content": "fix: resolve test hang with websockets 14+\n\n## Summary\n\nFixes #3708\n\nThe test suite hangs indefinitely when upgrading `websockets` from 13.x to 14.x or 15.x. This is because [websockets 14.0 switched to a new asyncio implementation](https://websockets.readthedocs.io/en/stable/project/changelog.html#id12) by default, which has different behavior around event loop handling.\n\n## Root Cause\n\nThe issue stems from how the `TestServer` manages event loops when running in a background thread:\n\n1. **In `TestServer.serve()`**: The deprecated `asyncio.get_event_loop()` + `loop.create_task()` pattern doesn't work correctly with websockets 14+'s new asyncio handling\n2. **In `serve_in_thread()`**: The `server.run()` method relies on `asyncio.run()` which doesn't play well with the threaded setup when websockets is involved\n\n## Changes\n\n1. **`TestServer.serve()`**: Replace deprecated `asyncio.get_event_loop()` pattern with `asyncio.create_task()` which is the modern way to create tasks when already inside an async context.\n\n2. **`serve_in_thread()`**: Instead of relying on `server.run()` which uses `asyncio.run()`, explicitly create a new event loop in the background thread with `asyncio.new_event_loop()` and `asyncio.set_event_loop()`.\n\n3. **`server` fixture**: Remove `loop=\"asyncio\"` from `Config()` since we now manage the event loop manually, avoiding conflicts with websockets' asyncio implementation.\n\n## Testing\n\nTested locally with websockets 15.0.1 - all 43 integration tests pass without hanging.",
+    "context": [
+      {
+        "event_id": "seed_comment_3637277695",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "Duplicate of #3693, but thank you very much for the contribution. I will mention you in the fix as a co author!",
+        "url": "https://github.com/encode/httpx/pull/3720#issuecomment-3637277695"
+      },
+      {
+        "event_id": "seed_comment_3734335590",
+        "event_type": "comment",
+        "actor": "mtelka",
+        "content": "@SamMorrowDrums I applied this change on top of `httpx 0.28.1` and testing still hangs for me with Python 3.9.25 and `websockets 15.0.1`.  Any suggestion?  Thank you.",
+        "url": "https://github.com/encode/httpx/pull/3720#issuecomment-3734335590"
+      },
+      {
+        "event_id": "seed_comment_3734340699",
+        "event_type": "comment",
+        "actor": "mtelka",
+        "content": "When I uninstall `websockets 15.0.1` then all tests pass.",
+        "url": "https://github.com/encode/httpx/pull/3720#issuecomment-3734340699"
+      },
+      {
+        "event_id": "seed_comment_3734347468",
+        "event_type": "comment",
+        "actor": "mtelka",
+        "content": "Please note that I use `uvicorn 0.39.0`.",
+        "url": "https://github.com/encode/httpx/pull/3720#issuecomment-3734347468"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3719",
+    "url": "https://github.com/encode/httpx/pull/3719",
+    "event_id": "seed_pr_3719",
+    "pr_content": "fix: set default elapsed on MockTransport responses\n\n## Summary\n\nThis PR fixes #3712 by setting a default `elapsed` value of `timedelta(0)` on responses returned from `MockTransport`.\n\n## Problem\n\nWhen creating a `Response` with pre-loaded content (e.g., `json=...`, `content=...`, `text=...`), the content is immediately read into `_content` in the Response's `__init__`. Later, when the client wraps the response stream with `BoundSyncStream`/`BoundAsyncStream` to track elapsed time, the stream is never actually consumed because `_content` is already set.\n\nThis causes a `RuntimeError` when accessing `response.elapsed`:\n\n```python\ndef handler(request):\n    return httpx.Response(200, json={\"message\": \"Hello\"})\n\ntransport = httpx.MockTransport(handler)\nwith httpx.Client(transport=transport) as client:\n    response = client.get(\"https://example.com/\")\n    print(response.elapsed)  # RuntimeError: .elapsed accessed before response finished\n```\n\n## Solution\n\nSet `elapsed = timedelta(0)` as a default in `MockTransport.handle_request()` and `handle_async_request()` if the response doesn't already have `_elapsed` set.\n\nThis:\n1. Allows users to access `response.elapsed` without errors\n2. Preserves user-set elapsed values if they manually set it in their handler\n3. Doesn't require boilerplate code in every handler (as suggested in the issue)\n\n## Changes\n\n- Added `import datetime` to `httpx/_transports/mock.py`\n- Added default elapsed setting in `handle_request()` (sync)\n- Added default elapsed setting in `handle_async_request()` (async)\n\n## Testing\n\nVerified that:\n- Existing MockTransport tests pass\n- `response.elapsed` returns `timedelta(0)` for pre-loaded responses\n- User-set elapsed values are preserved",
+    "context": [
+      {
+        "event_id": "seed_comment_3631980039",
+        "event_type": "comment",
+        "actor": "SamMorrowDrums",
+        "content": "The CI failure appears to be an unrelated flaky network test (`test_sync_proxy_close` in `tests/client/test_proxies.py`) that timed out trying to connect to a proxy server:\r\n\r\n```\r\nE   httpx.ReadTimeout: timed out\r\ntests/client/test_proxies.py:118\r\n```\r\n\r\nTest summary: **1 failed, 1416 passed, 1 skipped**\r\n\r\nThis is not related to the MockTransport changes in this PR. ",
+        "url": "https://github.com/encode/httpx/pull/3719#issuecomment-3631980039"
+      },
+      {
+        "event_id": "seed_comment_3637325517",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "I'll close this for now until we have a good design decision around it",
+        "url": "https://github.com/encode/httpx/pull/3719#issuecomment-3637325517"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3715",
+    "url": "https://github.com/encode/httpx/pull/3715",
+    "event_id": "seed_pr_3715",
+    "pr_content": "Feat/mock transport duration\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\nThis PR adds native support for simulating request latency in MockTransport by introducing an optional delay parameter.\r\nWhen provided, the transport sets response.elapsed according to the delay value, unless the handler explicitly defines its own elapsed time.\r\n\r\nThis resolves the inconvenience described in issue #3712, where users needed to manually patch response.elapsed inside handlers to test timeout- or latency-sensitive logic.\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [x] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_3637326201",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "I'll close this for now until we have a good design decision around it",
+        "url": "https://github.com/encode/httpx/pull/3715#issuecomment-3637326201"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3711",
+    "url": "https://github.com/encode/httpx/pull/3711",
+    "event_id": "seed_pr_3711",
+    "pr_content": "typo on docs\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [x] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_3637433181",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "There is no type here. It’s saying that you are trying to pass a synchronous auth class to `AsyncClient`",
+        "url": "https://github.com/encode/httpx/pull/3711#issuecomment-3637433181"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3703",
+    "url": "https://github.com/encode/httpx/pull/3703",
+    "event_id": "seed_pr_3703",
+    "pr_content": "docs/ssl: fix typo\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\nFix typo equivelent -> equivalent\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [ ] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_review_3562924221",
+        "event_type": "pr_review",
+        "actor": "karpetrosyan",
+        "content": "Thanks for the contribution!",
+        "url": "https://github.com/encode/httpx/pull/3703#pullrequestreview-3562924221"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3699",
+    "url": "https://github.com/encode/httpx/pull/3699",
+    "event_id": "seed_pr_3699",
+    "pr_content": "Expose `FunctionAuth` in `__all__`\n\n# Summary\r\n\r\nJust adding `FunctionAuth` to `httpx._auth`'s `__all__` so it can be imported as `httpx.FunctionAuth`.\r\n\r\n(Note this just seems to be an omission in https://github.com/encode/httpx/pull/3106)\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [ ] ~I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.~\r\n  - `tests/test_exported_members.py:test_exported_members` covers this\r\n- [ ] ~I've updated the documentation accordingly.~\r\n  - Also didn't seem worth documenting 🤷‍♂️ \r\n",
+    "context": [
+      {
+        "event_id": "seed_review_3562991337",
+        "event_type": "pr_review",
+        "actor": "karpetrosyan",
+        "content": "LGTM! Thanks",
+        "url": "https://github.com/encode/httpx/pull/3699#pullrequestreview-3562991337"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3698",
+    "url": "https://github.com/encode/httpx/pull/3698",
+    "event_id": "seed_pr_3698",
+    "pr_content": "support chunked upload in async file-like interfaces\n\n# Summary\r\n\r\nThis PR resolves #1620 and implements chunked upload for `anyio.open_file`, `trio.open_file` and `aiofiles.open_file` when used as `content=` parameter for `post` and `put` request. And implements support for multipart file upload for the same libraries. Most of the code for multipart file upload copied from my old stale PR https://github.com/encode/httpx/pull/3339.\r\n\r\nchanges:\r\n- `_compat.py` file added to define `TypeIs` and `aclosing` for the range of supported python versions\r\n- `_types.AsyncReadableFile` protocol was added along with `is_async_readable_file` type predicate function to detect and perform type narrowing for trio/asyncio/aiofiles async files\r\n- `_types.FileContent` was extended to include the. `_types.AsyncReadableFile` protocol\r\n- `_content.AsyncIteratorByteStream` updated to use `async read` methods for async files instead of looping over lines\r\n- `_content.encode_content` updated to attach content length header for `_types.AsyncReadableFile` type\r\n- `_multipart.FileField` updated to include async versions of `render` and `render_data`\r\n- `_multipart.MultipartStream` updated with async version of `iter_data` and `__aiter__` method updated to use it\r\n- `test_chunked_async_file_multipart` and `test_chunked_async_file_content` tests are added to test the new functionality\r\n- `aiofiles` and `types-aiofiles` added in requirements to test aiofiles (can be removed with test if aiofiles support is not desirable)\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly. (can update if PR is ok otherwise)\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_3874388924",
+        "event_type": "comment",
+        "actor": "maretodoric",
+        "content": "It's 2026, python is booming with async functionality, feature requested since early 2021, multiple pull requests open - yet we still don't have this feature.\r\nWhat gives?",
+        "url": "https://github.com/encode/httpx/pull/3698#issuecomment-3874388924"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3694",
+    "url": "https://github.com/encode/httpx/pull/3694",
+    "event_id": "seed_pr_3694",
+    "pr_content": "feat: warn when brotli extra missing\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\nfeat: warn when brotli extra missing\r\n\r\n  - add explicit warning if server sends Content-Encoding: br without brotli support\r\n  - surface optional feature flags in decoders and ensure behavior covered by test\r\n  - document this repo's contribution workflow for agents in AGENTS.md\r\n\r\n  PR description:\r\n\r\n  ## Summary\r\n  - raise a clear warning when responses arrive with Content-Encoding: br but brotli support isn't installed to avoid silent compressed payloads\r\n  - expose decoder availability via flags to share state with response handling\r\n  - document contributor workflow and add a regression test covering the warning path\r\n\r\n  ## Testing\r\n  - scripts/install\r\n  - scripts/test\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\n# Checklist\r\n\r\n- [ ] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [ ] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly.\r\n",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3693",
+    "url": "https://github.com/encode/httpx/pull/3693",
+    "event_id": "seed_pr_3693",
+    "pr_content": "Python 3.14\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\nHi, this is my first contribution!!! Please be a little gentle with me ;-)\r\n\r\nThis is based on https://github.com/encode/httpx/pull/3664 but I add fixes for \r\n\r\n\r\n - in the test suite deprecations are marked as fatal, and uvicorn is used to set up the tests, and uvicorn generates a deprecation warning because of iscoroutinefunction()\r\n - uvicorn is about to create a new release with a fix: https://github.com/Kludex/uvicorn/pull/2723 👀Python 3.14 has stricter requirements for event loops in background threads. The original code in httpx called server.run() which internally uses asyncio.run(), but this doesn't work properly in background threads in Python 3.14.\r\n - asyncio.get_event_loop() deprecated: The TestServer.serve() method was using asyncio.get_event_loop() which is now more restrictive in Python 3.14.\r\n\r\nI'm not fully sure if this also passes on 3.9, it might need a little more work, but on 3.14 I think this fixes the problems ;-)",
+    "context": [
+      {
+        "event_id": "seed_review_3351123875",
+        "event_type": "pr_review",
+        "actor": "cclauss",
+        "content": "https://pypi.org/project/uvicorn is currently 0.38.0",
+        "url": "https://github.com/encode/httpx/pull/3693#pullrequestreview-3351123875"
+      },
+      {
+        "event_id": "seed_comment_3592568139",
+        "event_type": "comment",
+        "actor": "apteryks",
+        "content": "I can't apply this https://github.com/encode/httpx/pull/3693.patch cleanly to either 0.28 or the master branch. This is for commit def4778d622e8bf49a9fea4dda78cca4cf666d8a:\r\n\r\n```\r\nsource is at 'python-httpx-0.28.1-checkout'\r\napplying '/gnu/store/axdb3iyc1gg49my2lfgdx4mgaglkzg6b-python-httpx-python-3.14.patch'...\r\npatching file httpx/concurrency/asyncio/__init__.py\r\nCannot rename file without two valid file names\r\n9 out of 9 hunks ignored\r\npatching file httpx/concurrency/asyncio/compat.py\r\ncan't find file to patch at input line 326\r\nPerhaps you used the wrong -p or --strip option?\r\nThe text leading up to this was:\r\n--------------------------\r\n|diff --git a/tests/test_concurrency.py b/tests/test_concurrency.py\r\n|index ab93b30282..03f8c0aaea 100644\r\n|--- a/tests/test_concurrency.py\r\n|+++ b/tests/test_concurrency.py\r\n--------------------------\r\nNo file to patch.  Skipping patch.\r\n1 out of 1 hunk ignored\r\ncan't find file to patch at input line 355\r\nPerhaps you used the wrong -p or --strip option?\r\nThe text leading up to this was:\r\n--------------------------\r\n|\r\n|From 1d2e5251e2b327e3da3926af57d22a7aad7982d3 Mon Sep 17 00:00:00 2001\r\n|From: Jamie Hewland <jhewland@gmail.com>\r\n|Date: Sat, 21 Sep 2019 21:09:01 +0200\r\n|Subject: [PATCH 2/3] Clean up imports\r\n|\r\n|---\r\n| httpx/concurrency/asyncio/backend.py | 5 +++--\r\n| httpx/concurrency/asyncio/compat.py  | 1 -\r\n| 2 files changed, 3 insertions(+), 3 deletions(-)\r\n|\r\n|diff --git a/httpx/concurrency/asyncio/backend.py b/httpx/concurrency/asyncio/backend.py\r\n|index 84f4dd62d5..ddac291b13 100644\r\n|--- a/httpx/concurrency/asyncio/backend.py\r\n|+++ b/httpx/concurrency/asyncio/backend.py\r\n--------------------------\r\nNo file to patch.  Skipping patch.\r\n1 out of 1 hunk ignored\r\npatching file httpx/concurrency/asyncio/compat.py\r\ncan't find file to patch at input line 393\r\nPerhaps you used the wrong -p or --strip option?\r\nThe text leading up to this was:\r\n--------------------------\r\n|\r\n|From d629af9d6ca13736c176c0c048bda5b3d06e5fd2 Mon Sep 17 00:00:00 2001\r\n|From: Jamie Hewland <jhewland@gmail.com>\r\n|Date: Sat, 21 Sep 2019 21:45:28 +0200\r\n|Subject: [PATCH 3/3] Give up on await-ing on the stream closing (for now)\r\n|\r\n|---\r\n| httpx/concurrency/asyncio/backend.py | 4 +++-\r\n| 1 file changed, 3 insertions(+), 1 deletion(-)\r\n|\r\n|diff --git a/httpx/concurrency/asyncio/backend.py b/httpx/concurrency/asyncio/backend.py\r\n|index ddac291b13..607da37fba 100644\r\n|--- a/httpx/concurrency/asyncio/backend.py\r\n|+++ b/httpx/concurrency/asyncio/backend.py\r\n--------------------------\r\nNo file to patch.  Skipping patch.\r\n1 out of 1 hunk ignored\r\n```\r\n\r\nAs seen trying to apply the patch to the Guix package, which uses `patch` with arguments `\"--force\" \"--no-backup-if-mismatch\" \"-p1\" \"--input\" \"/gnu/store/axdb3iyc1gg49my2lfgdx4mgaglkzg6b-python-httpx-python-3.14.patch` to apply it.",
+        "url": "https://github.com/encode/httpx/pull/3693#issuecomment-3592568139"
+      },
+      {
+        "event_id": "seed_comment_3637284195",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "Thanks for the contribution! When I ran it locally, it looked like the CI was not passing. I polished it a bit and opened another PR. You will be mentioned as a co author! #3722 ",
+        "url": "https://github.com/encode/httpx/pull/3693#issuecomment-3637284195"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3692",
+    "url": "https://github.com/encode/httpx/pull/3692",
+    "event_id": "seed_pr_3692",
+    "pr_content": "Fixed a syntax error in the file upload example\n\nThe code from the documentation contains a syntax error that raises an exception in Python.",
+    "context": [
+      {
+        "event_id": "seed_comment_3412215265",
+        "event_type": "comment",
+        "actor": "thewhitetea0001",
+        "content": ":v ",
+        "url": "https://github.com/encode/httpx/pull/3692#issuecomment-3412215265"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3691",
+    "url": "https://github.com/encode/httpx/pull/3691",
+    "event_id": "seed_pr_3691",
+    "pr_content": "chore: require minimum httpcore with security fix for h11\n\n# Summary\r\n\r\nThe `httpcore` subdependency `h11` has a security fix for the [critical security issue](https://osv.dev/vulnerability/GHSA-vqfr-h8mv-ghfj)  that requires the minimum version [`1.0.9`](https://github.com/encode/httpcore/releases/tag/1.0.9).\r\n\r\nReferences:\r\n- https://osv.dev/vulnerability/GHSA-vqfr-h8mv-ghfj\r\n- https://github.com/encode/httpcore/releases/tag/1.0.9\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [x] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_3401477356",
+        "event_type": "comment",
+        "actor": "davidrogger",
+        "content": "Nice work!",
+        "url": "https://github.com/encode/httpx/pull/3691#issuecomment-3401477356"
+      },
+      {
+        "event_id": "seed_comment_3401644930",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "Duplicate of https://github.com/encode/httpx/discussions/3560",
+        "url": "https://github.com/encode/httpx/pull/3691#issuecomment-3401644930"
+      },
+      {
+        "event_id": "seed_comment_3411849659",
+        "event_type": "comment",
+        "actor": "BryceLohr",
+        "content": "> Duplicate of #3560\r\n\r\nI'm trying to understand what this means: are you saying that httpx will _not_ update its dependency to resolve this security issue? Or am I misunderstanding this?",
+        "url": "https://github.com/encode/httpx/pull/3691#issuecomment-3411849659"
+      },
+      {
+        "event_id": "seed_comment_3411962215",
+        "event_type": "comment",
+        "actor": "zanieb",
+        "content": "Yes there's no need to change the minimum required version for users to receive the security fix as was discussed at length in https://github.com/encode/httpx/pull/3564#issuecomment-2858720787",
+        "url": "https://github.com/encode/httpx/pull/3691#issuecomment-3411962215"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3690",
+    "url": "https://github.com/encode/httpx/pull/3690",
+    "event_id": "seed_pr_3690",
+    "pr_content": "Add `.wait_ready` to parser for clean server disconnects\n\nAdd `.wait_ready()` to `HTTPParser`...\r\n\r\nWe need this in order to differentiate between clean disconnects at the start of a new request/response cycle, rather than a `ProtocolError` while calling `recv_method_line()`.\r\n",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3678",
+    "url": "https://github.com/encode/httpx/pull/3678",
+    "event_id": "seed_pr_3678",
+    "pr_content": "Bump the python-packages group with 8 updates\n\nBumps the python-packages group with 8 updates:\n\n| Package | From | To |\n| --- | --- | --- |\n| [mkdocs-material](https://github.com/squidfunk/mkdocs-material) | `9.6.18` | `9.6.21` |\n| [twine](https://github.com/pypa/twine) | `6.1.0` | `6.2.0` |\n| [coverage[toml]](https://github.com/nedbat/coveragepy) | `7.10.6` | `7.10.7` |\n| [cryptography](https://github.com/pyca/cryptography) | `45.0.7` | `46.0.2` |\n| [mypy](https://github.com/python/mypy) | `1.17.1` | `1.18.2` |\n| [pytest](https://github.com/pytest-dev/pytest) | `8.4.1` | `8.4.2` |\n| [ruff](https://github.com/astral-sh/ruff) | `0.12.11` | `0.13.2` |\n| [uvicorn](https://github.com/Kludex/uvicorn) | `0.35.0` | `0.37.0` |\n\nUpdates `mkdocs-material` from 9.6.18 to 9.6.21\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/squidfunk/mkdocs-material/releases\">mkdocs-material's releases</a>.</em></p>\n<blockquote>\n<h2>mkdocs-material-9.6.21</h2>\n<ul>\n<li>Updated Serbian translations</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8458\">#8458</a>: Temporary pin of click dependency</li>\n</ul>\n<h2>mkdocs-material-9.6.20</h2>\n<ul>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8446\">#8446</a>: Deprecation warning as of Python 3.14 in Emoji extension</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8440\">#8440</a>: <code>&amp;</code> character not escaped in search highlighting</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8439\">#8439</a>: FontAwesome icons color not set in social cards (regression)</li>\n</ul>\n<h2>mkdocs-material-9.6.19</h2>\n<ul>\n<li>Added support for Python 3.14</li>\n<li>Updated Bahasa Malaysia translations</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/squidfunk/mkdocs-material/blob/master/CHANGELOG\">mkdocs-material's changelog</a>.</em></p>\n<blockquote>\n<p>mkdocs-material-9.6.21 (2025-09-30)</p>\n<ul>\n<li>Updated Serbian translations</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8458\">#8458</a>: Temporary pin of click dependency</li>\n</ul>\n<p>mkdocs-material-9.6.20 (2025-09-15)</p>\n<ul>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8446\">#8446</a>: Deprecation warning as of Python 3.14 in Emoji extension</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8440\">#8440</a>: <code>&amp;</code> character not escaped in search highlighting</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8439\">#8439</a>: FontAwesome icons color not set in social cards (regression)</li>\n</ul>\n<p>mkdocs-material-9.6.19 (2025-09-07)</p>\n<ul>\n<li>Added support for Python 3.14</li>\n<li>Updated Bahasa Malaysia translations</li>\n</ul>\n<p>mkdocs-material-9.6.18 (2025-08-22)</p>\n<ul>\n<li>Updated Azerbaijani translations</li>\n<li>Fixed last compat issues with [minijinja], now 100% compatible</li>\n</ul>\n<p>mkdocs-material-9.6.17 (2025-08-15)</p>\n<ul>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8396\">#8396</a>: Videos do not autoplay when inside a content tab</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8394\">#8394</a>: Stroke width not effective in Mermaid.js diagrams</li>\n<li>Fixed disappearing version selector when hiding page title</li>\n</ul>\n<p>mkdocs-material-9.6.16 (2025-07-26)</p>\n<ul>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8349\">#8349</a>: Info plugin doesn't correctly detect virtualenv in some cases</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8334\">#8334</a>: Find-in-page detects matches in hidden search result list</li>\n</ul>\n<p>mkdocs-material-9.6.15 (2025-07-01)</p>\n<ul>\n<li>Updated Mongolian translations</li>\n<li>Improved semantic markup of &quot;edit this page&quot; button</li>\n<li>Improved info plugin virtual environment resolution</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8291\">#8291</a>: Large font size setting throws of breakpoints in JavaScript</li>\n</ul>\n<p>mkdocs-material-9.6.14 (2025-05-13)</p>\n<ul>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8215\">#8215</a>: Social plugin crashes when CairoSVG is updated to 2.8</li>\n</ul>\n<p>mkdocs-material-9.6.13 (2025-05-10)</p>\n<ul>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8204\">#8204</a>: Annotations showing list markers in print view</li>\n<li>Fixed <a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8153\">#8153</a>: Improve style of cardinality symbols in Mermaid.js ER diagrams</li>\n</ul>\n<p>mkdocs-material-9.6.12 (2025-04-17)</p>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/f7cacc0089c01e6c075512da06de949e769dad0e\"><code>f7cacc0</code></a> Prepare 9.6.21 release</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/6f715fbe063869d6fda139c0b9f06e371517d106\"><code>6f715fb</code></a> Unpinned click</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/97e275c953e5b8255ca24ca166ddd802e23d84b1\"><code>97e275c</code></a> Updated Serbian languages (<a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8445\">#8445</a>)</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/f0b0b5931a386b670c19d3e3b78ecd41da144341\"><code>f0b0b59</code></a> Prepare 9.6.20 release</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/900981b6f82c51fdf4e78f1e5f9e48592bbb85c2\"><code>900981b</code></a> Fixed deprecation warning as of Python 3.14 in Emoji extension</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/ed0026322f5ff51df2e9c9f8489ba2e3ebc06fa5\"><code>ed00263</code></a> Documentation (<a href=\"https://redirect.github.com/squidfunk/mkdocs-material/issues/8443\">#8443</a>)</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/a4f42bbfcdc816f7e69b2ab0c7ed87d58862939e\"><code>a4f42bb</code></a> Updated Premium sponsors</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/63d7e746be929737d7bbbca32d66f5d083ea253a\"><code>63d7e74</code></a> Fixed FontAwesome icons having fill attributes</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/ee678455e93a2a356d58bc7a1c57f1e3e171a8c4\"><code>ee67845</code></a> Fixed &amp; not escaped in search highlighting</li>\n<li><a href=\"https://github.com/squidfunk/mkdocs-material/commit/2fe55eecfa0abe6004ea0adb8b5fbc527d788d5f\"><code>2fe55ee</code></a> Prepare 9.6.19 release</li>\n<li>Additional commits viewable in <a href=\"https://github.com/squidfunk/mkdocs-material/compare/9.6.18...9.6.21\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `twine` from 6.1.0 to 6.2.0\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/pypa/twine/blob/main/docs/changelog.rst\">twine's changelog</a>.</em></p>\n<blockquote>\n<h2>twine 6.2.0 (2025-09-04)</h2>\n<p>Features\n^^^^^^^^</p>\n<ul>\n<li>\n<p>Automatically refresh short-lived PyPI token in long running Trusted\nPublishing uploads.</p>\n<p>In the event that a trusted publishing upload job is taking longer than the\nvalidity period of a trusted publishing token (15 minutes at the time of this\nwriting), <em>and</em> we are already 10 minutes into that validity period, we will\nbegin to attempt to replace the token on each subsequent request. (<code>[#1246](https://github.com/pypa/twine/issues/1246) &lt;https://github.com/pypa/twine/issues/1246&gt;</code>_)</p>\n</li>\n</ul>\n<p>Bugfixes\n^^^^^^^^</p>\n<ul>\n<li>Fix compatibility kludge for invalid License-File metadata entries emitted by\nbuild backends to work also with <code>packaging</code> version 24.0. (<code>[#1217](https://github.com/pypa/twine/issues/1217) &lt;https://github.com/pypa/twine/issues/1217&gt;</code>_)</li>\n<li>Fix a couple of incorrectly rendered error messages. (<code>[#1224](https://github.com/pypa/twine/issues/1224) &lt;https://github.com/pypa/twine/issues/1224&gt;</code>_)</li>\n<li><code>twine</code> now enforces <code>keyring &gt;= 21.2.0</code>, which was previously\nimplicitly required by API usage. (<code>[#1229](https://github.com/pypa/twine/issues/1229) &lt;https://github.com/pypa/twine/issues/1229&gt;</code>_)</li>\n<li><code>twine</code> now catches <code>configparser.Error</code> to prevent accidental\nleaks of secret tokens or passwords to the user's console. (<code>[#1240](https://github.com/pypa/twine/issues/1240) &lt;https://github.com/pypa/twine/issues/1240&gt;</code>_)</li>\n</ul>\n<p>Deprecations and Removals\n^^^^^^^^^^^^^^^^^^^^^^^^^</p>\n<ul>\n<li>\n<p>Remove hacks that support <code>--skip-existing</code> for indexes other than PyPI and\nTestPyPI.</p>\n<p>To date, these hacks continue to accrue and there have been numerous issues\nwith them, not the least of which being that every time we update them, the\npaid index providers change things to break the compatibility we implement\nfor them. Beyond that, these hacks do not work when text is internationalized\nin the response from the index provider.</p>\n<p>For a sample of past issues, see:</p>\n<ul>\n<li>\n<p><a href=\"https://redirect.github.com/pypa/twine/issues/1251\">pypa/twine#1251</a></p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pypa/twine/issues/918\">pypa/twine#918</a></p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pypa/twine/issues/856\">pypa/twine#856</a></p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pypa/twine/issues/693\">pypa/twine#693</a></p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pypa/twine/issues/332\">pypa/twine#332</a> (<code>[#1251](https://github.com/pypa/twine/issues/1251) &lt;https://github.com/pypa/twine/issues/1251&gt;</code>_)</p>\n</li>\n</ul>\n</li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pypa/twine/commit/14ceb29585a54f679e415b351aece2acc19aa4b2\"><code>14ceb29</code></a> Update changelog for 6.2.0 (<a href=\"https://redirect.github.com/pypa/twine/issues/1264\">#1264</a>)</li>\n<li><a href=\"https://github.com/pypa/twine/commit/60e377bd5b340b90504c9e4e976eae926d9c9ddc\"><code>60e377b</code></a> build(deps): bump actions/checkout from 4.2.2 to 5.0.0 (<a href=\"https://redirect.github.com/pypa/twine/issues/1263\">#1263</a>)</li>\n<li><a href=\"https://github.com/pypa/twine/commit/88821f278022011496c0ccb0d8ae40ab9d6c5c3d\"><code>88821f2</code></a> feat(package): remove MD5 hashing entirely (<a href=\"https://redirect.github.com/pypa/twine/issues/1262\">#1262</a>)</li>\n<li><a href=\"https://github.com/pypa/twine/commit/ce5fe530511c13816e51dbbd13892f10274a87b1\"><code>ce5fe53</code></a> build(deps): bump actions/download-artifact from 4.3.0 to 5.0.0</li>\n<li><a href=\"https://github.com/pypa/twine/commit/6a696edefec47e842d11de468caf6c7e69694976\"><code>6a696ed</code></a> PEP 639 compliance</li>\n<li><a href=\"https://github.com/pypa/twine/commit/91753343daa1366711a441b4a13bd1b31146909b\"><code>9175334</code></a> rename 1247.misc.rst to changelog/1247.misc.rst</li>\n<li><a href=\"https://github.com/pypa/twine/commit/d94a4750883dc7cc92b2cbbb3970895303af216d\"><code>d94a475</code></a> fix(tests): update expected error message</li>\n<li><a href=\"https://github.com/pypa/twine/commit/c1c02d13d00f496339a86cd4f40d9f7e6926c0e4\"><code>c1c02d1</code></a> Remove --skip-existing support for non-PyPI indices</li>\n<li><a href=\"https://github.com/pypa/twine/commit/a24d308bb7fa5304ede3414747a939c7929d4c76\"><code>a24d308</code></a> Set trusted publishing logging to INFO/WARN (<a href=\"https://redirect.github.com/pypa/twine/issues/1247\">#1247</a>)</li>\n<li><a href=\"https://github.com/pypa/twine/commit/becf1a8ffe6ebd404aea9d7aeae1f756aeba57ba\"><code>becf1a8</code></a> Fix py3.9 mypy error in <code>__init__</code> around <code>PackageMetadata</code></li>\n<li>Additional commits viewable in <a href=\"https://github.com/pypa/twine/compare/6.1.0...6.2.0\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `coverage[toml]` from 7.10.6 to 7.10.7\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/nedbat/coveragepy/releases\">coverage[toml]'s releases</a>.</em></p>\n<blockquote>\n<h2>7.10.7</h2>\n<h2>Version 7.10.7 — 2025-09-21</h2>\n<ul>\n<li>Performance: with branch coverage in large files, generating HTML, JSON, or LCOV reports could take far too long due to some quadratic behavior when creating the function and class index pages. This is now fixed, closing <a href=\"https://redirect.github.com/nedbat/coveragepy/issues/2048\">issue 2048</a>. Thanks to Daniel Diniz for help diagnosing the problem.</li>\n<li>Most warnings and a few errors now have links to a page in the docs explaining the specific message. Closes <a href=\"https://redirect.github.com/nedbat/coveragepy/issues/1921\">issue 1921</a>.</li>\n</ul>\n<p>:arrow_right:  PyPI page: <a href=\"https://pypi.org/project/coverage/7.10.7\">coverage 7.10.7</a>.\n:arrow_right:  To install: <code>python3 -m pip install coverage==7.10.7</code></p>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/nedbat/coveragepy/blob/master/CHANGES.rst\">coverage[toml]'s changelog</a>.</em></p>\n<blockquote>\n<h2>Version 7.10.7 — 2025-09-21</h2>\n<ul>\n<li>\n<p>Performance: with branch coverage in large files, generating HTML, JSON, or\nLCOV reports could take far too long due to some quadratic behavior when\ncreating the function and class index pages.  This is now fixed, closing\n<code>issue 2048</code>_.  Thanks to Daniel Diniz for help diagnosing the problem.</p>\n</li>\n<li>\n<p>Most warnings and a few errors now have links to a page in the docs\nexplaining the specific message.  Closes <code>issue 1921</code>_.</p>\n</li>\n</ul>\n<p>.. _issue 1921: <a href=\"https://redirect.github.com/nedbat/coveragepy/issues/1921\">nedbat/coveragepy#1921</a>\n.. _issue 2048: <a href=\"https://redirect.github.com/nedbat/coveragepy/issues/2048\">nedbat/coveragepy#2048</a></p>\n<p>.. _changes_7-10-6:</p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/92a2af54e6bc948a9c536bd9b12bab70fb055904\"><code>92a2af5</code></a> docs: sample HTML for 7.10.7</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/952afdaca658d5e1acdd533c727448a0b218caf0\"><code>952afda</code></a> docs: prep for 7.10.7</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/a301761e69da97b27662f395974d26f78fa8b2b5\"><code>a301761</code></a> build: riscv64 wheels (<a href=\"https://redirect.github.com/nedbat/coveragepy/issues/2055\">#2055</a>)</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/5daff8d38786aa540ff9bec622eb3389f117f911\"><code>5daff8d</code></a> docs: now source is formatted with ruff</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/04bbc3acfd914fdd99ffec9873bc03bdc7329357\"><code>04bbc3a</code></a> docs: discuss cog in the contributing docs</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/c181b9315f59a81667da47cf3d760d0253872238\"><code>c181b93</code></a> build: use cog --check-fail-msg to instruct devs</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/33c4ba196f49e0ee86ab0ff473c0876c0bacd5fa\"><code>33c4ba1</code></a> chore: make upgrade</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/0744b73b6b503ccf2cb75aba095c023672b921a8\"><code>0744b73</code></a> chore: bump the action-dependencies group across 1 directory with 2 updates (...</li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/0d5a112fc54c1d5a07f3f2ec451779808902c9af\"><code>0d5a112</code></a> perf: bulk narrowing to avoid N**2. <a href=\"https://redirect.github.com/nedbat/coveragepy/issues/2048\">#2048</a></li>\n<li><a href=\"https://github.com/nedbat/coveragepy/commit/a868ed9269ca474748130f5c6360cd2aae66ffc8\"><code>a868ed9</code></a> docs: mention Python Discord on the index page</li>\n<li>Additional commits viewable in <a href=\"https://github.com/nedbat/coveragepy/compare/7.10.6...7.10.7\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `cryptography` from 45.0.7 to 46.0.2\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst\">cryptography's changelog</a>.</em></p>\n<blockquote>\n<p>46.0.2 - 2025-09-30</p>\n<pre><code>\n* Updated Windows, macOS, and Linux wheels to be compiled with OpenSSL 3.5.4.\n<p>.. _v46-0-1:</p>\n<p>46.0.1 - 2025-09-16<br />\n</code></pre></p>\n<ul>\n<li>Fixed an issue where users installing via <code>pip</code> on Python 3.14 development\nversions would not properly install a dependency.</li>\n<li>Fixed an issue building the free-threaded macOS 3.14 wheels.</li>\n</ul>\n<p>.. _v46-0-0:</p>\n<p>46.0.0 - 2025-09-16</p>\n<pre><code>\n* **BACKWARDS INCOMPATIBLE:** Support for Python 3.7 has been removed.\n* Support for OpenSSL &lt; 3.0 is deprecated and will be removed in the next\n  release.\n* Support for ``x86_64`` macOS (including publishing wheels) is deprecated\n  and will be removed in two releases. We will switch to publishing an\n  ``arm64`` only wheel for macOS.\n* Support for 32-bit Windows (including publishing wheels) is deprecated\n  and will be removed in two releases. Users should move to a 64-bit\n  Python installation.\n* Updated Windows, macOS, and Linux wheels to be compiled with OpenSSL 3.5.3.\n* We now build ``ppc64le`` ``manylinux`` wheels and publish them to PyPI.\n* We now build ``win_arm64`` (Windows on Arm) wheels and publish them to PyPI.\n* Added support for free-threaded Python 3.14.\n* Removed the deprecated ``get_attribute_for_oid`` method on\n  :class:`~cryptography.x509.CertificateSigningRequest`. Users should use\n  :meth:`~cryptography.x509.Attributes.get_attribute_for_oid` instead.\n* Removed the deprecated ``CAST5``, ``SEED``, ``IDEA``, and ``Blowfish``\n  classes from the cipher module. These are still available in\n  :doc:`/hazmat/decrepit/index`.\n* In X.509, when performing a PSS signature with a SHA-3 hash, it is now\n  encoded with the official NIST SHA3 OID.\n<p>.. _v45-0-7:<br />\n</code></pre></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pyca/cryptography/commit/99efe5ad150a56efadafacaffd0e3ee319373904\"><code>99efe5a</code></a> bump version for 46.0.2 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13531\">#13531</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/e735cfc27502320101c130335c556394a125ba52\"><code>e735cfc</code></a> release 46.0.1 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13450\">#13450</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/4e457ffba43a6d87efc63c33041e2081438dd8a4\"><code>4e457ff</code></a> Explicitly specify python in mac uv build invocation (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13447\">#13447</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/2726efdb6d67f1c90cf9c6062d9fe051965586f8\"><code>2726efd</code></a> Depend on CFFI 2.0.0 or newer on Python &gt; 3.8 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13448\">#13448</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/62230623d183706632c0eb7822c96ac95e3710a8\"><code>6223062</code></a> release 46.0.0 (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13446\">#13446</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/563c4915b0931455706f761a4579c26698824eae\"><code>563c491</code></a> Update comment for pyopenssl-release tag (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13445\">#13445</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/d2f6f7faced35b73277bc624ff496f8af696b172\"><code>d2f6f7f</code></a> Bump downstream dependencies in CI (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13439\">#13439</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/e7ab02bd679d0b4f55d93486fe27e62554ef15d4\"><code>e7ab02b</code></a> we'll ship this with 3.5.3 why not (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13442\">#13442</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/0b68a4bffb61202e4d4f5074cd30c2b9d15f429e\"><code>0b68a4b</code></a> Another pair of bump dependencies fix (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13444\">#13444</a>)</li>\n<li><a href=\"https://github.com/pyca/cryptography/commit/e076d08ee42da5daa432d1d145b8bee2dc0d5b44\"><code>e076d08</code></a> Attempt to fix commit message for bump downstreams (<a href=\"https://redirect.github.com/pyca/cryptography/issues/13440\">#13440</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/pyca/cryptography/compare/45.0.7...46.0.2\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `mypy` from 1.17.1 to 1.18.2\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/python/mypy/blob/master/CHANGELOG.md\">mypy's changelog</a>.</em></p>\n<blockquote>\n<h3>Mypy 1.18.2</h3>\n<ul>\n<li>Fix crash on recursive alias (Ivan Levkivskyi, PR <a href=\"https://redirect.github.com/python/mypy/pull/19845\">19845</a>)</li>\n<li>Add additional guidance for stubtest errors when runtime is <code>object.__init__</code> (Stephen Morton, PR <a href=\"https://redirect.github.com/python/mypy/pull/19733\">19733</a>)</li>\n<li>Fix handling of None values in f-string expressions in mypyc (BobTheBuidler, PR <a href=\"https://redirect.github.com/python/mypy/pull/19846\">19846</a>)</li>\n</ul>\n<h3>Acknowledgements</h3>\n<p>Thanks to all mypy contributors who contributed to this release:</p>\n<ul>\n<li>Ali Hamdan</li>\n<li>Anthony Sottile</li>\n<li>BobTheBuidler</li>\n<li>Brian Schubert</li>\n<li>Chainfire</li>\n<li>Charlie Denton</li>\n<li>Christoph Tyralla</li>\n<li>CoolCat467</li>\n<li>Daniel Hnyk</li>\n<li>Emily</li>\n<li>Emma Smith</li>\n<li>Ethan Sarp</li>\n<li>Ivan Levkivskyi</li>\n<li>Jahongir Qurbonov</li>\n<li>Jelle Zijlstra</li>\n<li>Joren Hammudoglu</li>\n<li>Jukka Lehtosalo</li>\n<li>Marc Mueller</li>\n<li>Omer Hadari</li>\n<li>Piotr Sawicki</li>\n<li>PrinceNaroliya</li>\n<li>Randolf Scholz</li>\n<li>Robsdedude</li>\n<li>Saul Shanabrook</li>\n<li>Shantanu</li>\n<li>Stanislav Terliakov</li>\n<li>Stephen Morton</li>\n<li>wyattscarpenter</li>\n</ul>\n<p>I’d also like to thank my employer, Dropbox, for supporting mypy development.</p>\n<h2>Mypy 1.17</h2>\n<p>We’ve just uploaded mypy 1.17 to the Python Package Index (<a href=\"https://pypi.org/project/mypy/\">PyPI</a>).\nMypy is a static type checker for Python. This release includes new features and bug fixes.\nYou can install it as follows:</p>\n<pre><code>python3 -m pip install -U mypy\n</code></pre>\n<p>You can read the full documentation for this release on <a href=\"http://mypy.readthedocs.io\">Read the Docs</a>.</p>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/python/mypy/commit/df05f05555ee62dbdb9960c64cad186172e92be1\"><code>df05f05</code></a> remove +dev from version</li>\n<li><a href=\"https://github.com/python/mypy/commit/01a7a1285d03cb7a330359b22cb462aacb5f9720\"><code>01a7a12</code></a> Update changelog for 1.18.2 (<a href=\"https://redirect.github.com/python/mypy/issues/19873\">#19873</a>)</li>\n<li><a href=\"https://github.com/python/mypy/commit/ca5abf09f3bfc543ac9c18a364696bc5da20bc03\"><code>ca5abf0</code></a> Typeshed cherry-pick: Make type of <code>unitest.mock.Any</code> a subclass of <code>Any</code> (<a href=\"https://redirect.github.com/python/mypy/issues/1\">#1</a>...</li>\n<li><a href=\"https://github.com/python/mypy/commit/9d794b57d9c5b03d61caa3286756c05e0ae3021b\"><code>9d794b5</code></a> [mypyc] fix: inappropriate <code>None</code>s in f-strings (<a href=\"https://redirect.github.com/python/mypy/issues/19846\">#19846</a>)</li>\n<li><a href=\"https://github.com/python/mypy/commit/2c0510c84868b6bb42ef0f305b701e530a85c25f\"><code>2c0510c</code></a> stubtest: additional guidance on errors when runtime is object.<strong>init</strong> (<a href=\"https://redirect.github.com/python/mypy/issues/19733\">#19733</a>)</li>\n<li><a href=\"https://github.com/python/mypy/commit/2f3f03c3e39e68dbfa3544c01a34f99803b3e1c2\"><code>2f3f03c</code></a> Bump version to 1.18.2+dev for point release</li>\n<li><a href=\"https://github.com/python/mypy/commit/76698412bc1f3ca99000d52649acd5a0e06aa71d\"><code>7669841</code></a> Fix crash on recursive alias in indirection.py (<a href=\"https://redirect.github.com/python/mypy/issues/19845\">#19845</a>)</li>\n<li><a href=\"https://github.com/python/mypy/commit/03fbaa941bccc3a9f8aea796d586603b67119bf2\"><code>03fbaa9</code></a> bump version to 1.18.1 due to wheels failure</li>\n<li><a href=\"https://github.com/python/mypy/commit/b44a1fbf0cf9fd90fd29d6bcd9f64c55dd2fd4c8\"><code>b44a1fb</code></a> removed +dev from version</li>\n<li><a href=\"https://github.com/python/mypy/commit/7197a99d1aebb1b7a584f82a53c44efb7dddf136\"><code>7197a99</code></a> Removed Unreleased in the Changelog for Release 1.18 (<a href=\"https://redirect.github.com/python/mypy/issues/19827\">#19827</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/python/mypy/compare/v1.17.1...v1.18.2\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `pytest` from 8.4.1 to 8.4.2\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/pytest-dev/pytest/releases\">pytest's releases</a>.</em></p>\n<blockquote>\n<h2>8.4.2</h2>\n<h1>pytest 8.4.2 (2025-09-03)</h1>\n<h2>Bug fixes</h2>\n<ul>\n<li>\n<p><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13478\">#13478</a>: Fixed a crash when using <code>console_output_style</code>{.interpreted-text role=&quot;confval&quot;} with <code>times</code> and a module is skipped.</p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13530\">#13530</a>: Fixed a crash when using <code>pytest.approx</code>{.interpreted-text role=&quot;func&quot;} and <code>decimal.Decimal</code>{.interpreted-text role=&quot;class&quot;} instances with the <code>decimal.FloatOperation</code>{.interpreted-text role=&quot;class&quot;} trap set.</p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13549\">#13549</a>: No longer evaluate type annotations in Python <code>3.14</code> when inspecting function signatures.</p>\n<p>This prevents crashes during module collection when modules do not explicitly use <code>from __future__ import annotations</code> and import types for annotations within a <code>if TYPE_CHECKING:</code> block.</p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13559\">#13559</a>: Added missing [int]{.title-ref} and [float]{.title-ref} variants to the [Literal]{.title-ref} type annotation of the [type]{.title-ref} parameter in <code>pytest.Parser.addini</code>{.interpreted-text role=&quot;meth&quot;}.</p>\n</li>\n<li>\n<p><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13563\">#13563</a>: <code>pytest.approx</code>{.interpreted-text role=&quot;func&quot;} now only imports <code>numpy</code> if NumPy is already in <code>sys.modules</code>. This fixes unconditional import behavior introduced in [8.4.0]{.title-ref}.</p>\n</li>\n</ul>\n<h2>Improved documentation</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13577\">#13577</a>: Clarify that <code>pytest_generate_tests</code> is discovered in test modules/classes; other hooks must be in <code>conftest.py</code> or plugins.</li>\n</ul>\n<h2>Contributor-facing changes</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13480\">#13480</a>: Self-testing: fixed a few test failures when run with <code>-Wdefault</code> or a similar override.</li>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13547\">#13547</a>: Self-testing: corrected expected message for <code>test_doctest_unexpected_exception</code> in Python <code>3.14</code>.</li>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13684\">#13684</a>: Make pytest's own testsuite insensitive to the presence of the <code>CI</code> environment variable -- by <code>ogrisel</code>{.interpreted-text role=&quot;user&quot;}.</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/bfae4224fd554d3d7f2c277a4cc092b6ec6af3ae\"><code>bfae422</code></a> Prepare release version 8.4.2</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/89905381a163be30ae87d62e5f750e902d750c5f\"><code>8990538</code></a> Fix passenv CI in tox ini and make tests insensitive to the presence of the C...</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/ca676bfe005aebcb12f4146d1b0f1d2772e2cd5d\"><code>ca676bf</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13687\">#13687</a> from pytest-dev/patchback/backports/8.4.x/e63f6e51c...</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/975a60a63ce385a44655596e254c1899feaa53e4\"><code>975a60a</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13686\">#13686</a> from pytest-dev/patchback/backports/8.4.x/12bde8af6...</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/7723ce84b87ab08f86ddafcb342acc28ba5ec99d\"><code>7723ce8</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13683\">#13683</a> from even-even/fix_Exeption_to_Exception_in_errorMe...</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/b7f05680d1301e0969b30bcb3c4b27433c9ee2b7\"><code>b7f0568</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13685\">#13685</a> from CoretexShadow/fix/docs-pytest-generate-tests</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/2c94c4a6948ba53440818389298157fa5d5f94cd\"><code>2c94c4a</code></a> add missing colon (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13640\">#13640</a>) (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13641\">#13641</a>)</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/c3d7684bc01c8c48d05145a30c5211ca8656c68c\"><code>c3d7684</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13606\">#13606</a> from pytest-dev/patchback/backports/8.4.x/5f9938563...</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/dc6e3be2ddc75a149b6d102d9b7c82ee47a00cfa\"><code>dc6e3be</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13605\">#13605</a> from The-Compiler/training-update-2025-07</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/f87289c36c8dbe7740e3020f5546b6f8b0861ff0\"><code>f87289c</code></a> Fix crash with <code>times</code> output style and skipped module (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13573\">#13573</a>) (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/13579\">#13579</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/pytest-dev/pytest/compare/8.4.1...8.4.2\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `ruff` from 0.12.11 to 0.13.2\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/astral-sh/ruff/releases\">ruff's releases</a>.</em></p>\n<blockquote>\n<h2>0.13.2</h2>\n<h2>Release Notes</h2>\n<p>Released on 2025-09-25.</p>\n<h3>Preview features</h3>\n<ul>\n<li>[<code>flake8-async</code>] Implement <code>blocking-path-method</code> (<code>ASYNC240</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20264\">#20264</a>)</li>\n<li>[<code>flake8-bugbear</code>] Implement <code>map-without-explicit-strict</code> (<code>B912</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20429\">#20429</a>)</li>\n<li>[<code>flake8-bultins</code>] Detect class-scope builtin shadowing in decorators, default args, and attribute initializers (<code>A003</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20178\">#20178</a>)</li>\n<li>[<code>ruff</code>] Implement <code>logging-eager-conversion</code> (<code>RUF065</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/19942\">#19942</a>)</li>\n<li>Include <code>.pyw</code> files by default when linting and formatting (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20458\">#20458</a>)</li>\n</ul>\n<h3>Bug fixes</h3>\n<ul>\n<li>Deduplicate input paths (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20105\">#20105</a>)</li>\n<li>[<code>flake8-comprehensions</code>] Preserve trailing commas for single-element lists (<code>C409</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/19571\">#19571</a>)</li>\n<li>[<code>flake8-pyi</code>] Avoid syntax error from conflict with <code>PIE790</code> (<code>PYI021</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20010\">#20010</a>)</li>\n<li>[<code>flake8-simplify</code>] Correct fix for positive <code>maxsplit</code> without separator (<code>SIM905</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20056\">#20056</a>)</li>\n<li>[<code>pyupgrade</code>] Fix <code>UP008</code> not to apply when <code>__class__</code> is a local variable (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20497\">#20497</a>)</li>\n<li>[<code>ruff</code>] Fix <code>B004</code> to skip invalid <code>hasattr</code>/<code>getattr</code> calls (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20486\">#20486</a>)</li>\n<li>[<code>ruff</code>] Replace <code>-nan</code> with <code>nan</code> when using the value to construct a <code>Decimal</code> (<code>FURB164</code> ) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20391\">#20391</a>)</li>\n</ul>\n<h3>Documentation</h3>\n<ul>\n<li>Add 'Finding ways to help' to CONTRIBUTING.md (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20567\">#20567</a>)</li>\n<li>Update import path to <code>ruff-wasm-web</code> (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20539\">#20539</a>)</li>\n<li>[<code>flake8-bandit</code>] Clarify the supported hashing functions (<code>S324</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20534\">#20534</a>)</li>\n</ul>\n<h3>Other changes</h3>\n<ul>\n<li>[<code>playground</code>] Allow hover quick fixes to appear for overlapping diagnostics (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20527\">#20527</a>)</li>\n<li>[<code>playground</code>] Fix non‑BMP code point handling in quick fixes and markers (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20526\">#20526</a>)</li>\n</ul>\n<h3>Contributors</h3>\n<ul>\n<li><a href=\"https://github.com/BurntSushi\"><code>@​BurntSushi</code></a></li>\n<li><a href=\"https://github.com/mtshiba\"><code>@​mtshiba</code></a></li>\n<li><a href=\"https://github.com/second-ed\"><code>@​second-ed</code></a></li>\n<li><a href=\"https://github.com/danparizher\"><code>@​danparizher</code></a></li>\n<li><a href=\"https://github.com/ShikChen\"><code>@​ShikChen</code></a></li>\n<li><a href=\"https://github.com/PieterCK\"><code>@​PieterCK</code></a></li>\n<li><a href=\"https://github.com/GDYendell\"><code>@​GDYendell</code></a></li>\n<li><a href=\"https://github.com/RazerM\"><code>@​RazerM</code></a></li>\n<li><a href=\"https://github.com/TaKO8Ki\"><code>@​TaKO8Ki</code></a></li>\n<li><a href=\"https://github.com/amyreese\"><code>@​amyreese</code></a></li>\n<li><a href=\"https://github.com/ntBre\"><code>@​ntbre</code></a></li>\n<li><a href=\"https://github.com/MichaReiser\"><code>@​MichaReiser</code></a></li>\n</ul>\n<h2>Install ruff 0.13.2</h2>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/astral-sh/ruff/blob/main/CHANGELOG.md\">ruff's changelog</a>.</em></p>\n<blockquote>\n<h2>0.13.2</h2>\n<p>Released on 2025-09-25.</p>\n<h3>Preview features</h3>\n<ul>\n<li>[<code>flake8-async</code>] Implement <code>blocking-path-method</code> (<code>ASYNC240</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20264\">#20264</a>)</li>\n<li>[<code>flake8-bugbear</code>] Implement <code>map-without-explicit-strict</code> (<code>B912</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20429\">#20429</a>)</li>\n<li>[<code>flake8-bultins</code>] Detect class-scope builtin shadowing in decorators, default args, and attribute initializers (<code>A003</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20178\">#20178</a>)</li>\n<li>[<code>ruff</code>] Implement <code>logging-eager-conversion</code> (<code>RUF065</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/19942\">#19942</a>)</li>\n<li>Include <code>.pyw</code> files by default when linting and formatting (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20458\">#20458</a>)</li>\n</ul>\n<h3>Bug fixes</h3>\n<ul>\n<li>Deduplicate input paths (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20105\">#20105</a>)</li>\n<li>[<code>flake8-comprehensions</code>] Preserve trailing commas for single-element lists (<code>C409</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/19571\">#19571</a>)</li>\n<li>[<code>flake8-pyi</code>] Avoid syntax error from conflict with <code>PIE790</code> (<code>PYI021</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20010\">#20010</a>)</li>\n<li>[<code>flake8-simplify</code>] Correct fix for positive <code>maxsplit</code> without separator (<code>SIM905</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20056\">#20056</a>)</li>\n<li>[<code>pyupgrade</code>] Fix <code>UP008</code> not to apply when <code>__class__</code> is a local variable (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20497\">#20497</a>)</li>\n<li>[<code>ruff</code>] Fix <code>B004</code> to skip invalid <code>hasattr</code>/<code>getattr</code> calls (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20486\">#20486</a>)</li>\n<li>[<code>ruff</code>] Replace <code>-nan</code> with <code>nan</code> when using the value to construct a <code>Decimal</code> (<code>FURB164</code> ) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20391\">#20391</a>)</li>\n</ul>\n<h3>Documentation</h3>\n<ul>\n<li>Add 'Finding ways to help' to CONTRIBUTING.md (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20567\">#20567</a>)</li>\n<li>Update import path to <code>ruff-wasm-web</code> (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20539\">#20539</a>)</li>\n<li>[<code>flake8-bandit</code>] Clarify the supported hashing functions (<code>S324</code>) (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20534\">#20534</a>)</li>\n</ul>\n<h3>Other changes</h3>\n<ul>\n<li>[<code>playground</code>] Allow hover quick fixes to appear for overlapping diagnostics (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20527\">#20527</a>)</li>\n<li>[<code>playground</code>] Fix non‑BMP code point handling in quick fixes and markers (<a href=\"https://redirect.github.com/astral-sh/ruff/pull/20526\">#20526</a>)</li>\n</ul>\n<h3>Contributors</h3>\n<ul>\n<li><a href=\"https://github.com/BurntSushi\"><code>@​BurntSushi</code></a></li>\n<li><a href=\"https://github.com/mtshiba\"><code>@​mtshiba</code></a></li>\n<li><a href=\"https://github.com/second-ed\"><code>@​second-ed</code></a></li>\n<li><a href=\"https://github.com/danparizher\"><code>@​danparizher</code></a></li>\n<li><a href=\"https://github.com/ShikChen\"><code>@​ShikChen</code></a></li>\n<li><a href=\"https://github.com/PieterCK\"><code>@​PieterCK</code></a></li>\n<li><a href=\"https://github.com/GDYendell\"><code>@​GDYendell</code></a></li>\n<li><a href=\"https://github.com/RazerM\"><code>@​RazerM</code></a></li>\n<li><a href=\"https://github.com/TaKO8Ki\"><code>@​TaKO8Ki</code></a></li>\n<li><a href=\"https://github.com/amyreese\"><code>@​amyreese</code></a></li>\n<li><a href=\"https://github.com/ntBre\"><code>@​ntbre</code></a></li>\n<li><a href=\"https://github.com/MichaReiser\"><code>@​MichaReiser</code></a></li>\n</ul>\n<h2>0.13.1</h2>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/b0bdf0334e38417f8617057cd0392a4b53954120\"><code>b0bdf03</code></a> Bump 0.13.2 (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20576\">#20576</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/7331d393c555ece88aa69f685562163790ddf611\"><code>7331d39</code></a> Update rooster to 0.1.0 (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20575\">#20575</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/529e5fa6c24ea68501adb18245eab27c701598d2\"><code>529e5fa</code></a> [ty] Ecosystem analyzer: timing report (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20571\">#20571</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/efbb80f7475c63b62981444d5c429109ff12ad32\"><code>efbb80f</code></a> [ty] Remove hack in protocol satisfiability check (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20568\">#20568</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/9f3cffc65cb834661e17263245761a66f9474af0\"><code>9f3cffc</code></a> Add 'Finding ways to help' to CONTRIBUTING.md (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20567\">#20567</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/21be94ac33f445d8a681babec6c56ca3d1b67156\"><code>21be94a</code></a> [ty] Explicitly test assignability/subtyping between unions of nominal types ...</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/b7d5dc98c193cc5cab00d557b6a392d35137d990\"><code>b7d5dc9</code></a> [ty] Add tests for interactions of <code>@classmethod</code>, <code>@staticmethod</code>, and proto...</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/e1bb74b25a0f730a5baff263d753ffe03cf857b1\"><code>e1bb74b</code></a> [ty] Match variadic argument to variadic parameter (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20511\">#20511</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/edeb45804ef9dbe348d393f3ab77288062a3c77e\"><code>edeb458</code></a> [ty] fallback to resolve_real_module in file_to_module (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20461\">#20461</a>)</li>\n<li><a href=\"https://github.com/astral-sh/ruff/commit/bea92c822980b1575d58542dffa2c960393d7603\"><code>bea92c8</code></a> [ty] More precise type inference for dictionary literals (<a href=\"https://redirect.github.com/astral-sh/ruff/issues/20523\">#20523</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/astral-sh/ruff/compare/0.12.11...0.13.2\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `uvicorn` from 0.35.0 to 0.37.0\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/Kludex/uvicorn/releases\">uvicorn's releases</a>.</em></p>\n<blockquote>\n<h2>Version 0.37.0</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Add <code>--timeout-worker-healthcheck</code> setting by <a href=\"https://github.com/Kludex\"><code>@​Kludex</code></a> in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2711\">Kludex/uvicorn#2711</a></li>\n<li>Add <code>os.PathLike[str]</code> type to <code>ssl_ca_certs</code> by <a href=\"https://github.com/rnv812\"><code>@​rnv812</code></a> in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2676\">Kludex/uvicorn#2676</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a href=\"https://github.com/LincolnPuzey\"><code>@​LincolnPuzey</code></a> made their first contribution in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2669\">Kludex/uvicorn#2669</a></li>\n<li><a href=\"https://github.com/rnv812\"><code>@​rnv812</code></a> made their first contribution in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2676\">Kludex/uvicorn#2676</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a href=\"https://github.com/Kludex/uvicorn/compare/0.36.1...0.37.0\">https://github.com/Kludex/uvicorn/compare/0.36.1...0.37.0</a></p>\n<h2>Version 0.36.1</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Raise an exception when calling removed <code>Config.setup_event_loop()</code> by <a href=\"https://github.com/Kludex\"><code>@​Kludex</code></a> in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2709\">Kludex/uvicorn#2709</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a href=\"https://github.com/Kludex/uvicorn/compare/0.36.0...0.36.1\">https://github.com/Kludex/uvicorn/compare/0.36.0...0.36.1</a></p>\n<h2>Version 0.36.0</h2>\n<h2>Added</h2>\n<ul>\n<li>Support custom IOLOOPs by <a href=\"https://github.com/gnir-work\"><code>@​gnir-work</code></a> in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2435\">Kludex/uvicorn#2435</a></li>\n<li>Allow to provide importable string in <code>--http</code>, <code>--ws</code> and <code>--loop</code> by <a href=\"https://github.com/Kludex\"><code>@​Kludex</code></a> in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2658\">Kludex/uvicorn#2658</a></li>\n</ul>\n<hr />\n<h3>New Contributors</h3>\n<ul>\n<li><a href=\"https://github.com/gnir-work\"><code>@​gnir-work</code></a> made their first contribution in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2435\">Kludex/uvicorn#2435</a></li>\n<li><a href=\"https://github.com/musicinmybrain\"><code>@​musicinmybrain</code></a> made their first contribution in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2659\">Kludex/uvicorn#2659</a></li>\n<li><a href=\"https://github.com/secrett2633\"><code>@​secrett2633</code></a> made their first contribution in <a href=\"https://redirect.github.com/Kludex/uvicorn/pull/2684\">Kludex/uvicorn#2684</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a href=\"https://github.com/Kludex/uvicorn/compare/0.35.0...0.36.0\">https://github.com/Kludex/uvicorn/compare/0.35.0...0.36.0</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/Kludex/uvicorn/blob/main/docs/release-notes.md\">uvicorn's changelog</a>.</em></p>\n<blockquote>\n<h2>0.37.0 (September 23, 2025)</h2>\n<h3>Added</h3>\n<ul>\n<li>Add <code>--timeout-worker-healthcheck</code> option (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2711\">#2711</a>)</li>\n<li>Add <code>os.PathLike[str]</code> type to <code>ssl_ca_certs</code> (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2676\">#2676</a>)</li>\n</ul>\n<h2>0.36.1 (September 23, 2025)</h2>\n<h3>Fixed</h3>\n<ul>\n<li>Raise an exception when calling removed <code>Config.setup_event_loop()</code> (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2709\">#2709</a>)</li>\n</ul>\n<h2>0.36.0 (September 20, 2025)</h2>\n<h3>Added</h3>\n<ul>\n<li>Support custom IOLOOPs (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2435\">#2435</a>)</li>\n<li>Allow to provide importable string in <code>--http</code>, <code>--ws</code> and <code>--loop</code> (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2658\">#2658</a>)</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/4098bcac97aa0fbda2f4e73278fbbe3b128be940\"><code>4098bca</code></a> Version 0.37.0 (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2712\">#2712</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/8c057fa3fc407f1e5e58e6bf0b46494732ebfd1f\"><code>8c057fa</code></a> Add <code>os.PathLike[str]</code> type to <code>ssl_ca_certs</code> (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2676\">#2676</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/bbe119e4e83517a230487658f864d3ad67131772\"><code>bbe119e</code></a> Add note about <code>--timeout-keep-alive</code> being measured in seconds (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2669\">#2669</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/2744f14c9906d90d235f9fcd5289da0c47e4abe4\"><code>2744f14</code></a> Add <code>--timeout-worker-healthcheck</code> setting (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2711\">#2711</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/1dfb0bd885bbb0c466c19eee8bb2001bed59ca8c\"><code>1dfb0bd</code></a> Version 0.36.1 (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2710\">#2710</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/3d0d46a704b772ec68596d8e1c9d9264b1499f34\"><code>3d0d46a</code></a> Raise an exception when calling removed <code>Config.setup_event_loop()</code> (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2709\">#2709</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/ad9e5b90dda248b08afdffd18a02b73a5b9d405c\"><code>ad9e5b9</code></a> docs: redirect uvicorn.org to uvicorn.dev (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2705\">#2705</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/0e3b18c39959ad4ec8bfe6cb7e11c82664aaa702\"><code>0e3b18c</code></a> Version 0.36.0 (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2704\">#2704</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/f84661d56eb14bbd29b995af8774c73856e3ce04\"><code>f84661d</code></a> chore: drop mention to scripts/publish (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2696\">#2696</a>)</li>\n<li><a href=\"https://github.com/Kludex/uvicorn/commit/dcd7e6c94e87b6ffbce378e4ada3d67654af975d\"><code>dcd7e6c</code></a> docs: replace uvicorn.org by uvicorn.dev (<a href=\"https://redirect.github.com/Kludex/uvicorn/issues/2703\">#2703</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/Kludex/uvicorn/compare/0.35.0...0.37.0\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot merge` will merge this PR after your CI passes on it\n- `@dependabot squash and merge` will squash and merge this PR after your CI passes on it\n- `@dependabot cancel merge` will cancel a previously requested merge and block automerging\n- `@dependabot reopen` will reopen this PR if it is closed\n- `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency\n- `@dependabot ignore <dependency name> major version` will close this group update PR and stop Dependabot creating any more for the specific dependency's major version (unless you unignore this specific dependency's major version or upgrade to it yourself)\n- `@dependabot ignore <dependency name> minor version` will close this group update PR and stop Dependabot creating any more for the specific dependency's minor version (unless you unignore this specific dependency's minor version or upgrade to it yourself)\n- `@dependabot ignore <dependency name>` will close this group update PR and stop Dependabot creating any more for the specific dependency (unless you unignore this specific dependency or upgrade to it yourself)\n- `@dependabot unignore <dependency name>` will remove all of the ignore conditions of the specified dependency\n- `@dependabot unignore <dependency name> <ignore condition>` will remove the ignore condition of the specified dependency and ignore conditions\n\n\n</details>",
+    "context": [
+      {
+        "event_id": "seed_comment_3380793729",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "Upgrade `ruff` with...\r\n\r\n@dependabot rebase",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3380793729"
+      },
+      {
+        "event_id": "seed_comment_3380793991",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Sorry, only users with push access can use that command.",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3380793991"
+      },
+      {
+        "event_id": "seed_comment_3381001070",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "@lovelydinosaur, is there a reason to hold this up?  Some of these upgrades seem vital for Py3.14.\r\n\r\n@ilovelinux\r\n",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3381001070"
+      },
+      {
+        "event_id": "seed_comment_3592606485",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "@lovelydinosaur @browniebroke can you please make the following comment to force an upgrade of this PR and then merge it?\r\n\r\nSeveral of these dependencies need to be upgraded to support Python 3.14, and that effort is blocked on multiple PRs.\r\n\r\n@dependabot recreate",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3592606485"
+      },
+      {
+        "event_id": "seed_comment_3592606565",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Sorry, only users with push access can use that command.",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3592606565"
+      },
+      {
+        "event_id": "seed_comment_3592606986",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Sorry, only users with push access can use that command.",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3592606986"
+      },
+      {
+        "event_id": "seed_comment_3592829571",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Sorry, only users with push access can use that command.",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3592829571"
+      },
+      {
+        "event_id": "seed_comment_3592834552",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Sorry, only users with push access can use that command.",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3592834552"
+      },
+      {
+        "event_id": "seed_comment_3831368852",
+        "event_type": "comment",
+        "actor": "dependabot[bot]",
+        "content": "Looks like these dependencies are updatable in another way, so this is no longer needed.",
+        "url": "https://github.com/encode/httpx/pull/3678#issuecomment-3831368852"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3664",
+    "url": "https://github.com/encode/httpx/pull/3664",
+    "event_id": "seed_pr_3664",
+    "pr_content": "Add Python 3.14 to test matrix\n\nTests here were hanging on a previous run, let's see if that's resolved.",
+    "context": [
+      {
+        "event_id": "seed_comment_3302727871",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "*Well that's tedious*.\r\n\r\nWe're not doing any gnarly Python magic here, so Python 3.13 -> 3.14 breaking almost certainly isn't something that the `httpx` package is causing. If anyone's got a good guess onto what part of dependency tooling is getting snarled up here???\r\n",
+        "url": "https://github.com/encode/httpx/pull/3664#issuecomment-3302727871"
+      },
+      {
+        "event_id": "seed_comment_3637295470",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "Hey Kim! I opened a PR (#3722 ) with the fixes. I would love to make a release with these updates, since httpx has not had a release in over a year! I would appreciate it if you could review it!\r\nBest, Kar",
+        "url": "https://github.com/encode/httpx/pull/3664#issuecomment-3637295470"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3645",
+    "url": "https://github.com/encode/httpx/pull/3645",
+    "event_id": "seed_pr_3645",
+    "pr_content": "GitHub Actions: Add Python 3.14 to test matrix\n\nUPDATE: Python 3.14 (the π version) was released today.\r\nhttps://www.python.org/downloads/release/python-3140/\r\nhttps://github.com/actions/python-versions/releases\r\n\r\n```diff\r\n-       python-version: [\"3.9\", \"3.10\", \"3.11\", \"3.12\", \"3.13\"]\r\n+       python-version: [\"3.9\", \"3.10\", \"3.11\", \"3.12\", \"3.13\", \"3.14\"]\r\n```\r\n* #3616\r\n* #3644\r\n\r\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\nWhy are 1,418 pytests collected on Python 3.14rc2, but none of them run?\r\n\r\nAll dependencies are up to date!  All other reasonable Python versions pass as expected in about 1 minute.\r\n\r\nRead the second comment to see that some tests can pass, but many others go into an infinite loop!\r\n\r\nWhile the tests are not starting, let's temporarily save resources by adding `timeout-minutes: 10`.\r\n```diff\r\n      - name: \"Run tests\"\r\n        run: \"scripts/test\"\r\n+       timeout-minutes: 10  # TODO(@cclauss): Remove once Python 3.14 tests are passing.\r\n```\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly.\r\n\r\n@hugovk Any ideas why pytest fails to execute any tests on Python 3.14rc3?",
+    "context": [
+      {
+        "event_id": "seed_comment_3248300175",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "Ignoring 9 test files passes on Python 3.14rc2.\r\n```\r\nuv run pytest \\\r\n    --ignore=tests/client/test_async_client.py \\\r\n    --ignore=tests/client/test_client.py \\\r\n    --ignore=tests/client/test_event_hooks.py \\\r\n    --ignore=tests/test_api.py \\\r\n    --ignore=tests/test_config.py \\\r\n    --ignore=tests/test_exceptions.py \\\r\n    --ignore=tests/test_main.py \\\r\n    --ignore=tests/test_timeouts.py \\\r\n    --ignore=tests/test_utils.py\r\n\r\n========== test session starts ==========\r\nplatform darwin -- Python 3.14.0rc2, pytest-8.4.1, pluggy-1.6.0\r\nrootdir: /Users/cclauss/Python/itinerant_futurizer/httpx\r\nconfigfile: pyproject.toml\r\nplugins: anyio-4.10.0\r\ncollected 1218 items\r\n\r\ntests/client/test_auth.py ........................................................................s.......                                           [  6%]\r\ntests/client/test_cookies.py .......                                                                                                                 [  7%]\r\ntests/client/test_headers.py .................                                                                                                       [  8%]\r\ntests/client/test_properties.py ........                                                                                                             [  9%]\r\ntests/client/test_proxies.py .....................................................................                                                   [ 14%]\r\ntests/client/test_queryparams.py ...                                                                                                                 [ 15%]\r\ntests/client/test_redirects.py ...............................                                                                                       [ 17%]\r\ntests/models/test_cookies.py .......                                                                                                                 [ 18%]\r\ntests/models/test_headers.py ...........................                                                                                             [ 20%]\r\ntests/models/test_queryparams.py ..............                                                                                                      [ 21%]\r\ntests/models/test_requests.py ........................                                                                                               [ 23%]\r\ntests/models/test_responses.py ..........................................................................................................            [ 32%]\r\ntests/models/test_url.py ..........................................................................................                                  [ 39%]\r\ntests/models/test_whatwg.py ........................................................................................................................ [ 49%]\r\n.................................................................................................................................................... [ 61%]\r\n.................................................................................................................................................... [ 73%]\r\n...................................................................................................................................................  [ 85%]\r\ntests/test_asgi.py ........................                                                                                                          [ 87%]\r\ntests/test_auth.py ........                                                                                                                          [ 88%]\r\ntests/test_content.py ...........................................                                                                                    [ 92%]\r\ntests/test_decoders.py ........................................                                                                                      [ 95%]\r\ntests/test_exported_members.py .                                                                                                                     [ 95%]\r\ntests/test_multipart.py ......................................                                                                                       [ 98%]\r\ntests/test_status_codes.py ......                                                                                                                    [ 99%]\r\ntests/test_wsgi.py ............                                                                                                                      [100%]\r\n\r\n========== short test summary info ==========\r\nSKIPPED [1] tests/client/test_auth.py:273: netrc files without a password are valid from Python >= 3.11\r\n========== 1217 passed, 1 skipped in 6.63s ==========\r\n```",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3248300175"
+      },
+      {
+        "event_id": "seed_comment_3380805340",
+        "event_type": "comment",
+        "actor": "hugovk",
+        "content": "Try bumping cryptography from 45.0.7 to latest 46.0.2, which has wheels for 3.14?\r\n\r\n* https://pypi.org/project/cryptography/45.0.7/#files\r\n* https://pypi.org/project/cryptography/46.0.2/#files",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3380805340"
+      },
+      {
+        "event_id": "seed_comment_3380860712",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "OK... Upgraded `cryptography==46.0.2` but we still have the original problem...\r\n\r\n> Why are 1,418 pytests collected on Python 3.14rc2, but none of them run?",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3380860712"
+      },
+      {
+        "event_id": "seed_comment_3380907079",
+        "event_type": "comment",
+        "actor": "hugovk",
+        "content": "The 3.14 job did collect 1418 items:\r\n\r\n```\r\ncollected 1418 items\r\n\r\nError: The operation was canceled.\r\n```\r\n\r\nhttps://github.com/encode/httpx/actions/runs/18341635177/job/52238338891?pr=3645\r\n\r\nBut was cancelled because the 3.14t job is failing: \r\n```\r\nImportError while loading conftest '/home/runner/work/httpx/httpx/tests/conftest.py'.\r\ntests/conftest.py:20: in <module>\r\n    import httpx\r\nhttpx/__init__.py:2: in <module>\r\n    from ._api import *\r\nhttpx/_api.py:6: in <module>\r\n    from ._client import Client\r\nhttpx/_client.py:13: in <module>\r\n    from ._auth import Auth, BasicAuth, FunctionAuth\r\nhttpx/_auth.py:12: in <module>\r\n    from ._models import Cookies, Request, Response\r\nhttpx/_models.py:14: in <module>\r\n    from ._decoders import (\r\nhttpx/_decoders.py:19: in <module>\r\n    import brotli\r\n/opt/hostedtoolcache/Python/3.14.0/x64-freethreaded/lib/python3.14t/site-packages/brotli.py:8: in <module>\r\n    import _brotli\r\nE   RuntimeWarning: The global interpreter lock (GIL) has been enabled to load module '_brotli', which has not declared that it can run safely without the GIL. To override this behavior and keep the GIL disabled (at your own risk), run with PYTHON_GIL=0 or -Xgil=0.\r\nError: Process completed with exit code 4.\r\n```\r\nhttps://github.com/encode/httpx/actions/runs/18341635177/job/52238338857?pr=3645\r\n\r\nYou could add `fail-fast: false` to allow 3.14 to continue despite the 3.14t failure.\r\n\r\nAnd brotli free-threading support will be coming in a future version: https://github.com/google/brotli/issues/1241\r\n\r\nIn the meantime, you could leave out 3.14t here. In any case, it would make sense to set `PYTHON_GIL=0` to make sure that job really is testing free-threading and not regular GIL (see https://hugovk.dev/blog/2025/free-threaded-python-on-github-actions/#python_gil0).\r\n",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3380907079"
+      },
+      {
+        "event_id": "seed_comment_3380920068",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "Py3.14t dropped.  Py314 hung in pytest...",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3380920068"
+      },
+      {
+        "event_id": "seed_comment_3380955542",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "After reading #3616, perhaps `scripts/install` is not a good idea.\r\n* #3616\r\n\r\nUpdate: Nope, that did not change the hanging pytests.",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3380955542"
+      },
+      {
+        "event_id": "seed_comment_3381168065",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "The pytest blockage was caused by one of the other dependency upgrades in:\r\n* #3678 ",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3381168065"
+      },
+      {
+        "event_id": "seed_comment_3416240925",
+        "event_type": "comment",
+        "actor": "mirthebeijers",
+        "content": "Hi :wave: see my try at https://github.com/encode/httpx/pull/3693",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3416240925"
+      },
+      {
+        "event_id": "seed_comment_3638333238",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "Closing in favor of\r\n* #3722",
+        "url": "https://github.com/encode/httpx/pull/3645#issuecomment-3638333238"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3613",
+    "url": "https://github.com/encode/httpx/pull/3613",
+    "event_id": "seed_pr_3613",
+    "pr_content": "Use standard libary Zstandard for Python 3.14+\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n[PEP 784](https://peps.python.org/pep-0784/) add a Zstandard implementation to the Python standard library under `compression.zstd`, and is scheduled for release in Python 3.14. This PR adapts `ZStandardDecoder` to work with either the standard library implementation or the implementation from the [`zstandard`](https://github.com/indygreg/python-zstandard) package.\r\n\r\nThis has the implication that Zstandard content decoding is available by default on Python 3.14 and later, without the need to install the `zstd` extra. \r\n\r\n# Checklist\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [ ] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n  - Testing this requires Python 3.14, but the existing zstd unit tests pass with the standard library implementation. I'm always happy to add more tests if needed!\r\n- [x] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_review_3063688912",
+        "event_type": "pr_review",
+        "actor": "mollymorphous",
+        "content": "Thanks for the review! Firefox and Chrome currently support zstd ([caniuse](https://caniuse.com/zstd)). Safari does not yet, but plans to: https://github.com/WebKit/standards-positions/issues/168\r\n\r\nI wasn't able to find a hard number on server-side deployments, the answer seems to be not a lot, but CloudFlare recently added support to the CDN.",
+        "url": "https://github.com/encode/httpx/pull/3613#pullrequestreview-3063688912"
+      },
+      {
+        "event_id": "seed_comment_3124736009",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "Ooh interesting, thanks.\r\n\r\nAny idea on how widely zstd is currently supported? (Wrt both browsers and servers.)\r\n\r\nRelated to this... compression is one of the currently unimplemented features in the httpx 1.0 prerelease... https://www.encode.io/httpnext/",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3124736009"
+      },
+      {
+        "event_id": "seed_comment_3125398688",
+        "event_type": "comment",
+        "actor": "lilydjwg",
+        "content": "> Any idea on how widely zstd is currently supported? (Wrt both browsers and servers.)\r\n\r\nAt least crates.io, packagist and sourceforge support it. (My tests blow up because I cache http responses and there are zstd responses from other Python versions; the \"zstandard\" module doesn't support 3.14 yet.)",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3125398688"
+      },
+      {
+        "event_id": "seed_comment_3133843664",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "From a bit of time reviewing this I've not been able to track down good examples of URLs to use for comparison purposes here. \r\n\r\nEg...\r\n\r\n* CloudFlare blog pages don't appear to use compression for hosted images.\r\n* GitHub pages sites don't appear to use compression for hosted images.\r\n* WikiPedia supports gzip compression throughout.\r\n\r\nHere's one example of a URL that does support zstd, though in this particular case it appears less efficient than gzip...\r\n\r\n```\r\n$ curl https://help.netflix.com/en/node/30081 -H \"Accept-Encoding: br\" --output netflix.br \r\n$ curl https://help.netflix.com/en/node/30081 -H \"Accept-Encoding: gzip\" --output netflix.gzip\r\n$ curl https://help.netflix.com/en/node/30081 -H \"Accept-Encoding: zstd\" --output netflix.zstd\r\n$ curl https://help.netflix.com/en/node/30081 -H \"Accept-Encoding: identity\" --output netflix\r\n$ wc -c netflix*\r\n   84920 netflix\r\n   84920 netflix.br  # Not supported on this URL\r\n   12602 netflix.gzip\r\n   16761 netflix.zstd\r\n```\r\n\r\nThe CloudFlare pitch for zstd https://blog.cloudflare.com/new-standards/ isn't *neccessarily* convincing... gzip is essentially just as fast, and looks to have slightly less efficient though notably more stable compression ratios.\r\n\r\nI'm reviewing this for the purposes of `httpx` 1.0, and I'm expecting that *only supporting gzip* might be a reasonable default.\r\n\r\nDoes anyone have some useful real world examples that'd help verify if that is / isn't a good policy?\r\n\r\n\r\n",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3133843664"
+      },
+      {
+        "event_id": "seed_comment_3240235628",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "I suggest adding Python 3.14 to the test suite as in:\r\n* #3645",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3240235628"
+      },
+      {
+        "event_id": "seed_comment_3265958952",
+        "event_type": "comment",
+        "actor": "tuffnatty",
+        "content": "I would suggest dropping `zstandard` and switch to stdlib-compatible `backports.zstd` on Python 3.9-3.13, as `httpx` has dropped Python 3.8 support already.",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3265958952"
+      },
+      {
+        "event_id": "seed_comment_3266010468",
+        "event_type": "comment",
+        "actor": "tuffnatty",
+        "content": "> The CloudFlare pitch for zstd https://blog.cloudflare.com/new-standards/ isn't _neccessarily_ convincing... gzip is essentially just as fast, and looks to have slightly less efficient though notably more stable compression ratios.\r\n\r\ngzip is definitely not just as fast (without hardware offloading), it's just that they measure the whole response time, where the compression speed difference does not seem to matter much _on average_.\r\n> \r\n> I'm reviewing this for the purposes of `httpx` 1.0, and I'm expecting that _only supporting gzip_ might be a reasonable default.\r\n\r\n> Does anyone have some useful real world examples that'd help verify if that is / isn't a good policy?\r\n\r\nI had used this to stream huge JSONL chunks over HTTP, and while it does not make traffic much less or a great overall speed improvement, the CPU load situation has improved a lot (relative to gzip).\r\n",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3266010468"
+      },
+      {
+        "event_id": "seed_comment_3301371145",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "@tuffnatty Would you be willing to create an alternative pull request that uses the backport and adds automated tests on Py3.14 like\r\n* #3645",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3301371145"
+      },
+      {
+        "event_id": "seed_comment_3302376638",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "Okay, so my review of this was that *supporting gzip only* would be a sensible policy.\r\nThat's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302376638"
+      },
+      {
+        "event_id": "seed_comment_3302470811",
+        "event_type": "comment",
+        "actor": "lilydjwg",
+        "content": "> Okay, so my review of this was that _supporting gzip only_ would be a sensible policy.\r\n> That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\r\n\r\nWould there be a mechanism to add support for other compression methods via third-party code then? I'm a bit worried about interoperability with not-so-good servers and proxies.",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302470811"
+      },
+      {
+        "event_id": "seed_comment_3302589001",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "That's a good question... ...I can't answer that fully at the moment.\r\n\r\nThere might not be any API *explicitly* for that purpose. Here's how interop. with the streams class would be...\r\n\r\n```python\r\n# A custom stream on top of the streams API...\r\nclass ZstdStream(httpx.Stream):\r\n    def __init__(self, stream: httpx.Stream):\r\n        self._wrapped = stream\r\n\r\n    # Implement `.read()` and `.close()`\r\n\r\n# Usage...\r\nstream = ZStdStream(response.stream)\r\nbody = stream.read()\r\n```\r\n\r\nWe probably don't want specific dials to \"support for other compression methods via third-party code\", since the less config the better. However we do want the tooling itself to be flexible enough to support customisation.\r\n\r\nThere's a current example in the docs demo'ing a custom client which is vastly more simple than with httpx 0.28. Perhaps building out that example to also demo custom response classes would be a good way to point users towards adaptability without increasing API surface area.",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3302589001"
+      },
+      {
+        "event_id": "seed_comment_3306585695",
+        "event_type": "comment",
+        "actor": "tuffnatty",
+        "content": "> @tuffnatty Would you be willing to create an alternative pull request that uses the backport \r\n\r\n@cclauss Thanks but the issue has been resolved in another way.",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3306585695"
+      },
+      {
+        "event_id": "seed_comment_3364099353",
+        "event_type": "comment",
+        "actor": "ddelange",
+        "content": "> Okay, so my review of this was that _supporting gzip only_ would be a sensible policy. That's what we'll go for in 1.0. Let's not spend any more time rejigging zstd here.\r\n\r\nfwiw, the major alternatives to httpx support zstd (and for sure brotli):\r\n- [aiohttp](https://github.com/aio-libs/aiohttp/commit/4872fce3426119e63e1a892c39b474786dafddac)\r\n- [urllib3](https://github.com/urllib3/urllib3/commit/c4b5917e911a90c8bf279448df8952a682294135)\r\n  - requests\r\n\r\nsupporting only gzip/deflate might be insufficient in 2025. especially brotli accounts for 33% of compressed http responses already in 2021 ([Figure 22.4](https://almanac.httparchive.org/en/2021/compression#trends-in-http-compression)) and 44% of compressed javascript versus 41% gzip in 2024 ([Figure 1.21](https://almanac.httparchive.org/en/2024/javascript#compression-methods))",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3364099353"
+      },
+      {
+        "event_id": "seed_comment_3364229071",
+        "event_type": "comment",
+        "actor": "cclauss",
+        "content": "> the issue has been resolved in another way.\r\n\r\nHow was the issue resolved?",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3364229071"
+      },
+      {
+        "event_id": "seed_comment_3366414355",
+        "event_type": "comment",
+        "actor": "tuffnatty",
+        "content": "> > the issue has been resolved in another way.\r\n> \r\n> How was the issue resolved?\r\n\r\nhttps://github.com/encode/httpx/pull/3613#issuecomment-3302376638",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3366414355"
+      },
+      {
+        "event_id": "seed_comment_3382292112",
+        "event_type": "comment",
+        "actor": "ddelange",
+        "content": "disregard my last comment, I see that they're all [supported](https://github.com/encode/httpx/blob/0.28.1/httpx/_decoders.py) :+1: ",
+        "url": "https://github.com/encode/httpx/pull/3613#issuecomment-3382292112"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3564",
+    "url": "https://github.com/encode/httpx/pull/3564",
+    "event_id": "seed_pr_3564",
+    "pr_content": "fix CVE-2025-43859\n\nh11 accepts some malformed Chunked-Encoding bodies before 0.16.0, httpcore 1.0.9 ensure using at least 0.16.0\r\n\r\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\n# Checklist\r\n\r\n- [ ] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [ ] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly.\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_2858720787",
+        "event_type": "comment",
+        "actor": "zanieb",
+        "content": "I'm actually not sure this is correct. I don't think `httpx` needs to enforce this for you. You can just upgrade that downstream package? I don't think `httpx` should say it is _incompatible_ with earlier versions of `h11`.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2858720787"
+      },
+      {
+        "event_id": "seed_comment_2865814818",
+        "event_type": "comment",
+        "actor": "imredobos",
+        "content": "i have actually upgraded the downstream package to fix immediately, in my opinion, enforcing a version which solves a critical vulnerability is good thing, but i understand your point\r\n",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2865814818"
+      },
+      {
+        "event_id": "seed_comment_2884128036",
+        "event_type": "comment",
+        "actor": "LeoSL",
+        "content": "Coming here because I also had to fix a CVE on my repo and found this `httpx` dependency. I also believe enforcing a version which solves a critical vulnerability is a good thing for `httpx`",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2884128036"
+      },
+      {
+        "event_id": "seed_comment_2884160131",
+        "event_type": "comment",
+        "actor": "zanieb",
+        "content": "I don't really agree, you'd have to upgrade httpx for us to enforce the version at which point you might as well have updated the dependency?",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2884160131"
+      },
+      {
+        "event_id": "seed_comment_2884534585",
+        "event_type": "comment",
+        "actor": "LeoSL",
+        "content": "@zanieb thanks for replying :) \r\n\r\nI'm not too sure what are the deptree repercussions if I bump the h11 version while httpx's dependencies require a lower version. In my view, that leads to inconsistencies and messes up with the pip's dependency resolver.\r\n\r\nPlease educate me if I'm not seeing things straight.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2884534585"
+      },
+      {
+        "event_id": "seed_comment_2884546250",
+        "event_type": "comment",
+        "actor": "zanieb",
+        "content": "> I'm not too sure what are the deptree repercussions if I bump the h11 version while httpx's dependencies require a lower version. In my view, that leads to inconsistencies and messes up with the pip's dependency resolver.\r\n\r\nI'm not sure I follow, but httpx itself does not require the lower version — it allows any 1.x version. There shouldn't be repercussions to bumping h11. If some other dependency requires a _lower_ version of h11, and does not allow a newer version, that is indeed a problem and should be fixed in that package.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2884546250"
+      },
+      {
+        "event_id": "seed_comment_2884569769",
+        "event_type": "comment",
+        "actor": "LeoSL",
+        "content": "Ah I see, I see.\r\n\r\nThe problem is within httpx's dependency `httpcore`, as we can see on this dep tree:\r\n```\r\nhttpx==0.28.1\r\n├── httpcore [required: ==1.*, installed: 1.0.5]\r\n│   └── h11 [required: >=0.13,<0.15, installed: 0.14.0]\r\n```\r\n\r\n",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2884569769"
+      },
+      {
+        "event_id": "seed_comment_2884579900",
+        "event_type": "comment",
+        "actor": "LeoSL",
+        "content": "Alright, after installing manually declaring `httpcore==1.0.9` (that requires h11's >= 0.16), this CVE seems to be fixed.\r\n\r\n```\r\nhttpx==0.28.1\r\n├── httpcore [required: ==1.*, installed: 1.0.9]\r\n│   ├── certifi [required: Any, installed: 2025.1.31]\r\n│   └── h11 [required: >=0.16, installed: 0.16.0]\r\n```",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2884579900"
+      },
+      {
+        "event_id": "seed_comment_2921654330",
+        "event_type": "comment",
+        "actor": "Kludex",
+        "content": "As @zanieb said, there's no need for HTTPX to actually enforce this. It would only be a problem if httpx didn't allow you to install the safe h11 version.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-2921654330"
+      },
+      {
+        "event_id": "seed_comment_3401924987",
+        "event_type": "comment",
+        "actor": "danielfcollier",
+        "content": "If it is enforced, the ecosystem would gain awareness of the vulnerability. Not enforcing is going along with the problem.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-3401924987"
+      },
+      {
+        "event_id": "seed_comment_3411961085",
+        "event_type": "comment",
+        "actor": "zanieb",
+        "content": "@danielfcollier adding a lower bound to a new version of httpx does not \"increase awareness\" of a vulnerability, it just forces an upgrade of the package when upgrading httpx. In either case, you need to be performing upgrades to resolve the vulnerability. You should be using dedicated tooling, e.g., Dependabot, for awareness of CVEs.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-3411961085"
+      },
+      {
+        "event_id": "seed_comment_3418411804",
+        "event_type": "comment",
+        "actor": "danielfcollier",
+        "content": " It is just a fact that enforcing a higher version would raise the bar, enforce security, and raise awareness - some people are just not educated about vulnerabilities or do not have a security department to take care of these scans. But, ok, when someone reverse engineers the ecosystem to find projects with top vulnerabilities, someone might consider enforcing some updates to strategic dependencies.",
+        "url": "https://github.com/encode/httpx/pull/3564#issuecomment-3418411804"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3540",
+    "url": "https://github.com/encode/httpx/pull/3540",
+    "event_id": "seed_pr_3540",
+    "pr_content": "docs: Add link to Event Hooks docs on Compatibility page\n\n# Summary\r\n\r\nAdd a nice-to-have link to the Event Hooks docs on the Compatibility page.\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [x] I've updated the documentation accordingly.",
+    "context": [
+      {
+        "event_id": "seed_comment_3488743791",
+        "event_type": "comment",
+        "actor": "injust",
+        "content": "Abandoning due to inactivity",
+        "url": "https://github.com/encode/httpx/pull/3540#issuecomment-3488743791"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3513",
+    "url": "https://github.com/encode/httpx/pull/3513",
+    "event_id": "seed_pr_3513",
+    "pr_content": "Remove user credentials in URLs when converting to a string\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\nAs previously noted in [this GitHub discussion](https://github.com/encode/httpx/discussions/2765), this library by default leaks credentials which are included in URL strings (common for basic authentication). It can also raise exceptions which contain the credentials in the error string if a request fails (see `raise_for_status`).\r\n\r\nThis PR updates the `__str__` method on URLs to remove the user & password details. I believe this is the correct default behaviour for a library like this, as it avoids any risk of leakage. Removing the user & password entirely seems both (a) the safest option, and (b) the simplest implementation. These credentials are passed as headers in reality, and are not technically part of the URL.\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [x] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [x] I've updated the documentation accordingly.  [I did not make any documentation changes as I do not think any are needed]\r\n",
+    "context": [
+      {
+        "event_id": "seed_comment_2688670749",
+        "event_type": "comment",
+        "actor": "karpetrosyan",
+        "content": "Yep, hiding user credentials at the lowest layer and preventing them from being passed higher makes perfect sense.\r\n\r\nNow it's exposed in URL.__str__, but not in URL.__repr__, which is a bit weird. __str__ is supposed to show more user-related data, while __repr__ is more for debugging and development. So, hiding it in __repr__ would make more sense. However, I think preventing it entirely is the most secure way.",
+        "url": "https://github.com/encode/httpx/pull/3513#issuecomment-2688670749"
+      },
+      {
+        "event_id": "seed_comment_2689151434",
+        "event_type": "comment",
+        "actor": "zanderxyz",
+        "content": "> Yep, hiding user credentials at the lowest layer and preventing them from being passed higher makes perfect sense.\r\n> \r\n> Now it's exposed in URL.**str**, but not in URL.**repr**, which is a bit weird. **str** is supposed to show more user-related data, while **repr** is more for debugging and development. So, hiding it in **repr** would make more sense. However, I think preventing it entirely is the most secure way.\r\n\r\nJust to clarify - after the change in this PR, the username & password are not exposed in either **str** or **repr✱. I do think this is the most secure implementation, and I don't think we really lose anything..",
+        "url": "https://github.com/encode/httpx/pull/3513#issuecomment-2689151434"
+      },
+      {
+        "event_id": "seed_comment_3157740679",
+        "event_type": "comment",
+        "actor": "grahamwhiteuk",
+        "content": "Anyone have a view on when this might get merged (and released)?",
+        "url": "https://github.com/encode/httpx/pull/3513#issuecomment-3157740679"
+      },
+      {
+        "event_id": "seed_comment_3360536080",
+        "event_type": "comment",
+        "actor": "grahamwhiteuk",
+        "content": "Seems to be taking an age to be reviewed/merge so in the meantime, if you find this and don't want to log secrets you could just alter the log level of httpx...\r\n\r\n```python\r\nimport logging\r\n\r\nhttpx_logger = logging.getLogger(\"httpx\")\r\nhttpx_logger.setLevel(logging.WARNING)\r\n```",
+        "url": "https://github.com/encode/httpx/pull/3513#issuecomment-3360536080"
+      },
+      {
+        "event_id": "seed_comment_3397399752",
+        "event_type": "comment",
+        "actor": "lovelydinosaur",
+        "content": "> This PR updates the __str__ method on URLs to remove the user & password details.\r\n\r\nThank you no.",
+        "url": "https://github.com/encode/httpx/pull/3513#issuecomment-3397399752"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3465",
+    "url": "https://github.com/encode/httpx/pull/3465",
+    "event_id": "seed_pr_3465",
+    "pr_content": "Make `UseClientDefault` public\n\nIt's not possible what was suggested on https://github.com/encode/starlette/pull/2709/files#r1815401043.",
+    "context": [
+      {
+        "event_id": "seed_comment_2626825739",
+        "event_type": "comment",
+        "actor": "KalleDK",
+        "content": "I also keep bumping into this problem - Hope it gets merged :)",
+        "url": "https://github.com/encode/httpx/pull/3465#issuecomment-2626825739"
+      }
+    ],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3262",
+    "url": "https://github.com/encode/httpx/pull/3262",
+    "event_id": "seed_pr_3262",
+    "pr_content": "fix HTTP/2 docs\n\nNote on forcing HTTP/2 to be enabled by disabling HTTP/1.1 for the client\r\n\r\nissue: https://github.com/encode/httpx/issues/3261",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  },
+  {
+    "pr_number": "3241",
+    "url": "https://github.com/encode/httpx/pull/3241",
+    "event_id": "seed_pr_3241",
+    "pr_content": "Change default encoding to utf-8 in `normalize_header_key` and `normalize_header_value` functions\n\n<!-- Thanks for contributing to HTTPX! 💚\r\nGiven this is a project maintained by volunteers, please read this template to not waste your time, or ours! 😁 -->\r\n\r\n# Summary\r\n\r\n<!-- Write a small summary about what is happening here. -->\r\n\r\nThis Pull Request addresses the issue of decoding errors encountered when using ASCII encoding in the `normalize_header_key` and `normalize_header_value` functions in `_utils.py`. By changing the default encoding to UTF-8, we can handle a wider range of input values without raising errors.\r\n\r\n# Changes\r\n\r\n- Updated the default encoding in `normalize_header_key` and `normalize_header_value` functions from \"ascii\" to \"utf-8\".\r\n\r\n# Example Code\r\n\r\n```python\r\ndef normalize_header_key(\r\n    value: str | bytes,\r\n    lower: bool,\r\n    encoding: str | None = None,\r\n) -> bytes:\r\n    \"\"\"\r\n    Coerce str/bytes into a strictly byte-wise HTTP header key.\r\n    \"\"\"\r\n    if isinstance(value, bytes):\r\n        bytes_value = value\r\n    else:\r\n        bytes_value = value.encode(encoding or \"utf-8\")\r\n\r\n    return bytes_value.lower() if lower else bytes_value\r\n\r\ndef normalize_header_value(value: str | bytes, encoding: str | None = None) -> bytes:\r\n    \"\"\"\r\n    Coerce str/bytes into a strictly byte-wise HTTP header value.\r\n    \"\"\"\r\n    if isinstance(value, bytes):\r\n        return value\r\n    return value.encode(encoding or \"utf-8\")\r\n```\r\n\r\n# Rationale\r\n\r\nUsing UTF-8 as the default encoding ensures that the functions can handle a wider range of input values without raising an error. UTF-8 encoding is capable of encoding a larger set of characters compared to ASCII.\r\n\r\n# Additional Context\r\n\r\nHere is an example that demonstrates the issue and how the proposed change resolves it:\r\n\r\n```python\r\nheader_key_unicode = \"内容类型\"\r\nnormalized_key_unicode = normalize_header_key(header_key_unicode, lower=True)\r\n# This raises a UnicodeEncodeError with ASCII encoding.\r\n\r\nnormalized_key_unicode_utf8 = normalize_header_key(header_key_unicode, lower=True, encoding=\"utf-8\")\r\nprint(normalized_key_unicode_utf8)  # Works correctly with UTF-8 encoding.\r\n```\r\n\r\n# Checklist\r\n\r\n- [x] I understand that this PR may be closed in case there was no previous discussion. (This doesn't apply to typos!)\r\n- [ ] I've added a test for each change that was introduced, and I tried as much as possible to make a single atomic change.\r\n- [ ] I've updated the documentation accordingly.\r\n",
+    "context": [],
+    "has_decision": null,
+    "decisions": []
+  }
+]

@@ -9,6 +9,7 @@
     "worker:extractor": "tsx watch src/workers/extractor.ts",
     "worker:brain-writer": "tsx watch src/workers/brain-writer.ts",
     "seed:github": "tsx src/scripts/seed-github.ts",
+    "eval:scaffold": "tsx src/scripts/generate-label-scaffold.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
