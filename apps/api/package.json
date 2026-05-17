@@ -8,6 +8,7 @@
     "worker:normalizer": "tsx watch src/workers/normalizer.ts",
     "worker:extractor": "tsx watch src/workers/extractor.ts",
     "worker:brain-writer": "tsx watch src/workers/brain-writer.ts",
+    "seed:github": "tsx src/scripts/seed-github.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
