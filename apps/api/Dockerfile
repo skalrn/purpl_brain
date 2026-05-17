@@ -23,15 +23,13 @@ FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
-# Production deps only
+# Production deps only (types package has no runtime deps — all imports are erased by tsc)
 COPY package*.json ./
-COPY packages/types/package*.json ./packages/types/
 COPY apps/api/package*.json ./apps/api/
 
-RUN npm ci --omit=dev --workspace=packages/types --workspace=apps/api
+RUN npm ci --omit=dev --workspace=apps/api
 
 # Copy compiled output from builder
-COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 WORKDIR /app/apps/api
