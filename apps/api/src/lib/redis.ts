@@ -8,6 +8,7 @@ export const STREAMS = {
   RAW: "events:raw",
   NORMALIZED: "events:normalized",
   EXTRACTED: "events:extracted",
+  DRIFT: "events:drift",
 } as const;
 
 export const PROCESSED_SET = "processed:event_ids";

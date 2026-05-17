@@ -62,6 +62,13 @@ function decisionCandidate(content: string): boolean {
   return markers.some((r) => r.test(content));
 }
 
+// Slack-specific commitment language (broader than GitHub markers)
+const SLACK_COMMITMENT_RE = /\b(we(?:'ll| will| should| decided| agreed| chose| are going| are not going)| let'?s go with|going with|decided to|agreed to|will use|not going to|won'?t|no need to|closing|defer|deferred|pending design|we're dropping|we'll drop)\b/i;
+
+function slackDecisionCandidate(text: string): boolean {
+  return SLACK_COMMITMENT_RE.test(text) || decisionCandidate(text);
+}
+
 async function processMessage(id: string, event: CanonicalEvent) {
   // Enrich with Pass 1 rule-based signals
   const ticketRefs = [
@@ -71,11 +78,16 @@ async function processMessage(id: string, event: CanonicalEvent) {
 
   const personMentions = event.raw_content.match(/@[\w-]+/g) ?? [];
 
+  // Source-specific candidate detection
+  const isCandidate = event.source === "slack"
+    ? slackDecisionCandidate(event.raw_content)
+    : decisionCandidate(event.raw_content);
+
   const normalized = {
     ...event,
     ticket_refs: [...new Set(ticketRefs)],
     person_mentions: [...new Set(personMentions)],
-    decision_candidate: decisionCandidate(event.raw_content),
+    decision_candidate: isCandidate,
   };
 
   await writer.xadd(

@@ -13,7 +13,11 @@ export type EventType =
   | "issue_updated"
   | "comment"
   | "commit"
-  | "agent_log";
+  | "agent_log"
+  | "slack_message"
+  | "meeting_transcript"
+  | "jira_issue"
+  | "jira_comment";
 
 export interface Actor {
   type: ActorType;
@@ -31,6 +35,33 @@ export interface CanonicalEvent {
   event_type: EventType;
   raw_content: string;
   url: string;
+  // Slack-specific (optional)
+  slack_channel?: string;
+  slack_thread_ts?: string;
+  slack_workspace?: string;
+  // Jira-specific (optional)
+  jira_issue_key?: string;
+  jira_project_key?: string;
+  // Meeting-specific (optional)
+  meeting_title?: string;
+  meeting_participants?: string[];
+}
+
+// Drift detection
+
+export type DriftResolution = "pending" | "keep" | "under_review" | "reopen";
+
+export interface DriftAlert {
+  alert_id: string;
+  decision_id: string;
+  event_id: string;
+  source: EventSource;
+  content: string;         // truncated challenging content
+  actor: string;
+  timestamp: string;
+  confirmed_by_llm: boolean;
+  resolution: DriftResolution;
+  resolved_at?: string;
 }
 
 // Entity extraction output
@@ -66,7 +97,7 @@ export type QueryMode = "project" | "temporal";
 export interface QueryRequest {
   query: string;
   project_id: string;
-  mode: QueryMode;
+  mode?: QueryMode;
   time_range?: {
     from: string;
     to: string;

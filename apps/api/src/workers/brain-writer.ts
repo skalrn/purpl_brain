@@ -49,6 +49,12 @@ async function writeToNeo4j(result: ExtractionResult) {
   const session = getSession();
   try {
     // Create/merge Event node
+    // Derive source from event_id prefix (slack_, meeting_, jira_) or default github
+    const source = result.event_id.startsWith("slack_") ? "slack"
+      : result.event_id.startsWith("meeting_") ? "meeting"
+      : result.event_id.startsWith("jira_") ? "jira"
+      : "github";
+
     await session.run(
       `MERGE (e:Event {event_id: $event_id})
        SET e.source = $source,
@@ -60,12 +66,12 @@ async function writeToNeo4j(result: ExtractionResult) {
        RETURN e`,
       {
         event_id: result.event_id,
-        source: "github",
+        source,
         event_type: "ingested",
         project_id: result.project_id,
         timestamp: result.timestamp,
         url: result.source_url,
-        raw_content: result.source_url, // store URL as ref, not full content in graph
+        raw_content: result.source_url,
       }
     );
 
