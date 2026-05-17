@@ -21,6 +21,7 @@ async function ensureGroup() {
 
 function decisionCandidate(content: string): boolean {
   const markers = [
+    // Explicit choice language
     /\bwe (decided|agreed|chose|selected|went with|will use|are using)\b/i,
     /\bdecision\b/i,
     /\badr\b/i,
@@ -31,6 +32,32 @@ function decisionCandidate(content: string): boolean {
     /\balternative\b/i,
     /\brejected\b/i,
     /\bchosen\b/i,
+    // Closing / deferral language (maintainer decisions in comments)
+    /\bin favor of\b/i,
+    /\bclosing in favor\b/i,
+    /\bclose this for now\b/i,
+    /\bpending (?:a )?(?:design )?decision\b/i,
+    /\buntil we have\b/i,
+    // Rejection / no-action decisions
+    /\bno need to\b/i,
+    /\bthere'?s no need\b/i,
+    /\bI don'?t think (?:we|this|it)\b/i,
+    // Policy / design direction statements
+    /\bsensible (?:policy|default|approach|choice)\b/i,
+    /\bwe'?ll go for\b/i,
+    /\bthat'?s what we'?ll\b/i,
+    /\bcorrect (?:default|behav[io]+r)\b/i,
+    // Warning / UX design decisions
+    /\bwarn(?:ing)?\s+when\b/i,
+    /\bexplicit(?:ly)?\s+warn\b/i,
+    /\bavoid\s+silent\b/i,
+    // Version / support decisions
+    /\bno longer\s+support\b/i,
+    /\bdrop(?:ped|ping)?\s+support\b/i,
+    /\btest matrix\b/i,
+    // Suggestions that carry design weight (in review comments)
+    /\bI (?:would |strongly )?suggest\b/i,
+    /\bwould suggest\b/i,
   ];
   return markers.some((r) => r.test(content));
 }
