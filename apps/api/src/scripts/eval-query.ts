@@ -1,6 +1,6 @@
 /**
- * M7.2 Query accuracy eval — runs 18 test queries against the query engine
- * and prints answers alongside expected facts for human scoring.
+ * M6 multi-source query accuracy eval — 22 queries spanning GitHub, Slack,
+ * meetings, and Jira sources.
  *
  * Scoring: each query is graded correct / partial / incorrect / no-info
  * Target: > 80% correct or partially correct
@@ -135,12 +135,12 @@ const TEST_QUERIES: TestQuery[] = [
     expected_facts: [],
     should_have_answer: false,  // not in data — expect "no info" or honest uncertainty
   },
-  // Negative: Slack / external data not ingested
+  // Slack-sourced signal
   {
     id: "Q16",
-    query: "What Slack discussions happened about the httpx authentication redesign?",
-    expected_facts: [],
-    should_have_answer: false,
+    query: "Is there any team discussion challenging the httpx compression policy?",
+    expected_facts: ["gzip", "zstd", "reconsider"],
+    should_have_answer: true,
   },
   // Broad summary
   {
@@ -155,6 +155,34 @@ const TEST_QUERIES: TestQuery[] = [
     query: "What decisions did the httpx maintainers make about closing or deferring PRs?",
     expected_facts: ["deferred", "MockTransport", "closed"],
     should_have_answer: true,
+  },
+  // Jira-sourced: authentication API decision
+  {
+    id: "Q19",
+    query: "What decision was made about the httpx public authentication API surface?",
+    expected_facts: ["synchronous", "sync", "authentication"],
+    should_have_answer: true,
+  },
+  // Jira-sourced: retry policy
+  {
+    id: "Q20",
+    query: "Where should retry logic live in httpx — in the core client or elsewhere?",
+    expected_facts: ["middleware", "transport", "not part of the core"],
+    should_have_answer: true,
+  },
+  // Cross-source drift awareness
+  {
+    id: "Q21",
+    query: "Are there signals suggesting the asyncio.get_event_loop decision should be revisited?",
+    expected_facts: ["compatibility", "third-party", "revisit"],
+    should_have_answer: true,
+  },
+  // Negative: no data from future events
+  {
+    id: "Q22",
+    query: "What decisions were made about GraphQL support in httpx?",
+    expected_facts: [],
+    should_have_answer: false,
   },
 ];
 
@@ -231,7 +259,7 @@ async function run() {
   const jsonMode   = args.includes("--json");
 
   console.log(`[eval-query] project: ${projectId}, mode: ${jsonMode ? "json" : "interactive"}`);
-  console.log(`[eval-query] running ${TEST_QUERIES.length} queries...\n`);
+  console.log(`[eval-query] running ${TEST_QUERIES.length} queries (M6 multi-source)...\n`);
 
   const rows: EvalRow[] = [];
 
