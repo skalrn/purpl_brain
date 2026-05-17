@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
- * Purpl Brain — MCP server (stdio transport)
+ * Purpl Brain — MCP server
  *
- * Exposes the brain query interface as MCP tools so Claude Code (and any
- * MCP-compatible client) can query project decisions inline during a session.
+ * Supports two transports:
+ *   stdio (default) — for local Claude Code / Cursor use
+ *   http            — for remote clients connecting to cloud-hosted brain
+ *                     Start with: MCP_TRANSPORT=http MCP_PORT=3002 node dist/index.js
  *
  * Tools:
  *   brain_query          — natural language query, returns cited answer
@@ -15,10 +17,14 @@
  * Configuration (env or .env):
  *   BRAIN_API_URL   — base URL of the Purpl Brain API  (default: http://localhost:3001)
  *   BRAIN_API_KEY   — optional bearer token for authenticated deployments
+ *   MCP_TRANSPORT   — "stdio" (default) | "http"
+ *   MCP_PORT        — port for HTTP transport (default: 3002)
  */
 import "dotenv/config";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { z } from "zod";
 
 const API_URL = process.env.BRAIN_API_URL ?? "http://localhost:3001";
@@ -236,6 +242,53 @@ server.resource(
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
-// MCP servers communicate over stdio — no console.log after this point
+const transport = process.env.MCP_TRANSPORT === "http" ? null : new StdioServerTransport();
+
+if (transport) {
+  // stdio mode — local Claude Code / Cursor
+  await server.connect(transport);
+  // No console.log after connect — stdio is the MCP channel
+} else {
+  // HTTP+SSE mode — remote clients (cloud-deployed brain)
+  const port = parseInt(process.env.MCP_PORT ?? "3002");
+  const sessions = new Map<string, SSEServerTransport>();
+
+  const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const url = new URL(req.url ?? "/", `http://localhost:${port}`);
+
+    if (req.method === "GET" && url.pathname === "/sse") {
+      // Client opens SSE stream
+      const sseTransport = new SSEServerTransport("/messages", res);
+      sessions.set(sseTransport.sessionId, sseTransport);
+      res.on("close", () => sessions.delete(sseTransport.sessionId));
+      await server.connect(sseTransport);
+
+    } else if (req.method === "POST" && url.pathname === "/messages") {
+      // Client sends messages
+      const sessionId = url.searchParams.get("sessionId") ?? "";
+      const sseTransport = sessions.get(sessionId);
+      if (!sseTransport) {
+        res.writeHead(404).end("Session not found");
+        return;
+      }
+      let body = "";
+      req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+      req.on("end", async () => {
+        await sseTransport.handlePostMessage(req, res, JSON.parse(body));
+      });
+
+    } else if (req.method === "GET" && url.pathname === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" })
+        .end(JSON.stringify({ status: "ok", transport: "http+sse", sessions: sessions.size }));
+
+    } else {
+      res.writeHead(404).end("Not found");
+    }
+  });
+
+  httpServer.listen(port, () => {
+    console.log(`[purpl-brain-mcp] HTTP+SSE transport listening on port ${port}`);
+    console.log(`[purpl-brain-mcp] Brain API: ${process.env.BRAIN_API_URL ?? "http://localhost:3001"}`);
+    console.log(`[purpl-brain-mcp] SSE endpoint: http://localhost:${port}/sse`);
+  });
+}

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
+    "dev:http": "MCP_TRANSPORT=http tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
