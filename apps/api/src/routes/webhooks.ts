@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { createHmac, timingSafeEqual } from "crypto";
+import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import type { CanonicalEvent, EventType } from "@purpl/types";
 
@@ -131,5 +132,81 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
     request.log.info({ deliveryId, eventType: event.event_type, projectId }, "GitHub event enqueued");
 
     return reply.code(200).send({ status: "queued" });
+  });
+
+  // ── Jira webhook (M4) ──────────────────────────────────────────────────────
+  // Jira sends all events to one endpoint; we discriminate by webhookEvent field.
+  // Supported: jira:issue_created, jira:issue_updated, comment_created, comment_updated
+  app.post<{ Body: Buffer }>("/jira", async (request, reply) => {
+    // Optional HMAC verification (Jira doesn't sign by default — use secret in query param)
+    const secret = process.env.JIRA_WEBHOOK_SECRET;
+    if (secret) {
+      const token = (request.query as Record<string, string>).token;
+      if (token !== secret) {
+        return reply.code(401).send({ error: "Invalid token" });
+      }
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(request.body.toString()) as Record<string, unknown>;
+    } catch {
+      return reply.code(400).send({ error: "Invalid JSON" });
+    }
+
+    const webhookEvent = String(payload.webhookEvent ?? "");
+    const issue = payload.issue as Record<string, unknown> | undefined;
+    const comment = payload.comment as Record<string, unknown> | undefined;
+
+    // Only handle issue and comment events
+    if (!webhookEvent.startsWith("jira:issue") && !webhookEvent.startsWith("comment_")) {
+      return reply.code(200).send({ status: "ignored" });
+    }
+
+    const issueKey = String(issue?.key ?? "unknown");
+    const projectKey = issueKey.split("-")[0] ?? "unknown";
+    const sourceId = `jira_${issueKey}_${webhookEvent}_${Date.now()}`;
+
+    // Dedup
+    const already = await redis.sismember(PROCESSED_SET, sourceId);
+    if (already) return reply.code(200).send({ status: "duplicate" });
+
+    // Build raw content from issue + comment
+    const issueSummary = String((issue?.fields as Record<string, unknown>)?.summary ?? "");
+    const issueDescription = String((issue?.fields as Record<string, unknown>)?.description ?? "");
+    const commentBody = String(comment?.body ?? "");
+    const rawContent = [issueSummary, issueDescription, commentBody].filter(Boolean).join("\n\n");
+
+    if (!rawContent.trim()) {
+      return reply.code(200).send({ status: "ignored" });
+    }
+
+    const actor = payload.user as Record<string, unknown> | undefined;
+    const actorName = String(actor?.displayName ?? actor?.name ?? "jira");
+    const actorId = String(actor?.accountId ?? actor?.name ?? "jira");
+
+    const eventType: EventType = webhookEvent.startsWith("comment_") ? "jira_comment" : "jira_issue";
+    const jiraBaseUrl = process.env.JIRA_BASE_URL ?? "https://jira.example.com";
+    const url = `${jiraBaseUrl}/browse/${issueKey}`;
+
+    const event: CanonicalEvent = {
+      event_id: `jira_${uuidv4()}`,
+      source: "jira",
+      source_id: sourceId,
+      project_id: process.env.JIRA_DEFAULT_PROJECT ?? projectKey.toLowerCase(),
+      actor: { type: "human", id: actorId, name: actorName },
+      timestamp: new Date().toISOString(),
+      event_type: eventType,
+      raw_content: rawContent,
+      url,
+      jira_issue_key: issueKey,
+      jira_project_key: projectKey,
+    };
+
+    await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+    await redis.sadd(PROCESSED_SET, sourceId);
+
+    request.log.info({ issueKey, eventType, projectKey }, "Jira event enqueued");
+    return reply.code(200).send({ status: "queued", event_id: event.event_id });
   });
 };

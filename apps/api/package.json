@@ -12,6 +12,7 @@
     "worker:drift": "tsx watch src/workers/drift-detector.ts",
     "seed:github": "tsx src/scripts/seed-github.ts",
     "seed:slack": "tsx src/scripts/seed-slack.ts",
+    "seed:jira": "tsx src/scripts/seed-jira.ts",
     "migrate:phase2": "tsx src/scripts/migrate-phase2-schema.ts",
     "eval:scaffold": "tsx src/scripts/generate-label-scaffold.ts",
     "eval:extraction": "tsx src/scripts/eval-extraction.ts",

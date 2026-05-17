@@ -1,13 +1,14 @@
 /**
- * M6 drift detection eval — verifies the drift detector catches known
- * conflict messages and does not false-positive on noise.
+ * M6/M4 drift detection eval — verifies the drift detector catches known
+ * conflict messages from Slack and Jira, and does not false-positive on noise.
  *
- * Test set (from seed-slack.ts):
- *   - 2 known drift messages (asyncio, gzip)
- *   - 10 noise messages (no decision content)
+ * Test set:
+ *   - 2 Slack drift messages (asyncio, gzip) from seed-slack.ts
+ *   - 2 Jira drift messages (zstd/gzip, asyncio) from seed-jira.ts
+ *   - 10+ noise messages (no decision content)
  *
  * Targets:
- *   - Recall ≥ 80% (catch at least 1 of 2 drift messages)
+ *   - Recall ≥ 80% (catch at least 3 of 4 drift messages)
  *   - Precision ≥ 70% (< 30% false positive rate on noise)
  *
  * Usage:
@@ -17,11 +18,16 @@ import "dotenv/config";
 import { getDriftAlerts } from "../lib/neo4j.js";
 
 const KNOWN_DRIFT_CONTENT = [
-  "gzip-only compression policy",       // challenges Phase 1 gzip decision
-  "asyncio.get_event_loop() removal",   // challenges Phase 1 asyncio decision
+  // Slack drift signals
+  "gzip-only compression policy",       // Slack: challenges Phase 1 gzip decision
+  "asyncio.get_event_loop() removal",   // Slack: challenges Phase 1 asyncio decision
+  // Jira drift signals (HTTPX-104, HTTPX-105)
+  "zstd",                               // Jira HTTPX-104: reconsider zstd/gzip
+  "asyncio.get_event_loop() deprecation", // Jira HTTPX-105: asyncio compat shims
 ];
 
 const KNOWN_NOISE_KEYWORDS = [
+  // Slack noise
   "test flake",
   "address the nits",
   "release branch is cut",
@@ -31,6 +37,12 @@ const KNOWN_NOISE_KEYWORDS = [
   "4 PRs merged",
   "take a look at #3819",
   "bumped certifi",
+  // Jira noise
+  "CI test matrix",
+  "installation guide",
+  "0.28.1",
+  "httpcore 1.0.5",
+  "Sprint velocity",
 ];
 
 async function run() {
@@ -86,7 +98,7 @@ async function run() {
     : 1;
 
   console.log(`\n${"═".repeat(70)}`);
-  console.log("  M6 DRIFT DETECTION EVAL — SCORECARD");
+  console.log("  M6+M4 DRIFT DETECTION EVAL — SCORECARD (Slack + Jira)");
   console.log(`${"═".repeat(70)}`);
   console.log(`  Known drift messages : ${KNOWN_DRIFT_CONTENT.length}`);
   console.log(`  Caught (TP)          : ${truePositives}`);
