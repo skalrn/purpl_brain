@@ -1,8 +1,8 @@
 # System Architecture — Project Brain
 
-**Status:** Draft  
-**Version:** 0.1  
-**Last Updated:** 2026-05-15  
+**Status:** Current  
+**Version:** 0.3  
+**Last Updated:** 2026-05-18  
 
 ---
 
@@ -61,7 +61,7 @@ Responsible for receiving signals from all source systems and normalizing them i
   "source": "github | slack | jira | linear | meeting | agent",
   "source_id": "original ID in the source system",
   "project_id": "project namespace in the brain",
-  "actor": { "type": "human | agent", "id": "...", "name": "..." },
+  "actor": { "type": "human | agent | collective", "id": "...", "name": "..." },
   "timestamp": "ISO 8601",
   "event_type": "pr_opened | pr_merged | comment | decision | ticket_update | agent_log | ...",
   "raw_content": "...",
@@ -73,12 +73,12 @@ Responsible for receiving signals from all source systems and normalizing them i
 
 | Source | Primary | Fallback |
 |---|---|---|
-| GitHub | Webhooks (push, PR, issue, review events) | GitHub API polling (15-min interval) |
-| Slack | Events API (message, reaction, pin events) | Slack API polling |
-| Jira | Webhooks (issue created/updated/transitioned) | Jira API polling |
-| Linear | Webhooks | Linear API polling |
-| Meetings | Otter.ai / Fireflies webhook on transcript ready | Manual upload |
-| AI Agents | `POST /brain/agent-log` write-back API | — |
+| GitHub | Webhooks (push, PR, issue, review events) | `seed:github` CLI (fetches last N PRs/issues) |
+| Slack | Socket Mode (Bolt SDK) | `seed:slack` CLI |
+| Jira | Webhooks (issue created/updated/transitioned) | `seed:jira` CLI |
+| Meetings | `POST /brain/ingest/transcript` (VTT/SRT/text) | — |
+| Documents | `seed:local-docs` CLI (git-history attribution) | `POST /brain/ingest/crawl-docs` (GitHub API) |
+| AI Agents | `POST /brain/agent-log` write-back API; also via `brain_log_decision` MCP tool | — |
 
 Ingestion is idempotent: `event_id` is the deduplication key. Re-delivery of the same event is a no-op.
 
@@ -115,10 +115,10 @@ The persistent knowledge state. Hybrid architecture: a vector store for semantic
 - Used for: semantic similarity search, natural language query grounding
 - Technology choice: see [ADR-001](adrs/001-hybrid-brain-store.md)
 
-**Graph Database**
-- Nodes: Events, Decisions, Tickets, PRs, Agents, People, Concepts
-- Edge types: `references`, `implements`, `contradicts`, `resolves`, `authored_by`, `affects`, `supersedes`
-- Used for: impact analysis (graph traversal from a changed node), cross-product linking, causal chain reconstruction
+**Graph Database (Neo4j)**
+- Nodes: Event, Decision, Ticket, DriftAlert, FollowUpTask, Person
+- Edge types: `AUTHORED_BY`, `EXTRACTED_FROM`, `REFERENCES`, `CHALLENGES`, `INFORMS`, `ADDRESSES`
+- Used for: impact analysis (INFORMS traversal from Decision → Ticket), drift alert linking, person identity resolution
 - Technology choice: see [ADR-001](adrs/001-hybrid-brain-store.md)
 
 **Temporal Index**
@@ -184,10 +184,11 @@ Runs asynchronously after every ingestion event. Two modes:
 - `GET /brain/anomalies` — current open anomalies for a project
 - Auth: JWT bearer token
 
-**MCP Server** *(Phase 4)*
-- Exposes the brain as an MCP resource: `brain://project/{id}/context`
-- Exposes impact analysis as an MCP tool: `brain_impact_analysis(event_id)`
-- Makes the brain natively queryable by Claude, Cursor, and any MCP-compatible agent without the chat UI
+**MCP Server** *(Phase 3, complete)*
+- Package: `apps/mcp` — stdio transport (local) and HTTP+SSE (remote)
+- Tools: `brain_query`, `brain_log_decision`, `brain_analyze_impact`, `brain_log_signal`
+- Resource: `brain://project/{id}` — project snapshot (recent decisions + open drift alerts)
+- Makes the brain natively queryable by Claude Code, Cursor, and any MCP-compatible agent
 
 ---
 
@@ -219,12 +220,13 @@ See ADRs for rationale on key decisions.
 
 | Layer | Technology | Notes |
 |---|---|---|
-| API server | Python (FastAPI) | Async, good ecosystem for ML tooling |
-| Vector store | Qdrant (self-hosted) or Pinecone | See ADR-001 |
-| Graph database | Neo4j (Community) or Kuzu | See ADR-001 |
-| Embedding model | `text-embedding-3-large` (OpenAI) or `voyage-3` (Anthropic) | Evaluated in Phase 1 |
-| LLM (query + extraction) | Claude (via Anthropic API) | See ADR-002 |
-| Event queue | Redis Streams (Phase 1) → Kafka (if scale requires) | Lightweight for POC |
-| Auth | OAuth 2.0 (per-source) + JWT (internal API) | |
-| Chat UI | Next.js (minimal) | Not a focus in Phase 1 |
-| MCP server | Python MCP SDK | Phase 4 |
+| API server | Node.js (Fastify) | TypeScript; monorepo with `apps/api` |
+| Vector store | Qdrant (self-hosted) | See ADR-001 |
+| Graph database | Neo4j 5 Community | See ADR-001; uniqueness constraints on all primary keys |
+| Embedding model | `text-embedding-3-small` (OpenAI) via Anthropic-compatible endpoint | Evaluated in Phase 1 |
+| LLM (query + extraction) | Claude Haiku 4.5 (extraction/intent), Claude Sonnet 4.6 (query answers) | Prompt caching on all calls; see llm-cost-controls.md |
+| Event queue | Redis 7 Streams (consumer groups, SIGTERM-safe workers) | `StreamWorker` base class in `apps/api/src/lib/stream-worker.ts` |
+| Workers | normalizer → extractor → brain-writer → drift-detector | All use `StreamWorker`; crash-safe Qdrant retry queue |
+| Auth | Bearer token (hashed at rest in Neo4j) | GitHub OAuth planned for Phase 3 M5 |
+| Chat UI | Next.js (standalone Docker build) | `apps/web`; streaming LLM responses via SSE |
+| MCP server | `@modelcontextprotocol/sdk` (TypeScript) | `apps/mcp`; stdio + StreamableHTTP transports |
