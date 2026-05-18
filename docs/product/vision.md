@@ -24,7 +24,7 @@ Agents and the humans working with them need the same thing: institutional memor
 That memory needs four properties at once:
 
 1. **Team-scoped, not user-scoped.** Two developers using two different agents on the same repo read from the same brain.
-2. **Cross-agent, not provider-locked.** Claude Code, Cursor, and any MCP-aware client all read and write through the same protocol.
+2. **Cross-agent, not provider-locked.** Claude Code and Cursor use the MCP adapter. Any other agent (Codex, Copilot, custom) uses the same REST API with a thin function-definition wrapper — the brain is not locked to any one runtime.
 3. **Structured and cited, not unstructured recall.** Every stored decision carries who decided it, when, why, and a citation to the originating signal (PR, ticket, meeting, prior agent log).
 4. **Grounded in the team's signal history.** Memory is enriched by ingestion from GitHub, Jira, Slack, and meeting transcripts — not just by what users have typed into one IDE.
 
@@ -64,7 +64,7 @@ The direct comparisons a buyer will reach for first are the provider-shipped mem
 
 **Purpl Brain's defensible wedge, stated as a contract:**
 
-- **Cross-agent and cross-tool by default.** MCP-native read path; documented `POST /brain/agent-log` write path. Two different agents, two different IDEs, two different humans, one brain.
+- **Cross-agent and cross-tool by design.** MCP adapter for Claude Code and Cursor (zero-config after install); documented `POST /brain/agent-log` REST write path for any agent that can make an HTTP call. Two different agents, two different IDEs, two different humans, one brain.
 - **Team-scoped, not user-scoped.** A project's brain is shared across the team. Permissions and isolation are by `project_id`, not by which Anthropic or OpenAI account you happen to be logged into.
 - **Structured decision trails with citations.** Every stored decision has a maker, a rationale, alternatives considered, an unresolved-questions field, and a citation to the originating signal. Auditable. Queryable. Not opaque text recall.
 - **Grounded in the team's full signal history.** GitHub PRs, Jira tickets, Slack threads, meeting transcripts, and prior agent logs flow through the same pipeline and link to the same decisions.
@@ -86,4 +86,4 @@ Out of scope: enterprise rollouts, floating specialists across a 40-engineer org
 2. **Human query is a secondary surface.** The same brain that serves `brain_query` to agents serves it to humans via a web UI. Cited answers, drift alerts, agent decision history — all present, none of it the lead.
 3. **Multi-source ingestion is context enrichment, not the product.** GitHub, Slack, Jira, and meeting transcripts feed the brain so that agent queries return answers grounded in the full context of the project, not just prior agent logs. This is what makes the agent memory layer better than a local SQLite file. It is not the pitch.
 
-The product is team-scoped, cross-agent, auditable memory grounded in the team's signal history. The defensibility is that no single-vendor memory drawer can ever span competing runtimes, ingest a team's full toolchain, or expose decisions as cited records. The proof is two different agents in two different IDEs run by two different humans on the same repo — and the second session, regardless of which agent or which human, knows what the first one decided and where that decision came from.
+The product is team-scoped, cross-agent, auditable memory grounded in the team's signal history. The defensibility is that no single-vendor memory drawer can ever span competing runtimes, ingest a team's full toolchain, or expose decisions as cited records. The proof is two sessions on the same repo — Claude Code, Cursor, or any HTTP-capable agent — where the second session knows what the first one decided and where that decision came from, without the developer doing anything between them.
