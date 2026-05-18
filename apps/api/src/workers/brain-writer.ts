@@ -2,7 +2,7 @@ import "dotenv/config";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { STREAMS } from "../lib/redis.js";
-import { getSession } from "../lib/neo4j.js";
+import { getSession, resolveOrCreateActorPerson } from "../lib/neo4j.js";
 import { qdrant, COLLECTION, ensureCollection } from "../lib/qdrant.js";
 import { embed, embedBatch } from "../lib/embed.js";
 import type { ExtractionResult, Decision } from "@purpl/types";
@@ -45,18 +45,25 @@ function chunkContent(content: string, sourceId: string): Array<{ id: string; te
   return chunks;
 }
 
-async function writeToNeo4j(result: ExtractionResult) {
+// Returns the canonical person_id UUID for the event actor
+async function writeToNeo4j(result: ExtractionResult): Promise<string> {
+  const source = result.event_id.startsWith("slack_") ? "slack"
+    : result.event_id.startsWith("meeting_") ? "meeting"
+    : result.event_id.startsWith("jira_") ? "jira"
+    : result.event_id.startsWith("doc_") ? "document"
+    : result.event_id.startsWith("agent_") ? "agent"
+    : "github";
+
+  // Resolve actor to canonical person_id (creates provisional stub if needed)
+  const personId = await resolveOrCreateActorPerson({
+    actor_id: result.actor.id,
+    actor_name: result.actor.name,
+    actor_type: result.actor.type,
+    source,
+  });
+
   const session = getSession();
   try {
-    // Create/merge Event node
-    // Derive source from event_id prefix
-    const source = result.event_id.startsWith("slack_") ? "slack"
-      : result.event_id.startsWith("meeting_") ? "meeting"
-      : result.event_id.startsWith("jira_") ? "jira"
-      : result.event_id.startsWith("doc_") ? "document"
-      : result.event_id.startsWith("agent_") ? "agent"
-      : "github";
-
     await session.run(
       `MERGE (e:Event {event_id: $event_id})
        SET e.source = $source,
@@ -64,8 +71,11 @@ async function writeToNeo4j(result: ExtractionResult) {
            e.project_id = $project_id,
            e.timestamp = $timestamp,
            e.url = $url,
-           e.raw_content = $raw_content
-       RETURN e`,
+           e.raw_content = $raw_content,
+           e.actor_person_id = $person_id
+       WITH e
+       MATCH (p:Person {person_id: $person_id})
+       MERGE (e)-[:AUTHORED_BY]->(p)`,
       {
         event_id: result.event_id,
         source,
@@ -74,21 +84,7 @@ async function writeToNeo4j(result: ExtractionResult) {
         timestamp: result.timestamp,
         url: result.source_url,
         raw_content: result.source_url,
-      }
-    );
-
-    // Create/merge Person node and link to Event
-    await session.run(
-      `MERGE (p:Person {id: $actor_id})
-       SET p.name = $actor_name, p.type = $actor_type
-       WITH p
-       MATCH (e:Event {event_id: $event_id})
-       MERGE (e)-[:AUTHORED_BY]->(p)`,
-      {
-        actor_id: result.actor.id,
-        actor_name: result.actor.name,
-        actor_type: result.actor.type,
-        event_id: result.event_id,
+        person_id: personId,
       }
     );
 
@@ -132,14 +128,15 @@ async function writeToNeo4j(result: ExtractionResult) {
     }
 
     console.log(
-      `[brain-writer] neo4j: event=${result.event_id} decisions=${result.decisions.length} tickets=${result.ticket_refs.length}`
+      `[brain-writer] neo4j: event=${result.event_id} person=${personId} decisions=${result.decisions.length} tickets=${result.ticket_refs.length}`
     );
+    return personId;
   } finally {
     await session.close();
   }
 }
 
-async function writeToQdrant(result: ExtractionResult) {
+async function writeToQdrant(result: ExtractionResult, actorPersonId: string) {
   // Decision events: index clean decision text for precise retrieval
   // Candidate events with no extracted decision: index raw_content (relevant but LLM missed)
   // Non-candidate events: skip Qdrant (not semantically meaningful for decision queries)
@@ -175,6 +172,7 @@ async function writeToQdrant(result: ExtractionResult) {
       source_url: result.source_url,
       actor_id: result.actor.id,
       actor_name: result.actor.name,
+      actor_person_id: actorPersonId,
       timestamp: result.timestamp,
       content: chunk.text,
       has_decisions: result.decisions.length > 0,
@@ -188,8 +186,8 @@ async function writeToQdrant(result: ExtractionResult) {
 }
 
 async function processMessage(id: string, result: ExtractionResult) {
-  await writeToNeo4j(result);
-  await writeToQdrant(result);
+  const personId = await writeToNeo4j(result);
+  await writeToQdrant(result, personId);
   await redis.xack(STREAMS.EXTRACTED, GROUP, id);
   console.log(`[brain-writer] done: ${result.event_id}`);
 }

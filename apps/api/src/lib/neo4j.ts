@@ -310,6 +310,64 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
   }
 }
 
+/**
+ * Resolve an event actor to a canonical person_id UUID.
+ * Strategy per source:
+ *   github  → MERGE on github_login (links to OAuth Person if they've logged in)
+ *   slack/jira → MATCH on aliases first, then fall through to keyed stub
+ *   meeting/agent/unknown → MERGE on display_key "source:actor_id"
+ *
+ * Always returns a stable UUID — either the canonical person_id or a provisional one
+ * that gets promoted when the user logs in via OAuth.
+ */
+export async function resolveOrCreateActorPerson(params: {
+  actor_id: string;
+  actor_name: string;
+  actor_type: string;
+  source: string;
+}): Promise<string> {
+  const session = getSession();
+  try {
+    const now = new Date().toISOString();
+
+    if (params.source === "github") {
+      const result = await session.run(
+        `MERGE (p:Person {github_login: $actor_id})
+         ON CREATE SET p.person_id = randomUUID(), p.name = $name, p.created_at = $now
+         ON MATCH SET p.name = coalesce(p.name, $name)
+         RETURN p.person_id AS person_id`,
+        { actor_id: params.actor_id, name: params.actor_name, now }
+      );
+      return result.records[0].get("person_id") as string;
+    }
+
+    // For slack/jira: try alias lookup first (mergePersonAlias already linked them)
+    if (params.source === "slack" || params.source === "jira") {
+      const found = await session.run(
+        `MATCH (p:Person) WHERE any(a IN coalesce(p.aliases, []) WHERE a = $actor_id)
+         RETURN p.person_id AS person_id LIMIT 1`,
+        { actor_id: params.actor_id }
+      );
+      if (found.records.length > 0) {
+        return found.records[0].get("person_id") as string;
+      }
+    }
+
+    // Fallback: keyed stub for meeting speakers, agents, and unresolved slack/jira
+    const displayKey = `${params.source}:${params.actor_id}`;
+    const result = await session.run(
+      `MERGE (p:Person {display_key: $display_key})
+       ON CREATE SET p.person_id = randomUUID(), p.name = $name, p.type = $type, p.created_at = $now
+       ON MATCH SET p.name = coalesce(p.name, $name)
+       RETURN p.person_id AS person_id`,
+      { display_key: displayKey, name: params.actor_name, type: params.actor_type, now }
+    );
+    return result.records[0].get("person_id") as string;
+  } finally {
+    await session.close();
+  }
+}
+
 // Fuzzy-match a speaker name to an existing Person node.
 // Tries exact match first, then case-insensitive first-name match.
 // Returns the canonical email/id if found, or null.
