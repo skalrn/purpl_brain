@@ -51,26 +51,144 @@ async function vectorSearch(queryVector: number[], projectId: string): Promise<Q
   return results as QdrantResult[];
 }
 
-async function graphExpand(eventIds: string[]): Promise<Record<string, unknown>[]> {
+interface GraphContext {
+  event_id: string;
+  author_name: string;
+  author_person_id: string;
+  decisions: Array<{ summary: string; confidence: string; status: string }>;
+  related_event_ids: string[];      // events sharing same decisions
+  recent_author_activity: Array<{ event_id: string; timestamp: string; source: string }>;
+  ticket_refs: string[];
+  co_referenced_event_ids: string[]; // events sharing same tickets
+}
+
+/**
+ * Multi-hop graph traversal from seed event_ids. For each seed, runs three
+ * traversal patterns in parallel:
+ *   1. Decision chain — decisions extracted from this event + other events
+ *      sharing those decisions
+ *   2. Author activity — other recent events by the same Person in this project
+ *   3. Ticket linkage — tickets referenced by this event + other events
+ *      referencing the same tickets (cross-source same-work-item context)
+ */
+async function graphExpand(
+  eventIds: string[],
+  projectId: string,
+  since: string
+): Promise<GraphContext[]> {
   if (eventIds.length === 0) return [];
-  const session = getSession();
-  try {
-    const result = await session.run(
-      `UNWIND $event_ids AS eid
-       MATCH (e:Event {event_id: eid})
-       OPTIONAL MATCH (e)-[:AUTHORED_BY]->(p:Person)
-       OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
-       OPTIONAL MATCH (e)-[:REFERENCES]->(t:Ticket)
-       RETURN e.event_id AS event_id,
-              p.name AS author,
-              collect(DISTINCT d.summary) AS decisions,
-              collect(DISTINCT t.ref) AS tickets`,
-      { event_ids: eventIds }
-    );
-    return result.records.map((r) => r.toObject());
-  } finally {
-    await session.close();
-  }
+
+  const expandOne = async (eventId: string): Promise<GraphContext> => {
+    const session = getSession();
+    try {
+      const decisionQuery = session.run(
+        `MATCH (seed:Event {event_id: $event_id})
+         OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(seed)
+         OPTIONAL MATCH (d)-[:EXTRACTED_FROM]->(related:Event)
+           WHERE related.event_id <> seed.event_id
+           AND related.project_id = seed.project_id
+         RETURN d.summary AS decision_summary,
+                d.confidence AS confidence,
+                d.status AS status,
+                collect(DISTINCT related.event_id) AS related_event_ids`,
+        { event_id: eventId }
+      );
+
+      const authorQuery = session.run(
+        `MATCH (seed:Event {event_id: $event_id})-[:AUTHORED_BY]->(p:Person)
+         OPTIONAL MATCH (p)<-[:AUTHORED_BY]-(recent:Event)
+           WHERE recent.project_id = seed.project_id
+           AND recent.event_id <> seed.event_id
+           AND recent.timestamp >= $since
+         WITH p, recent
+         ORDER BY recent.timestamp DESC
+         WITH p, collect(DISTINCT {event_id: recent.event_id, timestamp: recent.timestamp, source: recent.source})[..5] AS recent_activity
+         RETURN p.name AS author_name,
+                p.person_id AS author_person_id,
+                recent_activity`,
+        { event_id: eventId, since }
+      );
+
+      const ticketQuery = session.run(
+        `MATCH (seed:Event {event_id: $event_id})-[:REFERENCES]->(t:Ticket)
+         OPTIONAL MATCH (other:Event)-[:REFERENCES]->(t)
+           WHERE other.event_id <> seed.event_id
+           AND other.project_id = seed.project_id
+         RETURN t.ref AS ticket_ref,
+                collect(DISTINCT other.event_id) AS co_referenced_event_ids`,
+        { event_id: eventId }
+      );
+
+      const [decisionRes, authorRes, ticketRes] = await Promise.all([
+        decisionQuery,
+        authorQuery,
+        ticketQuery,
+      ]);
+
+      // Aggregate decisions
+      const decisions: GraphContext["decisions"] = [];
+      const relatedEventIdsSet = new Set<string>();
+      for (const r of decisionRes.records) {
+        const summary = r.get("decision_summary") as string | null;
+        if (summary) {
+          decisions.push({
+            summary,
+            confidence: (r.get("confidence") as string) ?? "",
+            status: (r.get("status") as string) ?? "",
+          });
+        }
+        const related = (r.get("related_event_ids") as string[]) ?? [];
+        for (const id of related) if (id) relatedEventIdsSet.add(id);
+      }
+
+      // Author info
+      let author_name = "";
+      let author_person_id = "";
+      let recent_author_activity: GraphContext["recent_author_activity"] = [];
+      if (authorRes.records.length > 0) {
+        const r = authorRes.records[0];
+        author_name = (r.get("author_name") as string) ?? "";
+        author_person_id = (r.get("author_person_id") as string) ?? "";
+        const ra = (r.get("recent_activity") as Array<{
+          event_id: string | null;
+          timestamp: string | null;
+          source: string | null;
+        }>) ?? [];
+        recent_author_activity = ra
+          .filter((a) => a.event_id)
+          .map((a) => ({
+            event_id: a.event_id as string,
+            timestamp: a.timestamp ?? "",
+            source: a.source ?? "",
+          }));
+      }
+
+      // Tickets
+      const ticketRefs: string[] = [];
+      const coReferencedSet = new Set<string>();
+      for (const r of ticketRes.records) {
+        const ref = r.get("ticket_ref") as string | null;
+        if (ref) ticketRefs.push(ref);
+        const co = (r.get("co_referenced_event_ids") as string[]) ?? [];
+        for (const id of co) if (id) coReferencedSet.add(id);
+      }
+
+      return {
+        event_id: eventId,
+        author_name,
+        author_person_id,
+        decisions,
+        related_event_ids: [...relatedEventIdsSet],
+        recent_author_activity,
+        ticket_refs: ticketRefs,
+        co_referenced_event_ids: [...coReferencedSet],
+      };
+    } finally {
+      await session.close();
+    }
+  };
+
+  return Promise.all(eventIds.map(expandOne));
 }
 
 function assembleContext(chunks: ContextChunk[]): string {
@@ -139,20 +257,54 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
       graph_node_id: String(r.payload!.graph_node_id ?? ""),
     }));
 
-  // Step 4: graph expand to pull in decisions and linked entities
-  const eventIds = [...new Set(chunks.map((c) => c.graph_node_id))];
-  const graphData = await graphExpand(eventIds);
+  // Step 4: multi-hop graph expand to pull in decisions, author activity, and tickets
+  const eventIds = [...new Set(chunks.map((c) => c.graph_node_id))].filter(Boolean);
+  const sinceIso =
+    request.time_range?.from ??
+    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const graphData = await graphExpand(eventIds, request.project_id, sinceIso);
+
+  const nowMs = Date.now();
+  const formatAgo = (ts: string): string => {
+    if (!ts) return "";
+    const t = Date.parse(ts);
+    if (Number.isNaN(t)) return ts;
+    const days = Math.max(0, Math.round((nowMs - t) / 86400000));
+    if (days === 0) return "today";
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
+  };
 
   // Append graph context to relevant chunks
   for (const node of graphData) {
-    const decisions = node.decisions as string[];
-    const tickets = node.tickets as string[];
     const chunk = chunks.find((c) => c.graph_node_id === node.event_id);
-    if (chunk && decisions.length > 0) {
-      chunk.content += `\nDecisions: ${decisions.filter(Boolean).join("; ")}`;
+    if (!chunk) continue;
+
+    if (node.decisions.length > 0) {
+      const decisionLines = node.decisions
+        .map((d) => `${d.summary} (${d.status || "unknown"}, ${d.confidence || "?"})`)
+        .join("; ");
+      chunk.content += `\nDecisions: ${decisionLines}`;
     }
-    if (chunk && tickets.length > 0) {
-      chunk.content += `\nLinked tickets: ${tickets.filter(Boolean).join(", ")}`;
+    if (node.related_event_ids.length > 0) {
+      const sample = node.related_event_ids.slice(0, 3).join(", ");
+      const more = node.related_event_ids.length > 3 ? ` (+${node.related_event_ids.length - 3} more)` : "";
+      chunk.content += `\nRelated events via shared decisions: ${sample}${more}`;
+    }
+    if (node.ticket_refs.length > 0) {
+      chunk.content += `\nLinked tickets: ${node.ticket_refs.join(", ")}`;
+    }
+    if (node.co_referenced_event_ids.length > 0) {
+      const sample = node.co_referenced_event_ids.slice(0, 3).join(", ");
+      const more = node.co_referenced_event_ids.length > 3 ? ` (+${node.co_referenced_event_ids.length - 3} more)` : "";
+      chunk.content += `\nOther events referencing same tickets: ${sample}${more}`;
+    }
+    if (node.recent_author_activity.length > 0) {
+      const acts = node.recent_author_activity
+        .map((a) => `${a.event_id} (${a.source || "unknown"}, ${formatAgo(a.timestamp)})`)
+        .join("; ");
+      const who = node.author_name || "Author";
+      chunk.content += `\n${who} also worked on: ${acts}`;
     }
   }
 
