@@ -1,7 +1,10 @@
 /**
- * MCP smoke test — verifies all three MCP tools work against the live API.
+ * MCP smoke test — verifies all MCP tools work against the live API.
  * Calls the API directly (same path the MCP server takes) to validate
  * inputs/outputs before testing the MCP protocol layer.
+ *
+ * Tools covered: brain_query (×3), brain_log_decision, brain_log_signal,
+ *                brain_analyze_impact, drift-alerts resource
  */
 import "dotenv/config";
 
@@ -95,6 +98,36 @@ try {
   results.push({ id: "T5", pass, note: `alerts=${r.alerts.length}` });
   console.log(pass ? "✓" : "✗");
 } catch (e) { results.push({ id: "T5", pass: false, note: String(e) }); console.log("✗"); }
+
+// T6 — brain_analyze_impact
+process.stdout.write("T6 brain_analyze_impact... ");
+try {
+  const r = await post<{ overall_risk: string; summary: string; affected_decisions: unknown[] }>("/brain/query", {
+    query: "switch from httpx to aiohttp",
+    project_id: "encode_httpx",
+    mode: "impact",
+    change_description: "switch from httpx to aiohttp for all HTTP calls",
+  });
+  const validRisk = ["critical", "high", "medium", "low"].includes(r.overall_risk);
+  const pass = validRisk && typeof r.summary === "string" && Array.isArray(r.affected_decisions);
+  results.push({ id: "T6", pass, note: `risk=${r.overall_risk} decisions=${r.affected_decisions.length}` });
+  console.log(pass ? "✓" : "✗");
+} catch (e) { results.push({ id: "T6", pass: false, note: String(e) }); console.log("✗"); }
+
+// T7 — brain_log_signal (agent drift signal)
+process.stdout.write("T7 brain_log_signal... ");
+try {
+  const r = await post<{ ok: boolean; drift_alerts_created: number; matched_decisions: number }>("/brain/signals", {
+    text: "Discovered that httpx does not support HTTP/3 natively — may require rethinking transport layer",
+    project_id: "encode_httpx",
+    source: "agent",
+    actor_id: "claude-code-smoke-test",
+    actor_name: "claude-code-smoke-test",
+  });
+  const pass = r.ok === true && typeof r.drift_alerts_created === "number";
+  results.push({ id: "T7", pass, note: `ok=${r.ok} drift_alerts=${r.drift_alerts_created} matched=${r.matched_decisions}` });
+  console.log(pass ? "✓" : "✗");
+} catch (e) { results.push({ id: "T7", pass: false, note: String(e) }); console.log("✗"); }
 
 // Scorecard
 const passed = results.filter(r => r.pass).length;

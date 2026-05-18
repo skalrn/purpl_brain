@@ -37,18 +37,70 @@ docs/
 
 ## Key Architectural Decisions
 
-- **Brain store:** Hybrid — vector store (Qdrant) for semantic retrieval + graph DB (Kuzu → Neo4j) for causal/relational reasoning. See ADR-001.
-- **Ingestion:** Webhook-first, event-driven. Redis Streams queue between webhook receipt and processing. See ADR-003.
-- **Agent interface:** Agents write structured decision logs to `POST /brain/agent-log`. Brain exposes as MCP server in Phase 4. See ADR-002, ADR-004.
+- **Brain store:** Hybrid — Qdrant (vector) for semantic retrieval + Neo4j (graph) for causal/relational reasoning. See ADR-001.
+- **Ingestion:** Webhook-first, event-driven. Redis Streams pipeline: RAW → NORMALIZED → EXTRACTED. See ADR-003.
+- **Agent interface:** Agents write structured decision logs to `POST /brain/agent-log`. Brain exposes 4 MCP tools. See ADR-002, ADR-004.
 - **Query:** RAG + graph traversal combined. Every answer is grounded with citations to source (URL, timestamp, actor).
+- **Drift detection:** Two-stage — Qdrant semantic similarity (Stage A) + LLM confirmation (Stage C). Writes `DriftAlert` nodes.
 
 ## Phase Status
 
-Currently in pre-development. No code exists yet. Phase 1 scope: GitHub-only ingestion → brain update → natural language query with citations.
+- **Phase 1** ✓ complete — GitHub ingestion → brain update → natural language query with citations
+- **Phase 2** ✓ complete — Multi-source ingestion (Slack, Jira, meetings, agent logs), drift detection, temporal diff, impact analysis, streaming LLM responses
+- **Phase 3** in progress — MCP server (M1 ✓), agent write-back (M2 ✓), MCP eval + docs (M3 in progress), beta setup polish (M4), identity resolution (M5), AWS packaging (M6)
+
+## MCP Setup (Claude Code)
+
+The purpl-brain MCP server exposes 4 tools to any agent connected to the brain:
+
+| Tool | When to use |
+|------|-------------|
+| `brain_query` | Query the brain for decisions, architecture context, team knowledge |
+| `brain_log_decision` | Write agent session decisions back into the brain |
+| `brain_analyze_impact` | Before a significant change, check which decisions it may affect |
+| `brain_log_signal` | Report an unexpected finding that may contradict existing decisions |
+
+**Local setup (stdio transport):**
+
+1. Build the MCP server:
+   ```bash
+   cd apps/mcp && npm run build
+   ```
+
+2. Add to `~/.claude/settings.json` (merge the `mcpServers` block):
+   ```json
+   {
+     "mcpServers": {
+       "purpl-brain": {
+         "command": "node",
+         "args": ["/ABSOLUTE/PATH/TO/purpl_brain/apps/mcp/dist/index.js"],
+         "env": {
+           "BRAIN_API_URL": "http://localhost:3001",
+           "BRAIN_API_KEY": "your-api-key-here",
+           "BRAIN_AGENT_ID": "claude-code"
+         }
+       }
+     }
+   }
+   ```
+   See `apps/mcp/claude-code-config.example.json` for the full template.
+
+3. Start the brain API (must be running for MCP tools to work):
+   ```bash
+   docker compose up -d
+   ```
+
+**Remote setup (HTTP transport):**
+```bash
+MCP_TRANSPORT=http MCP_PORT=3002 node apps/mcp/dist/index.js
+```
+Set `BRAIN_API_URL` to your deployed brain URL. Required for AWS-hosted deployments (M6).
+
+**Cursor setup:** see `apps/mcp/cursor-config.example.json`.
 
 ## Build Order
 
-Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met and documented. See `docs/product/roadmap.md` for exit criteria per phase.
+Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met. See `docs/product/roadmap.md` for exit criteria per phase.
 
 ## LLM Cost Controls
 
