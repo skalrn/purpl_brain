@@ -10,6 +10,17 @@ const GROUP = "normalizer";
 const CONSUMER = "normalizer-1";
 const BLOCK_MS = 5000;
 
+let shuttingDown = false;
+
+process.on("SIGTERM", () => {
+  console.log("[normalizer] SIGTERM received, finishing current batch then exiting");
+  shuttingDown = true;
+});
+process.on("SIGINT", () => {
+  console.log("[normalizer] SIGINT received, finishing current batch then exiting");
+  shuttingDown = true;
+});
+
 async function ensureGroup() {
   try {
     await redis.xgroup("CREATE", STREAMS.RAW, GROUP, "0", "MKSTREAM");
@@ -109,6 +120,7 @@ async function run() {
   console.log("[normalizer] started, reading from", STREAMS.RAW);
 
   while (true) {
+    if (shuttingDown) break;
     const results = await redis.xreadgroup(
       "GROUP",
       GROUP,
@@ -138,6 +150,12 @@ async function run() {
       }
     }
   }
+
+  console.log("[normalizer] draining connections...");
+  await redis.quit().catch(() => undefined);
+  await writer.quit().catch(() => undefined);
+  console.log("[normalizer] exit");
+  process.exit(0);
 }
 
 run().catch((e) => {

@@ -11,6 +11,17 @@ const GROUP = "extractor";
 const CONSUMER = "extractor-1";
 const BLOCK_MS = 5000;
 
+let shuttingDown = false;
+
+process.on("SIGTERM", () => {
+  console.log("[extractor] SIGTERM received, finishing current batch then exiting");
+  shuttingDown = true;
+});
+process.on("SIGINT", () => {
+  console.log("[extractor] SIGINT received, finishing current batch then exiting");
+  shuttingDown = true;
+});
+
 interface NormalizedEvent extends CanonicalEvent {
   ticket_refs: string[];
   person_mentions: string[];
@@ -183,6 +194,7 @@ async function run() {
   console.log("[extractor] started, reading from", STREAMS.NORMALIZED);
 
   while (true) {
+    if (shuttingDown) break;
     const results = await redis.xreadgroup(
       "GROUP",
       GROUP,
@@ -211,6 +223,12 @@ async function run() {
       }
     }
   }
+
+  console.log("[extractor] draining connections...");
+  await redis.quit().catch(() => undefined);
+  await writer.quit().catch(() => undefined);
+  console.log("[extractor] exit");
+  process.exit(0);
 }
 
 run().catch((e) => {

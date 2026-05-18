@@ -19,7 +19,7 @@ import { STREAMS } from "../lib/redis.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { embed } from "../lib/embed.js";
 import { chat, chatJSON, MODELS } from "../lib/llm.js";
-import { writeDriftAlert, getDecisionsByEventIds } from "../lib/neo4j.js";
+import { driver, writeDriftAlert, getDecisionsByEventIds } from "../lib/neo4j.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { ExtractionResult, DriftAlert } from "@purpl/types";
 
@@ -33,6 +33,17 @@ const BLOCK_MS = 5000;
 const SEMANTIC_THRESHOLD = parseFloat(process.env.DRIFT_SEMANTIC_THRESHOLD ?? "0.55");
 const TOP_K = parseInt(process.env.DRIFT_TOP_K ?? "3");
 const EMBED_MAX_CHARS = 1200; // keep well within nomic-embed-text context window
+
+let shuttingDown = false;
+
+process.on("SIGTERM", () => {
+  console.log("[drift-detector] SIGTERM received, finishing current batch then exiting");
+  shuttingDown = true;
+});
+process.on("SIGINT", () => {
+  console.log("[drift-detector] SIGINT received, finishing current batch then exiting");
+  shuttingDown = true;
+});
 
 async function ensureGroup() {
   try {
@@ -233,6 +244,7 @@ async function run() {
   console.log(`[drift-detector] semantic threshold: ${SEMANTIC_THRESHOLD}, top-k: ${TOP_K}`);
 
   while (true) {
+    if (shuttingDown) break;
     const results = await redis.xreadgroup(
       "GROUP",
       GROUP,
@@ -265,6 +277,13 @@ async function run() {
       }
     }
   }
+
+  console.log("[drift-detector] draining connections...");
+  await redis.quit().catch(() => undefined);
+  await writer.quit().catch(() => undefined);
+  await driver.close().catch(() => undefined);
+  console.log("[drift-detector] exit");
+  process.exit(0);
 }
 
 run().catch((e) => {

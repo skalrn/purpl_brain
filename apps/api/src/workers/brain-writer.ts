@@ -2,7 +2,7 @@ import "dotenv/config";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { STREAMS } from "../lib/redis.js";
-import { getSession, resolveOrCreateActorPerson } from "../lib/neo4j.js";
+import { driver, getSession, resolveOrCreateActorPerson } from "../lib/neo4j.js";
 import { qdrant, COLLECTION, ensureCollection } from "../lib/qdrant.js";
 import { embed, embedBatch } from "../lib/embed.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
@@ -16,6 +16,17 @@ const BLOCK_MS = 5000;
 const CHUNK_MAX_CHARS = 1600; // ~400 tokens at 4 chars/token
 const QDRANT_RETRY_KEY = "retry:qdrant_writes";
 const QDRANT_RETRY_MAX = 3;
+
+let shuttingDown = false;
+
+process.on("SIGTERM", () => {
+  console.log("[brain-writer] SIGTERM received, finishing current batch then exiting");
+  shuttingDown = true;
+});
+process.on("SIGINT", () => {
+  console.log("[brain-writer] SIGINT received, finishing current batch then exiting");
+  shuttingDown = true;
+});
 
 async function ensureGroup() {
   try {
@@ -284,6 +295,7 @@ async function run() {
   console.log("[brain-writer] started, reading from", STREAMS.EXTRACTED);
 
   while (true) {
+    if (shuttingDown) break;
     const results = await redis.xreadgroup(
       "GROUP",
       GROUP,
@@ -312,6 +324,12 @@ async function run() {
       }
     }
   }
+
+  console.log("[brain-writer] draining connections...");
+  await redis.quit().catch(() => undefined);
+  await driver.close().catch(() => undefined);
+  console.log("[brain-writer] exit");
+  process.exit(0);
 }
 
 run().catch((e) => {
