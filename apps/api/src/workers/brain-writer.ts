@@ -137,10 +137,15 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
 }
 
 async function writeToQdrant(result: ExtractionResult, actorPersonId: string) {
-  if (result.decisions.length === 0 && !result.decision_candidate) return;
+  // Documents are always indexed — the content is the value regardless of whether
+  // decisions were extracted. For other sources, skip if nothing interesting.
+  const isDocument = inferSourceFromEventId(result.event_id) === "document";
+  if (!isDocument && result.decisions.length === 0 && !result.decision_candidate) return;
 
   const rawFallback = (result.raw_content?.trim() || result.source_url).slice(0, CHUNK_MAX_CHARS);
-  const textToChunk = result.decisions.length > 0
+  // Documents: always chunk the raw content — extracted decisions are sparse in docs.
+  // Other sources: prefer the richer decision summary when available.
+  const textToChunk = (!isDocument && result.decisions.length > 0)
     ? result.decisions
         .map((d: Decision) => [d.quoted_text, d.summary, d.rationale].filter(Boolean).join("\n"))
         .join("\n\n")
