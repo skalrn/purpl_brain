@@ -27,7 +27,7 @@ function vttTimestampToIso(ts: string, baseDate: string): string {
     s = parseFloat(parts[1]);
   }
   const d = new Date(baseDate);
-  d.setHours(d.getHours() + h, d.getMinutes() + m, d.getSeconds() + Math.floor(s));
+  d.setTime(d.getTime() + (h * 3600 + m * 60 + s) * 1000);
   return d.toISOString();
 }
 

@@ -182,7 +182,6 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   // Receives structured decision logs from AI agent sessions and feeds them
   // through the standard ingestion pipeline so they are queryable alongside
   // human-generated signals.
-  // TODO: add API key auth before production deployment (open for beta)
   fastify.post<{
     Body: {
       schema_version: string;

@@ -92,7 +92,7 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
         project_id: result.project_id,
         timestamp: result.timestamp,
         url: result.source_url,
-        raw_content: result.source_url,
+        raw_content: result.raw_content,
         person_id: personId,
       }
     );
