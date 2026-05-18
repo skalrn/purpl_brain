@@ -5,6 +5,7 @@ import { STREAMS } from "../lib/redis.js";
 import { getSession, resolveOrCreateActorPerson } from "../lib/neo4j.js";
 import { qdrant, COLLECTION, ensureCollection } from "../lib/qdrant.js";
 import { embed, embedBatch } from "../lib/embed.js";
+import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { ExtractionResult, Decision } from "@purpl/types";
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
@@ -49,12 +50,7 @@ function chunkContent(content: string, sourceId: string): Array<{ id: string; te
 
 // Returns the canonical person_id UUID for the event actor
 async function writeToNeo4j(result: ExtractionResult): Promise<string> {
-  const source = result.event_id.startsWith("slack_") ? "slack"
-    : result.event_id.startsWith("meeting_") ? "meeting"
-    : result.event_id.startsWith("jira_") ? "jira"
-    : result.event_id.startsWith("doc_") ? "document"
-    : result.event_id.startsWith("agent_") ? "agent"
-    : "github";
+  const source = inferSourceFromEventId(result.event_id);
 
   // Resolve actor to canonical person_id (creates provisional stub if needed)
   const personId = await resolveOrCreateActorPerson({
@@ -178,12 +174,7 @@ async function writeToQdrant(result: ExtractionResult, actorPersonId: string) {
       chunk_id: chunk.id,
       graph_node_id: result.event_id,
       project_id: result.project_id,
-      source: result.event_id.startsWith("slack_") ? "slack"
-        : result.event_id.startsWith("meeting_") ? "meeting"
-        : result.event_id.startsWith("jira_") ? "jira"
-        : result.event_id.startsWith("doc_") ? "document"
-        : result.event_id.startsWith("agent_") ? "agent"
-        : "github",
+      source: inferSourceFromEventId(result.event_id),
       source_url: result.source_url,
       actor_id: result.actor.id,
       actor_name: result.actor.name,

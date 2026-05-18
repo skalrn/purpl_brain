@@ -2,6 +2,7 @@ import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { getSession } from "../lib/neo4j.js";
 import { chat, chatStream, MODELS } from "../lib/llm.js";
+import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
 
 // Tuned per LLM provider — see .env.local vs .env.aws
@@ -237,16 +238,9 @@ async function prepareContext(request: QueryRequest): Promise<PreparedContext | 
     .map((r, i) => ({
       index: i + 1,
       content: String(r.payload!.content ?? ""),
-      source: (() => {
-        if (r.payload!.source) return String(r.payload!.source);
-        const gni = String(r.payload!.graph_node_id ?? "");
-        if (gni.startsWith("slack_")) return "slack";
-        if (gni.startsWith("meeting_")) return "meeting";
-        if (gni.startsWith("jira_")) return "jira";
-        if (gni.startsWith("doc_")) return "document";
-        if (gni.startsWith("agent_")) return "agent";
-        return "github";
-      })(),
+      source: r.payload!.source
+        ? String(r.payload!.source)
+        : inferSourceFromEventId(String(r.payload!.graph_node_id ?? "")),
       source_url: String(r.payload!.source_url ?? ""),
       actor_name: String(r.payload!.actor_name ?? ""),
       timestamp: String(r.payload!.timestamp ?? ""),

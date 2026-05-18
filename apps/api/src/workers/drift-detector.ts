@@ -20,7 +20,8 @@ import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { embed } from "../lib/embed.js";
 import { chat, chatJSON, MODELS } from "../lib/llm.js";
 import { writeDriftAlert, getDecisionsByEventIds } from "../lib/neo4j.js";
-import type { ExtractionResult, DriftAlert, EventSource } from "@purpl/types";
+import { inferSourceFromEventId } from "../lib/event-source.js";
+import type { ExtractionResult, DriftAlert } from "@purpl/types";
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
@@ -204,10 +205,7 @@ async function processMessage(id: string, result: ExtractionResult) {
       alert_id: uuidv4(),
       decision_id: drift.decision_id,
       event_id: result.event_id,
-      source: (result.event_id.startsWith("slack_") ? "slack"
-        : result.event_id.startsWith("meeting_") ? "meeting"
-        : result.event_id.startsWith("jira_") ? "jira"
-        : "github") as EventSource,
+      source: inferSourceFromEventId(result.event_id),
       content: result.raw_content.slice(0, 500),
       actor: result.actor.name,
       timestamp: result.timestamp,

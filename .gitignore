@@ -7,3 +7,4 @@ dist/
 *.env.local
 .DS_Store
 .next/
+.claude/scheduled_tasks.lock
