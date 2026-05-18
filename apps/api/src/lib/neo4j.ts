@@ -137,6 +137,46 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
   }
 }
 
+/**
+ * For each event_id, return the confirmed decisions extracted from it along with
+ * the ticket refs those decisions INFORMS (used for impact analysis traversal).
+ */
+export async function getDecisionsWithTicketsByEventIds(eventIds: string[]): Promise<Array<{
+  decision_id: string;
+  event_id: string;
+  summary: string;
+  rationale: string | null;
+  status: string;
+  ticket_refs: string[];
+}>> {
+  if (eventIds.length === 0) return [];
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+       WHERE e.event_id IN $event_ids
+       OPTIONAL MATCH (d)-[:INFORMS]->(t:Ticket)
+       RETURN d.decision_id AS decision_id,
+              e.event_id AS event_id,
+              d.summary AS summary,
+              d.rationale AS rationale,
+              d.status AS status,
+              collect(DISTINCT t.ref) AS ticket_refs`,
+      { event_ids: eventIds }
+    );
+    return result.records.map((r) => ({
+      decision_id: r.get("decision_id") as string,
+      event_id: r.get("event_id") as string,
+      summary: r.get("summary") as string,
+      rationale: (r.get("rationale") as string | null) ?? null,
+      status: (r.get("status") as string) ?? "unknown",
+      ticket_refs: ((r.get("ticket_refs") as string[]) ?? []).filter(Boolean),
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
 // ── Person identity ───────────────────────────────────────────────────────────
 
 export interface PersonRecord {

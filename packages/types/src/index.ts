@@ -153,6 +153,53 @@ export interface QueryResponse {
   citation_warning: boolean;
 }
 
+// Impact analysis
+
+export interface ImpactTask {
+  ticket_ref: string;
+  jira_summary?: string;
+  jira_status?: string;
+  jira_assignee?: string;
+  jira_url?: string;
+  risk_tier: "critical" | "high" | "medium" | "low";
+  reason: string;
+}
+
+export interface ImpactDecision {
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  status: string;
+  affected_tickets: ImpactTask[];
+}
+
+export interface ImpactResponse {
+  change_description: string;
+  overall_risk: "critical" | "high" | "medium" | "low";
+  summary: string;
+  affected_decisions: ImpactDecision[];
+  latency_ms: number;
+}
+
+// Signal ingestion
+
+export interface SignalRequest {
+  text: string;
+  project_id: string;
+  source: EventSource;
+  actor_id: string;
+  actor_name: string;
+  url?: string;
+  occurred_at?: string;
+}
+
+export interface SignalResponse {
+  ok: boolean;
+  drift_alerts_created: number;
+  matched_decisions: number;
+  message: string;
+}
+
 // Project registration
 
 export interface Project {

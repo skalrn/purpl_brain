@@ -202,6 +202,114 @@ function buildServer(): McpServer {
     }
   );
 
+  // ── Tool: brain_analyze_impact ─────────────────────────────────────────────
+
+  server.tool(
+    "brain_analyze_impact",
+    "Before making a significant code change, analyze which existing architectural decisions and linked tasks " +
+    "it may affect. Returns risk tier (critical/high/medium/low) per decision, live Jira ticket status for " +
+    "affected tasks, and an overall risk summary. Call this before refactoring a core module, switching a " +
+    "library, changing an API contract, or any change that could invalidate a prior design decision.",
+    {
+      change_description: z.string().describe(
+        "Plain-English description of the change you are about to make. " +
+        "Be specific: mention the module, library, pattern, or API being changed."
+      ),
+      project_id: z.string().describe("Project namespace to search (e.g. 'my_org_my_repo')"),
+    },
+    async ({ change_description, project_id }) => {
+      const response = await apiPost<{
+        overall_risk: string;
+        summary: string;
+        affected_decisions: Array<{
+          decision_id: string;
+          summary: string;
+          status: string;
+          affected_tickets: Array<{
+            ticket_ref: string;
+            jira_summary?: string;
+            jira_status?: string;
+            jira_assignee?: string;
+            jira_url?: string;
+            risk_tier: string;
+            reason: string;
+          }>;
+        }>;
+        latency_ms: number;
+      }>("/brain/query", {
+        project_id,
+        mode: "impact",
+        change_description,
+        query: change_description,
+      });
+
+      const lines: string[] = [
+        `## Impact Analysis — ${response.overall_risk.toUpperCase()} risk`,
+        "",
+        response.summary,
+        "",
+      ];
+
+      if (response.affected_decisions.length > 0) {
+        lines.push(`### Affected decisions (${response.affected_decisions.length})`);
+        for (const d of response.affected_decisions) {
+          lines.push(`\n**${d.summary}** [${d.status}]`);
+          if (d.affected_tickets.length > 0) {
+            for (const t of d.affected_tickets) {
+              const jiraInfo = t.jira_summary ? ` — ${t.jira_summary} (${t.jira_status ?? "unknown"})` : "";
+              const assignee = t.jira_assignee ? ` · ${t.jira_assignee}` : "";
+              lines.push(`  • ${t.ticket_ref}${jiraInfo}${assignee} [${t.risk_tier}] ${t.reason}`);
+            }
+          } else {
+            const assess = response.affected_decisions.find((x) => x.decision_id === d.decision_id);
+            lines.push(`  Risk: ${assess?.affected_tickets[0]?.risk_tier ?? "low"}`);
+          }
+        }
+      } else {
+        lines.push("No existing decisions are relevant to this change.");
+      }
+
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    }
+  );
+
+  // ── Tool: brain_log_signal ──────────────────────────────────────────────────
+
+  server.tool(
+    "brain_log_signal",
+    "Report an observation, finding, or new piece of information that may contradict or affect an existing " +
+    "architectural decision. The brain will match it against known decisions and create drift alerts for human " +
+    "review. Use this when you discover something unexpected during implementation — a library limitation, " +
+    "a performance finding, an API constraint — that the team should know about relative to past decisions.",
+    {
+      text: z.string().describe("The observation or finding to report. Be specific."),
+      project_id: z.string().describe("Project namespace"),
+      source: z.enum(["github", "slack", "jira", "meeting", "agent", "document"]).describe(
+        "Where this signal originated"
+      ).default("agent"),
+    },
+    async ({ text, project_id, source }) => {
+      const response = await apiPost<{
+        ok: boolean;
+        drift_alerts_created: number;
+        matched_decisions: number;
+        message: string;
+      }>("/brain/signals", {
+        text,
+        project_id,
+        source,
+        actor_id: AGENT_ID,
+        actor_name: AGENT_ID,
+      });
+
+      const summary = response.drift_alerts_created > 0
+        ? `Signal logged — created ${response.drift_alerts_created} drift alert(s) for team review.`
+        : `Signal logged — no existing decisions matched (threshold not met).`;
+
+      return { content: [{ type: "text", text: summary }] };
+    }
+  );
+
   // ── Resource: brain://project/{project_id} ──────────────────────────────────
 
   server.resource(

@@ -14,7 +14,8 @@ import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByNam
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { requireApiKey } from "../lib/auth-middleware.js";
-import type { CanonicalEvent, DriftResolution } from "@purpl/types";
+import { processSignal } from "../services/signal-engine.js";
+import type { CanonicalEvent, DriftResolution, EventSource } from "@purpl/types";
 
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -291,6 +292,54 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (e) {
         fastify.log.error(e);
         return reply.status(500).send({ error: "Failed to fetch tasks" });
+      }
+    }
+  );
+
+  // ── POST /brain/signals ──────────────────────────────────────────────────
+  // Ingest an observation or new piece of information. The signal is matched
+  // against existing confirmed decisions; a DriftAlert is created for each match
+  // so reviewers can decide whether the decision still stands.
+  fastify.post<{
+    Body: {
+      text: string;
+      project_id: string;
+      source: string;
+      actor_id: string;
+      actor_name: string;
+      url?: string;
+      occurred_at?: string;
+    };
+  }>(
+    "/brain/signals",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { text, project_id, source, actor_id, actor_name, url, occurred_at } = req.body;
+
+      if (!text || text.trim().length < 10) {
+        return reply.status(400).send({ error: "text is required (min 10 chars)" });
+      }
+      if (!project_id) {
+        return reply.status(400).send({ error: "project_id is required" });
+      }
+      if (!source || !actor_id || !actor_name) {
+        return reply.status(400).send({ error: "source, actor_id, and actor_name are required" });
+      }
+
+      try {
+        const result = await processSignal({
+          text,
+          project_id,
+          source: source as EventSource,
+          actor_id,
+          actor_name,
+          url,
+          occurred_at,
+        });
+        return result;
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Signal processing failed" });
       }
     }
   );
