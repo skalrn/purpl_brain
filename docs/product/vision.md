@@ -2,21 +2,33 @@
 
 ## One-Line Statement
 
-Purpl Brain is the persistent memory layer for AI coding agents. Agents write their decisions back to the brain at session end; the next session reads them back via MCP and continues with context.
+Purpl Brain is shared, auditable, cross-agent memory grounded in your team's full signal history. Every agent session — Claude Code, Cursor, Copilot, custom — reads from and writes to the same brain, with structured decision trails citing the GitHub PRs, Jira tickets, meetings, and prior agent runs they came from.
 
 ## The Problem
 
-Every AI coding session starts from zero. Claude Code, Cursor, GitHub Copilot — each invocation opens with an empty context window and no awareness of what was decided last week, what was tried and rejected three days ago, or what architectural constraint was set when the project began. The agent re-derives, re-guesses, and often contradicts decisions it (or another agent, or the human) already made.
+Every AI coding session starts from zero with respect to the team. Claude Code, Cursor, GitHub Copilot — each invocation opens with an empty context window and no awareness of what was decided last week, what was tried and rejected three days ago, or what architectural constraint was set when the project began. The agent re-derives, re-guesses, and often contradicts decisions it (or another agent, or a teammate) already made.
 
-The standard workaround is for the developer to paste the same paragraph of context into every new session — "we're using Postgres, not Mongo; we already tried `pgvector` and ruled it out; the auth module is owned by Alex." This is a manual memory transfer between human and agent, repeated every session, and it does not scale past a single project or a single week.
+The providers know this and have shipped partial fixes. Claude Projects pins files per project. Cursor Rules persist prompts across sessions. ChatGPT has user-level memory. These help inside a single tool, for a single user, with unstructured text. They do not solve the team problem:
 
-The result is that AI agents remain unreliable for anything beyond a single bounded session. They are productive within a conversation and amnesiac across conversations. The work product of yesterday's agent is invisible to today's agent.
+- Alice's Claude Code memory does not flow into Bob's Cursor session, and never will — neither provider has any incentive to integrate with a competitor's runtime.
+- The memory is unstructured text recall, not auditable decisions with citations. You cannot ask "what did the agent decide about caching on May 3rd, and what PR did that come from?" — provider memory is opaque to that query.
+- The memory has no awareness of the team's actual signal history — the GitHub PRs, the Jira tickets, the meeting transcripts where the real decisions live. It only remembers what the user typed into that one tool.
+- The memory has no contradiction detection. If session 5 picks Redis and session 7 picks Memcached, neither provider will tell you.
+
+The result: AI agents stay siloed by tool and by user. The work product of yesterday's agent in one developer's IDE is invisible to today's agent in another developer's IDE — and invisible to anyone trying to audit what the team's agents have been deciding on their behalf.
 
 ## The Insight
 
-Agents need the same thing humans need: institutional memory. But they need it in a machine-readable, queryable form — not a wiki, not a Notion page, not a Slack thread. They need a structured store they can write to at session end and read from at session start, with citations to the original signals (commits, PRs, prior agent decisions) so the new session can trust what it inherits.
+Agents and the humans working with them need the same thing: institutional memory that is shared across people and tools, structured enough to audit, and grounded in the actual signals where decisions were made. Not a wiki, not a Notion page, not a Slack thread, and not a per-tool memory drawer locked inside one vendor's runtime.
 
-This is not a knowledge base. A knowledge base is human-curated and read-only for agents. This is an agent-curated, agent-readable memory layer where the agent is a first-class writer.
+That memory needs four properties at once:
+
+1. **Team-scoped, not user-scoped.** Two developers using two different agents on the same repo read from the same brain.
+2. **Cross-agent, not provider-locked.** Claude Code, Cursor, and any MCP-aware client all read and write through the same protocol.
+3. **Structured and cited, not unstructured recall.** Every stored decision carries who decided it, when, why, and a citation to the originating signal (PR, ticket, meeting, prior agent log).
+4. **Grounded in the team's signal history.** Memory is enriched by ingestion from GitHub, Jira, Slack, and meeting transcripts — not just by what users have typed into one IDE.
+
+This is not a knowledge base. A knowledge base is human-curated and read-only for agents. This is a team-scoped memory layer where agents are first-class writers and every entry is auditable.
 
 ## The Bet
 
@@ -36,16 +48,29 @@ The human use case (querying what happened, getting cited summaries, surfacing c
 
 ## Competitive Positioning
 
-| Tool | What it does | Why it does not solve agent memory |
+The direct comparisons a buyer will reach for first are the provider-shipped memory features: **Claude Projects, Cursor Rules / Project Memory, and ChatGPT Memory**. Address these head-on.
+
+| Tool | What it does | Why it is not Purpl Brain |
 |---|---|---|
-| Mem.ai | Personal notes with AI search | Designed for humans capturing thoughts; no agent write-back API, no MCP server, no decision schema |
-| GitHub Copilot | Code completion and Workspaces | Session-scoped; Copilot Spaces are repo-pinned context, not cross-session memory; closed to other agents |
-| Cursor Project Rules | In-IDE persistent prompts | Cursor-only; rules are human-authored, not agent-written; no query layer |
-| Claude Projects | Pinned files per project | Anthropic-only; pinned context is human-curated; no inter-session decision log |
-| Glean | Enterprise search across SaaS | Read-only for agents; no agent write path; sales-led, $30+/seat, wrong customer |
+| **Claude Projects** | Pinned files and persistent context per project, inside Claude.ai / Claude Code | Anthropic-only — Cursor and Copilot users see nothing. User-scoped — your teammate's project is invisible to you. Unstructured — no decision schema, no citation back to a PR or ticket, no contradiction detection. |
+| **Cursor Rules / Project Memory** | Human-authored `.cursorrules` and an auto-updating project memory inside Cursor | Cursor-only, by design. Rules are human-authored; auto-memory is unstructured text. No write path for other agents. No grounding in Slack/Jira/meetings. |
+| **ChatGPT Memory** | User-level memory across ChatGPT conversations | Per-user, per-account. Has no notion of a team, a repo, or a signal source. Not addressable by another agent. |
+| GitHub Copilot Spaces | Repo-pinned context for Copilot | Closed to non-Copilot agents; no cross-session decision log; no Slack/Jira/meeting ingestion |
+| Mem.ai | Personal notes with AI search | Single-user, manual capture. No agent write-back, no MCP, no decision schema. |
+| Glean | Enterprise search across SaaS | Read-only for agents; no agent write path; sales-led, $30+/seat, wrong ICP |
 | Notion AI | Q&A over a wiki | Human-curated content; no event ingestion; no agent decision schema |
 
-Nobody is shipping agent-first persistent memory with a documented write API, a structured decision schema, and an MCP read path. That is the gap and that is the product.
+**Where provider memory is going, and why it does not converge on Purpl Brain.** Every provider will keep improving the memory drawer inside their own tool — that is a given. None of them will build a *shared* memory layer that spans competing runtimes, because the strategic incentive runs the other way: each provider wants their memory to be the stickiest, not the most portable. None will reach into a team's GitHub, Jira, Slack, and meeting transcripts to ground decisions in signal history, because that requires per-customer SaaS auth and a multi-source ingestion pipeline that is not their core business. And none will offer an auditable decision schema with citations, because their pitch is "the agent remembers" — not "the agent's reasoning is on the record."
+
+**Purpl Brain's defensible wedge, stated as a contract:**
+
+- **Cross-agent and cross-tool by default.** MCP-native read path; documented `POST /brain/agent-log` write path. Two different agents, two different IDEs, two different humans, one brain.
+- **Team-scoped, not user-scoped.** A project's brain is shared across the team. Permissions and isolation are by `project_id`, not by which Anthropic or OpenAI account you happen to be logged into.
+- **Structured decision trails with citations.** Every stored decision has a maker, a rationale, alternatives considered, an unresolved-questions field, and a citation to the originating signal. Auditable. Queryable. Not opaque text recall.
+- **Grounded in the team's full signal history.** GitHub PRs, Jira tickets, Slack threads, meeting transcripts, and prior agent logs flow through the same pipeline and link to the same decisions.
+- **Drift detection across surfaces.** When a new agent decision contradicts a prior one — same agent, different agent, or human — the brain flags it before it lands.
+
+Nobody is shipping all five at once. Provider memory will close the single-tool single-user gap. It will not close the team-scoped, cross-agent, audit-grade gap. That is the gap and that is the product.
 
 ## Ideal Customer Profile
 
@@ -61,4 +86,4 @@ Out of scope: enterprise rollouts, floating specialists across a 40-engineer org
 2. **Human query is a secondary surface.** The same brain that serves `brain_query` to agents serves it to humans via a web UI. Cited answers, drift alerts, agent decision history — all present, none of it the lead.
 3. **Multi-source ingestion is context enrichment, not the product.** GitHub, Slack, Jira, and meeting transcripts feed the brain so that agent queries return answers grounded in the full context of the project, not just prior agent logs. This is what makes the agent memory layer better than a local SQLite file. It is not the pitch.
 
-The product is agent memory. The defensibility is the write-back loop. The proof is two Claude Code sessions on the same repo where the second one knows what the first one decided.
+The product is team-scoped, cross-agent, auditable memory grounded in the team's signal history. The defensibility is that no single-vendor memory drawer can ever span competing runtimes, ingest a team's full toolchain, or expose decisions as cited records. The proof is two different agents in two different IDEs run by two different humans on the same repo — and the second session, regardless of which agent or which human, knows what the first one decided and where that decision came from.
