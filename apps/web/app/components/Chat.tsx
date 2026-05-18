@@ -169,7 +169,7 @@ export default function Chat() {
         <label className="text-sm text-gray-400 whitespace-nowrap">Project ID:</label>
         <input
           className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-purple-500"
-          placeholder="e.g. skalrn_purplbox"
+          placeholder="e.g. my_org_auth_service"
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
         />
@@ -179,8 +179,15 @@ export default function Chat() {
       <div className="flex-1 flex flex-col gap-6 overflow-y-auto">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 text-sm mt-16">
-            <p>Ask anything about your repo — decisions, changes, context.</p>
-            <p className="mt-2 text-gray-600">Try: "what changed last 7 days" or "what decisions were made?"</p>
+            <p>Ask about decisions your team or AI agents have made.</p>
+            <div className="mt-3 flex flex-col gap-1 text-gray-600">
+              <p>"What JWT library are we using and why?"</p>
+              <p>"What did the agent decide about caching last week?"</p>
+              <p>"What changed in the last 7 days?"</p>
+            </div>
+            <p className="mt-4 text-gray-700 text-xs">
+              Also searches GitHub PRs, Jira tickets, Slack, and meeting transcripts if connected.
+            </p>
           </div>
         )}
 
@@ -239,7 +246,7 @@ export default function Chat() {
       <div className="flex gap-2 items-end">
         <textarea
           className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-100 resize-none focus:outline-none focus:border-purple-500 min-h-[48px] max-h-[160px]"
-          placeholder="Ask about your repo… or 'what changed last 7 days?'"
+          placeholder="Ask about a decision, library choice, or 'what changed last 7 days?'"
           rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
