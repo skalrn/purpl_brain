@@ -173,12 +173,10 @@ async function processMessage(id: string, result: ExtractionResult) {
     return;
   }
 
-  // Only run drift detection on non-GitHub events (Slack, meetings, Jira).
-  // GitHub-on-GitHub is intra-PR debate — expected, not drift.
-  // Remove this guard when GitHub issues/commits are added in M5.
-  const isGithub = result.event_id.startsWith("seed_") || result.event_id.startsWith("gh_")
-    || (!result.event_id.startsWith("slack_") && !result.event_id.startsWith("meeting_") && !result.event_id.startsWith("jira_"));
-  if (isGithub) {
+  // Run drift detection on Slack, meeting, Jira, and agent events.
+  // Skip GitHub — intra-PR debate is expected, not drift.
+  const source = inferSourceFromEventId(result.event_id);
+  if (source === "github") {
     await redis.xack(STREAMS.EXTRACTED, GROUP, id);
     return;
   }
