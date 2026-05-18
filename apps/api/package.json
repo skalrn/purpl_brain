@@ -30,6 +30,7 @@
     "eval:cross-source": "tsx src/scripts/eval-cross-source.ts",
     "eval:isolation": "tsx src/scripts/eval-project-isolation.ts",
     "eval:drift-fp": "tsx src/scripts/eval-drift-fp.ts",
+    "demo:agent-memory": "tsx src/scripts/demo-agent-memory.ts",
     "pipeline:reset": "tsx src/scripts/reset-pipeline.ts",
     "build": "tsc",
     "start": "node dist/index.js",
