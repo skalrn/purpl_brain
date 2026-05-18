@@ -16,9 +16,10 @@ import "dotenv/config";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { STREAMS } from "../lib/redis.js";
+import { StreamWorker } from "../lib/stream-worker.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { embed } from "../lib/embed.js";
-import { chat, chatJSON, MODELS } from "../lib/llm.js";
+import { chatJSON, MODELS } from "../lib/llm.js";
 import { driver, writeDriftAlert, getDecisionsByEventIds } from "../lib/neo4j.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { ExtractionResult, DriftAlert } from "@purpl/types";
@@ -26,32 +27,9 @@ import type { ExtractionResult, DriftAlert } from "@purpl/types";
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 
-const GROUP = "drift-detector";
-const CONSUMER = "drift-detector-1";
-const BLOCK_MS = 5000;
-
 const SEMANTIC_THRESHOLD = parseFloat(process.env.DRIFT_SEMANTIC_THRESHOLD ?? "0.55");
 const TOP_K = parseInt(process.env.DRIFT_TOP_K ?? "3");
-const EMBED_MAX_CHARS = 1200; // keep well within nomic-embed-text context window
-
-let shuttingDown = false;
-
-process.on("SIGTERM", () => {
-  console.log("[drift-detector] SIGTERM received, finishing current batch then exiting");
-  shuttingDown = true;
-});
-process.on("SIGINT", () => {
-  console.log("[drift-detector] SIGINT received, finishing current batch then exiting");
-  shuttingDown = true;
-});
-
-async function ensureGroup() {
-  try {
-    await redis.xgroup("CREATE", STREAMS.EXTRACTED, GROUP, "$", "MKSTREAM");
-  } catch (e: unknown) {
-    if (!(e instanceof Error) || !e.message.includes("BUSYGROUP")) throw e;
-  }
-}
+const EMBED_MAX_CHARS = 1200;
 
 // ── Stage A: semantic similarity via Qdrant ───────────────────────────────
 
@@ -165,126 +143,102 @@ Does this message contradict any of these decisions?`;
   );
 }
 
-// ── Main processing ────────────────────────────────────────────────────────
+// ── Worker class ──────────────────────────────────────────────────────────
 
-async function processMessage(id: string, result: ExtractionResult) {
-  if (!result.raw_content || result.raw_content.trim().length < 20) {
-    await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-    return;
+class DriftDetector extends StreamWorker {
+  constructor() {
+    super(redis, {
+      name: "drift-detector",
+      stream: STREAMS.EXTRACTED,
+      group: "drift-detector",
+      consumer: "drift-detector-1",
+      fieldName: "result",
+    });
   }
 
-  // Run drift detection on Slack, meeting, Jira, and agent events.
-  // Skip GitHub — intra-PR debate is expected, not drift.
-  const source = inferSourceFromEventId(result.event_id);
-  if (source === "github") {
-    await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-    return;
-  }
+  protected async processMessage(id: string, value: string): Promise<void> {
+    const result = JSON.parse(value) as ExtractionResult;
 
-  // Stage A: find semantically similar confirmed decisions
-  const candidates = await stageA(
-    result.raw_content,
-    result.project_id,
-    [result.event_id] // exclude the event itself
-  );
-
-  if (candidates.length === 0) {
-    await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-    return;
-  }
-
-  // Stage C: LLM confirmation
-  let confirmation: DriftConfirmation;
-  try {
-    confirmation = await stageC(result.raw_content, candidates);
-  } catch (e) {
-    console.error(`[drift-detector] LLM confirmation failed for ${result.event_id}:`, e);
-    await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-    return;
-  }
-
-  if (confirmation.drifts.length === 0) {
-    await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-    return;
-  }
-
-  // Write confirmed DriftAlerts to Neo4j and publish to events:drift
-  for (const drift of confirmation.drifts) {
-    const alert: DriftAlert = {
-      alert_id: uuidv4(),
-      decision_id: drift.decision_id,
-      event_id: result.event_id,
-      source: inferSourceFromEventId(result.event_id),
-      content: result.raw_content.slice(0, 500),
-      actor: result.actor.name,
-      timestamp: result.timestamp,
-      confirmed_by_llm: true,
-      resolution: "pending",
-    };
-
-    try {
-      await writeDriftAlert(alert);
-      await writer.xadd(STREAMS.DRIFT, "*", "alert", JSON.stringify(alert));
-      console.log(
-        `[drift-detector] ⚡ DRIFT ALERT: event=${result.event_id} challenges decision=${drift.decision_id}: ${drift.reason}`
-      );
-    } catch (e) {
-      console.error(`[drift-detector] failed to write alert for ${result.event_id}:`, e);
+    if (!result.raw_content || result.raw_content.trim().length < 20) {
+      await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
+      return;
     }
-  }
 
-  await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-}
+    // Run drift detection on Slack, meeting, Jira, and agent events.
+    // Skip GitHub — intra-PR debate is expected, not drift.
+    const source = inferSourceFromEventId(result.event_id);
+    if (source === "github") {
+      await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
+      return;
+    }
 
-async function run() {
-  await ensureGroup();
-  console.log("[drift-detector] started, reading from", STREAMS.EXTRACTED);
-  console.log(`[drift-detector] semantic threshold: ${SEMANTIC_THRESHOLD}, top-k: ${TOP_K}`);
-
-  while (true) {
-    if (shuttingDown) break;
-    const results = await redis.xreadgroup(
-      "GROUP",
-      GROUP,
-      CONSUMER,
-      "COUNT",
-      10,
-      "BLOCK",
-      BLOCK_MS,
-      "STREAMS",
-      STREAMS.EXTRACTED,
-      ">"
+    // Stage A: find semantically similar confirmed decisions
+    const candidates = await stageA(
+      result.raw_content,
+      result.project_id,
+      [result.event_id]
     );
 
-    if (!results) continue;
+    if (candidates.length === 0) {
+      await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
+      return;
+    }
 
-    for (const [, messages] of results as [string, [string, string[]][]][]) {
-      for (const [id, fields] of messages) {
-        const resultJson = fields[fields.indexOf("result") + 1];
-        if (!resultJson) {
-          await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-          continue;
-        }
-        try {
-          const result = JSON.parse(resultJson) as ExtractionResult;
-          await processMessage(id, result);
-        } catch (e) {
-          console.error(`[drift-detector] failed to process ${id}:`, e);
-          await redis.xack(STREAMS.EXTRACTED, GROUP, id);
-        }
+    // Stage C: LLM confirmation
+    let confirmation: DriftConfirmation;
+    try {
+      confirmation = await stageC(result.raw_content, candidates);
+    } catch (e) {
+      console.error(`[drift-detector] LLM confirmation failed for ${result.event_id}:`, e);
+      await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
+      return;
+    }
+
+    if (confirmation.drifts.length === 0) {
+      await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
+      return;
+    }
+
+    // Write confirmed DriftAlerts to Neo4j and publish to events:drift
+    for (const drift of confirmation.drifts) {
+      const alert: DriftAlert = {
+        alert_id: uuidv4(),
+        decision_id: drift.decision_id,
+        event_id: result.event_id,
+        source: inferSourceFromEventId(result.event_id),
+        content: result.raw_content.slice(0, 500),
+        actor: result.actor.name,
+        timestamp: result.timestamp,
+        confirmed_by_llm: true,
+        resolution: "pending",
+      };
+
+      try {
+        await writeDriftAlert(alert);
+        await writer.xadd(STREAMS.DRIFT, "*", "alert", JSON.stringify(alert));
+        console.log(
+          `[drift-detector] ⚡ DRIFT ALERT: event=${result.event_id} challenges decision=${drift.decision_id}: ${drift.reason}`
+        );
+      } catch (e) {
+        console.error(`[drift-detector] failed to write alert for ${result.event_id}:`, e);
       }
     }
+
+    await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
   }
 
-  console.log("[drift-detector] draining connections...");
-  await redis.quit().catch(() => undefined);
-  await writer.quit().catch(() => undefined);
-  await driver.close().catch(() => undefined);
-  console.log("[drift-detector] exit");
-  process.exit(0);
+  protected override async onShutdown(): Promise<void> {
+    await writer.quit().catch(() => undefined);
+    await driver.close().catch(() => undefined);
+  }
+
+  override async run(): Promise<void> {
+    console.log(`[drift-detector] semantic threshold: ${SEMANTIC_THRESHOLD}, top-k: ${TOP_K}`);
+    await super.run();
+  }
 }
 
-run().catch((e) => {
+new DriftDetector().run().catch((e) => {
   console.error("[drift-detector] fatal:", e);
   process.exit(1);
 });

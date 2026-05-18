@@ -1,26 +1,12 @@
 import "dotenv/config";
 import { Redis } from "ioredis";
 import { STREAMS } from "../lib/redis.js";
+import { StreamWorker } from "../lib/stream-worker.js";
 import { chat, chatJSON, MODELS } from "../lib/llm.js";
-import type { CanonicalEvent, ExtractionResult, Decision, ConfidenceLevel } from "@purpl/types";
+import type { CanonicalEvent, ExtractionResult, Decision } from "@purpl/types";
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
-
-const GROUP = "extractor";
-const CONSUMER = "extractor-1";
-const BLOCK_MS = 5000;
-
-let shuttingDown = false;
-
-process.on("SIGTERM", () => {
-  console.log("[extractor] SIGTERM received, finishing current batch then exiting");
-  shuttingDown = true;
-});
-process.on("SIGINT", () => {
-  console.log("[extractor] SIGINT received, finishing current batch then exiting");
-  shuttingDown = true;
-});
 
 interface NormalizedEvent extends CanonicalEvent {
   ticket_refs: string[];
@@ -126,10 +112,8 @@ ${event.raw_content}`;
       ],
       { maxTokens: 1024, temperature: 0 }
     );
-
     return Array.isArray(result.decisions) ? result.decisions : [];
-  } catch (e) {
-    // Retry once with a simpler prompt on parse failure
+  } catch {
     console.warn("[extractor] JSON parse failed, retrying with fallback prompt");
     try {
       const raw = await chat(
@@ -150,88 +134,55 @@ ${event.raw_content}`;
   }
 }
 
-async function processMessage(id: string, event: NormalizedEvent) {
-  let decisions: Decision[] = [];
-
-  if (event.decision_candidate) {
-    decisions = await extractDecisions(event);
-    console.log(`[extractor] LLM extracted ${decisions.length} decision(s) from ${event.event_id}`);
+class Extractor extends StreamWorker {
+  constructor() {
+    super(redis, {
+      name: "extractor",
+      stream: STREAMS.NORMALIZED,
+      group: "extractor",
+      consumer: "extractor-1",
+      fieldName: "event",
+    });
   }
 
-  const result: ExtractionResult = {
-    event_id: event.event_id,
-    project_id: event.project_id,
-    source_id: event.source_id,
-    source_url: event.url,
-    raw_content: event.raw_content,
-    actor: event.actor,
-    timestamp: event.timestamp,
-    decisions,
-    ticket_refs: event.ticket_refs,
-    person_mentions: event.person_mentions,
-    concept_tags: [],
-    decision_candidate: event.decision_candidate,
-  };
+  protected async processMessage(id: string, value: string): Promise<void> {
+    const event = JSON.parse(value) as NormalizedEvent;
+    let decisions: Decision[] = [];
 
-  await writer.xadd(STREAMS.EXTRACTED, "*", "result", JSON.stringify(result));
-  await redis.xack(STREAMS.NORMALIZED, GROUP, id);
-
-  console.log(
-    `[extractor] ${event.event_type} ${event.event_id} → extracted (decisions=${decisions.length}, candidate=${event.decision_candidate})`
-  );
-}
-
-async function ensureGroup() {
-  try {
-    await redis.xgroup("CREATE", STREAMS.NORMALIZED, GROUP, "0", "MKSTREAM");
-  } catch (e: unknown) {
-    if (!(e instanceof Error) || !e.message.includes("BUSYGROUP")) throw e;
-  }
-}
-
-async function run() {
-  await ensureGroup();
-  console.log("[extractor] started, reading from", STREAMS.NORMALIZED);
-
-  while (true) {
-    if (shuttingDown) break;
-    const results = await redis.xreadgroup(
-      "GROUP",
-      GROUP,
-      CONSUMER,
-      "COUNT",
-      10,
-      "BLOCK",
-      BLOCK_MS,
-      "STREAMS",
-      STREAMS.NORMALIZED,
-      ">"
-    );
-
-    if (!results) continue;
-
-    for (const [, messages] of results as [string, [string, string[]][]][]) {
-      for (const [id, fields] of messages) {
-        const eventJson = fields[fields.indexOf("event") + 1];
-        if (!eventJson) continue;
-        try {
-          const event = JSON.parse(eventJson) as NormalizedEvent;
-          await processMessage(id, event);
-        } catch (e) {
-          console.error(`[extractor] failed to process ${id}:`, e);
-        }
-      }
+    if (event.decision_candidate) {
+      decisions = await extractDecisions(event);
+      console.log(`[extractor] LLM extracted ${decisions.length} decision(s) from ${event.event_id}`);
     }
+
+    const result: ExtractionResult = {
+      event_id: event.event_id,
+      project_id: event.project_id,
+      source_id: event.source_id,
+      source_url: event.url,
+      raw_content: event.raw_content,
+      actor: event.actor,
+      timestamp: event.timestamp,
+      decisions,
+      ticket_refs: event.ticket_refs,
+      person_mentions: event.person_mentions,
+      concept_tags: [],
+      decision_candidate: event.decision_candidate,
+    };
+
+    await writer.xadd(STREAMS.EXTRACTED, "*", "result", JSON.stringify(result));
+    await redis.xack(STREAMS.NORMALIZED, "extractor", id);
+
+    console.log(
+      `[extractor] ${event.event_type} ${event.event_id} → extracted (decisions=${decisions.length}, candidate=${event.decision_candidate})`
+    );
   }
 
-  console.log("[extractor] draining connections...");
-  await redis.quit().catch(() => undefined);
-  await writer.quit().catch(() => undefined);
-  console.log("[extractor] exit");
-  process.exit(0);
+  protected override async onShutdown(): Promise<void> {
+    await writer.quit().catch(() => undefined);
+  }
 }
 
-run().catch((e) => {
+new Extractor().run().catch((e) => {
   console.error("[extractor] fatal:", e);
   process.exit(1);
 });
