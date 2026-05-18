@@ -86,6 +86,21 @@ export interface Decision {
   decision_maker?: string;   // who made or announced the decision
   scope?: string;            // what this decision applies to
   reversible?: boolean;      // false = final, true = tentative/revisable
+  codegen_prompt?: string;   // AI-ready implementation prompt, only for code-change decisions
+}
+
+export interface FollowUpTask {
+  task_id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  suggested_owner?: string;
+  codegen_prompt?: string;
+  source: "drift_reopen" | "manual";
+  status: "open" | "in_progress" | "done";
+  decision_id: string;
+  decision_summary: string;
+  created_at: string;
 }
 
 export interface ExtractionResult {

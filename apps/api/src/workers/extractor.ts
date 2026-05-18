@@ -52,7 +52,8 @@ A decision is a CONCLUDED choice — something that has been settled, not propos
     "confidence": "high|medium|low",
     "decision_maker": "name/handle of who made the decision, or null",
     "scope": "what this applies to (module, service, project), or null",
-    "reversible": true/false — true if described as tentative, false if presented as final
+    "reversible": true/false — true if described as tentative, false if presented as final,
+    "codegen_prompt": null, or a concise one-paragraph implementation prompt for an AI coding agent — ONLY when the decision clearly requires code changes (e.g. chose a library, adopted a pattern, dropped a dependency). Null for architecture discussions, process decisions, or anything non-code.
   }]
 }
 

@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName } from "../lib/neo4j.js";
+import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { requireApiKey } from "../lib/auth-middleware.js";
@@ -49,6 +49,22 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
       try {
         await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen", new Date().toISOString());
+
+        // "reopen" means the decision is no longer valid — create a follow-up task
+        // so the team has an actionable item to resolve the contradiction.
+        if (resolution === "reopen") {
+          const task = await createFollowUpTaskFromAlert(id);
+          return {
+            ok: true,
+            alert_id: id,
+            resolution,
+            follow_up_task: task ?? undefined,
+            message: task
+              ? `Decision marked changed. Follow-up task created: "${task.title}" (${task.task_id})`
+              : "Decision marked changed. No linked decision found for task creation.",
+          };
+        }
+
         return { ok: true, alert_id: id, resolution };
       } catch (e) {
         fastify.log.error(e);
@@ -254,6 +270,28 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         decisions_logged: log.decisions.length,
         message: "Agent log queued for processing",
       };
+    }
+  );
+
+  // ── GET /brain/tasks ─────────────────────────────────────────────────────
+  // Lists follow-up tasks created from drift alert resolutions.
+  // An agent can call brain_query("what open tasks are waiting?") and get
+  // these back with codegen_prompt attached for immediate execution.
+  fastify.get<{ Querystring: { project_id: string; status?: string } }>(
+    "/brain/tasks",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { project_id, status } = req.query;
+      if (!project_id) {
+        return reply.status(400).send({ error: "project_id is required" });
+      }
+      try {
+        const tasks = await getFollowUpTasks(project_id, status);
+        return { tasks, total: tasks.length };
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to fetch tasks" });
+      }
     }
   );
 

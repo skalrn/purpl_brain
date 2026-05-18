@@ -611,6 +611,103 @@ export async function listPeopleInProject(projectId: string): Promise<Array<{
   }
 }
 
+// ── Follow-up tasks ───────────────────────────────────────────────────────────
+
+/**
+ * Create a FollowUpTask from a drift alert resolution of "reopen".
+ * Fetches the alert's linked decision and event context, creates a Task node,
+ * and links it: (Task)-[:ADDRESSES]->(Decision).
+ * Returns the new task_id and project_id, or null if the alert is not found.
+ */
+export async function createFollowUpTaskFromAlert(alertId: string): Promise<{
+  task_id: string;
+  project_id: string;
+  title: string;
+  suggested_owner: string;
+} | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (a:DriftAlert {alert_id: $alert_id})-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+       CREATE (t:FollowUpTask {
+         task_id:       randomUUID(),
+         project_id:    e.project_id,
+         title:         'Reopen: ' + d.summary,
+         description:   a.content,
+         suggested_owner: a.actor,
+         source:        'drift_reopen',
+         status:        'open',
+         decision_id:   d.decision_id,
+         codegen_prompt: d.codegen_prompt,
+         created_at:    $now
+       })
+       CREATE (t)-[:ADDRESSES]->(d)
+       RETURN t.task_id AS task_id, e.project_id AS project_id,
+              t.title AS title, a.actor AS suggested_owner`,
+      { alert_id: alertId, now: new Date().toISOString() }
+    );
+    if (result.records.length === 0) return null;
+    const r = result.records[0];
+    return {
+      task_id:         r.get("task_id") as string,
+      project_id:      r.get("project_id") as string,
+      title:           r.get("title") as string,
+      suggested_owner: r.get("suggested_owner") as string,
+    };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * List all FollowUpTask nodes for a project, with their linked decision summary.
+ */
+export async function getFollowUpTasks(projectId: string, status?: string): Promise<Array<{
+  task_id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  suggested_owner?: string;
+  codegen_prompt?: string;
+  source: string;
+  status: string;
+  decision_id: string;
+  decision_summary: string;
+  created_at: string;
+}>> {
+  const session = getSession();
+  try {
+    const whereClause = status
+      ? "WHERE t.project_id = $project_id AND t.status = $status"
+      : "WHERE t.project_id = $project_id";
+    const result = await session.run(
+      `MATCH (t:FollowUpTask)-[:ADDRESSES]->(d:Decision)
+       ${whereClause}
+       RETURN t, d.summary AS decision_summary
+       ORDER BY t.created_at DESC`,
+      { project_id: projectId, status: status ?? null }
+    );
+    return result.records.map((r) => {
+      const t = r.get("t").properties as Record<string, unknown>;
+      return {
+        task_id:          t.task_id as string,
+        project_id:       t.project_id as string,
+        title:            t.title as string,
+        description:      t.description as string,
+        suggested_owner:  t.suggested_owner as string | undefined,
+        codegen_prompt:   t.codegen_prompt as string | undefined,
+        source:           t.source as string,
+        status:           t.status as string,
+        decision_id:      t.decision_id as string,
+        decision_summary: r.get("decision_summary") as string,
+        created_at:       t.created_at as string,
+      };
+    });
+  } finally {
+    await session.close();
+  }
+}
+
 // Fuzzy-match a speaker name to an existing Person node.
 // Tries exact match first, then case-insensitive first-name match.
 // Returns the canonical email/id if found, or null.

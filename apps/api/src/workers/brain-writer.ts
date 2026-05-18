@@ -113,6 +113,7 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
            summary: $summary,
            rationale: $rationale,
            confidence: $confidence,
+           codegen_prompt: $codegen_prompt,
            valid_from: $valid_from,
            valid_to: null
          })
@@ -124,8 +125,20 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
           summary: decision.summary,
           rationale: decision.rationale ?? "",
           confidence: decision.confidence,
+          codegen_prompt: decision.codegen_prompt ?? null,
           valid_from: result.timestamp,
         }
+      );
+    }
+
+    // Link decisions to co-occurring tickets: Decision -[:INFORMS]-> Ticket
+    // Enables impact traversal: "which tasks are affected by this decision?"
+    if (result.decisions.length > 0 && result.ticket_refs.length > 0) {
+      await session.run(
+        `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {event_id: $event_id})
+         MATCH (e)-[:REFERENCES]->(t:Ticket)
+         MERGE (d)-[:INFORMS]->(t)`,
+        { event_id: result.event_id }
       );
     }
 
