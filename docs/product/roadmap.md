@@ -109,34 +109,75 @@ A single query returns a synthesized answer grounded in both a GitHub PR comment
 
 ---
 
-## Phase 4 — Multi-Product Graph and Specialist View
+## Phase 4 — Document Brain + Cross-Product Graph
 
-**Target duration:** 6–8 weeks (after Phase 3 complete)  
-**Primary persona:** Floating Specialist
+**Target duration:** 4–5 weeks (after Phase 3 complete)  
+**Primary persona:** Floating Specialist, Context Switcher
+
+### Thesis
+
+Any intelligent actor can query across products *and* across artifact types — not just events (PRs, Slack, Jira) but static knowledge (ADRs, PRDs, meeting notes, diagrams).
 
 ### Scope
 
 **In:**
-- Multiple project namespaces in the brain
-- Cross-product edge creation: shared team members, shared libraries, analogous decisions
-- Expertise-scoped query mode: query by domain across all projects
-- MCP server interface (makes the brain natively queryable by Claude, Cursor, and MCP-compatible agents)
-- Meeting transcript ingestion (Otter.ai or Fireflies API)
+- Document ingestion: ADRs, PRDs, RFCs, runbooks (`.md`, `.pdf`, `.txt`, `.docx`)
+- GitHub repo file crawler: auto-index `docs/**/*.md` on project setup
+- Meeting transcript ingestion: file upload (`.vtt`, `.srt`, `.txt`) + Fireflies webhook
+- Meeting attachment processing: text extraction (PDF/DOCX/PPTX) + vision model pass for images/diagrams
+- Cross-product graph edges: shared team members, shared libraries, analogous decisions
+- Expertise-scoped query mode: single query across all projects filtered by domain/topic
+- Self-serve project onboarding via web UI
 
 **Out:**
-- Self-serve onboarding for new projects (still manual setup)
+- Live meeting integration (real-time transcription)
 - Enterprise auth / SSO
 - Mobile client
+- Full Slack/Jira history backfill
 
-### Key Deliverables
-- Multi-tenant namespace model in the brain store
-- Cross-product graph edges with relationship type labels
-- Expertise-scoped query handler: accepts domain tags, searches across project namespaces
-- MCP server: exposes brain query as an MCP resource/tool
-- Meeting ingestion pipeline: transcript → decision extraction → brain update
+### Milestones
+
+#### M1 — Document ingestion (2–3 days)
+- `POST /ingest/document` REST endpoint (file upload: `.md`, `.pdf`, `.txt`, `.docx`)
+- GitHub repo file crawler: scans `docs/**/*.md` at seed time and on push events to `docs/` path
+- 512-token sliding window chunking with 20% overlap
+- Source type: `"document"`, sub-types: `"adr"`, `"prd"`, `"runbook"`, `"unknown"`
+- Exit: query returns a cited answer grounded in an ADR or PRD file
+
+#### M2 — Meeting transcript ingestion (2–3 days)
+- File upload path: `.vtt`, `.srt`, `.txt` transcripts
+- Fireflies webhook path (optional, for users with Fireflies account)
+- Speaker resolution: fuzzy name → existing Person node by email
+- Source type: `"meeting"` with title + date metadata
+- Exit: query returns cited answer from a meeting transcript
+
+#### M3 — Attachment processing (2–3 days)
+- Text extraction: PDF (`pdfjs`), DOCX (`mammoth`), PPTX text slides
+- Image/diagram processing: vision model pass (claude-haiku) → text description chunk linked to parent
+- Cost guards: skip images > 5 MB, cap 10 images per meeting
+- Exit: architecture diagram in a meeting attachment is queryable by its content
+
+#### M4 — Cross-product graph (3–4 days)
+- Shared team member edges: Person active in multiple projects → `[:ACTIVE_IN]`
+- Shared library edges: same package referenced across projects → `Library` node + `[:USES]`
+- Analogous decision edges: cosine similarity > 0.80 across project namespaces → `[:ANALOGOUS_TO]`
+- Expertise-scoped query mode (`mode: "expertise"` in `brain_query`): searches across all projects, filtered by topic tag
+- Exit: single query returns cited decisions from two different project namespaces
+
+#### M5 — Self-serve project onboarding (2–3 days)
+- "Add project" flow in web UI: paste GitHub repo URL, authenticate, done
+- Auto-crawls `docs/**/*.md` + seeds last 90 days of GitHub events on add
+- Project dashboard: ingestion status, event count by source, last sync time
+- Multi-project switcher in chat UI
+- Exit: new project added and queryable in under 3 minutes via UI
+
+#### M6 — Phase 4 eval + demo script (1 day)
+- 5 cross-project queries, 3 document-sourced queries, 2 meeting-sourced queries — all cited
+- One architecture diagram queryable by content
+- Demo script: solopreneur with 3 projects queries spanning GitHub + ADR + meeting note
 
 ### Phase 4 Exit Criterion
-A specialist queries: *"Show me all open auth-related decisions across active products."* The result is accurate, cross-product, and cited. The brain is queryable directly from Claude or Cursor via MCP without the chat UI.
+A specialist queries: *"Show me all auth-related decisions across my projects, including anything in design docs or meeting notes."* The result is accurate, cross-project, cross-artifact, and cited to specific sources.
 
 ---
 
@@ -144,9 +185,9 @@ A specialist queries: *"Show me all open auth-related decisions across active pr
 
 The following are identified but not scoped:
 
-- Self-serve project onboarding
 - Enterprise SSO and fine-grained permission mirroring from source systems
 - Confidence scoring and contradiction arbitration model
 - Automated agent instrumentation (no explicit log emission required)
 - API for third-party tool integration
 - Analytics dashboard: brain usage, anomaly hit rate, context acquisition time metrics
+- Live meeting integration (real-time transcription via Zoom/Google Meet SDK)

@@ -1,6 +1,6 @@
 // Canonical event schema — single source of truth shared across api and web
 
-export type EventSource = "github" | "slack" | "jira" | "linear" | "meeting" | "agent";
+export type EventSource = "github" | "slack" | "jira" | "linear" | "meeting" | "agent" | "document";
 
 export type ActorType = "human" | "agent";
 
@@ -18,7 +18,8 @@ export type EventType =
   | "slack_message"
   | "meeting_transcript"
   | "jira_issue"
-  | "jira_comment";
+  | "jira_comment"
+  | "document_chunk";
 
 export interface Actor {
   type: ActorType;
@@ -46,6 +47,12 @@ export interface CanonicalEvent {
   // Meeting-specific (optional)
   meeting_title?: string;
   meeting_participants?: string[];
+  // Document-specific (optional)
+  document_title?: string;
+  document_path?: string;
+  document_type?: "adr" | "prd" | "runbook" | "unknown";
+  chunk_index?: number;
+  total_chunks?: number;
 }
 
 // Drift detection

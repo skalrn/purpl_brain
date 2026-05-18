@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { mergePersonAlias } from "../lib/neo4j.js";
+import { crawlSingleFile } from "../lib/github-doc-crawler.js";
 import type { CanonicalEvent, EventType } from "@purpl/types";
 
 // Resolve Jira account ID → email via Jira REST API (M5 identity resolution)
@@ -152,6 +153,36 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
     await redis.expire(PROCESSED_SET, 60 * 60 * 24 * 30);
 
     request.log.info({ deliveryId, eventType: event.event_type, projectId }, "GitHub event enqueued");
+
+    // Re-crawl any docs/**/*.md files touched by this push (fire-and-forget)
+    if (githubEvent === "push") {
+      const token = process.env.GITHUB_TOKEN;
+      const commits = (payload.commits ?? []) as Array<{ added: string[]; modified: string[] }>;
+      const touchedDocFiles = commits
+        .flatMap((c) => [...(c.added ?? []), ...(c.modified ?? [])])
+        .filter((f) => f.startsWith("docs/") && f.endsWith(".md"));
+      const uniqueDocFiles = [...new Set(touchedDocFiles)];
+
+      if (token && uniqueDocFiles.length > 0 && repo) {
+        const repoFullName = String(repo.full_name);
+        void Promise.all(
+          uniqueDocFiles.map(async (filePath) => {
+            try {
+              const docEvents = await crawlSingleFile(token, repoFullName, filePath, projectId);
+              for (const docEvent of docEvents) {
+                // Invalidate old chunks for this file so the updated content replaces them
+                await redis.srem(PROCESSED_SET, docEvent.source_id);
+                await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(docEvent));
+              }
+              await redis.sadd(PROCESSED_SET, `${repoFullName}/${filePath}`);
+              request.log.info({ filePath, chunks: docEvents.length }, "Doc file re-crawled on push");
+            } catch (e) {
+              request.log.warn({ filePath, err: (e as Error).message }, "Doc re-crawl failed");
+            }
+          })
+        );
+      }
+    }
 
     return reply.code(200).send({ status: "queued" });
   });
