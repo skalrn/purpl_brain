@@ -22,10 +22,15 @@ bash setup.sh
 
 The setup script will:
 - Collect your Anthropic API key and a project name
-- Write `apps/api/.env`
+- Write `apps/api/.env` and generate a local API key
 - Build the MCP server
-- Start infrastructure (Redis, Neo4j, Qdrant via Docker)
-- Start the API and pipeline workers
+- Start everything via `docker compose up -d --build`:
+  - Infrastructure: Redis, Neo4j, Qdrant
+  - API on `:3001`
+  - All four workers: normalizer, extractor, brain-writer, drift-detector
+- Print a ready-to-paste Claude Code / Cursor MCP config
+
+Target: < 10 minutes from `git clone` to first query.
 
 ### 3. Add the MCP server to Claude Code
 
@@ -146,12 +151,22 @@ Signal sources (GitHub, Slack, Jira, meetings) flow through the same pipeline an
 
 ---
 
-## Running workers manually
+## Running workers manually (local dev outside Docker)
+
+`setup.sh` starts the API and all four workers via `docker compose`. If you
+prefer to run them on the host (faster iteration, easier debugging):
 
 ```bash
-npm run dev -w apps/api                   # API on :3001
-npm run worker:normalizer -w apps/api     # pass 1: rule-based signal extraction
-npm run worker:extractor -w apps/api      # pass 2: LLM decision extraction
-npm run worker:brain-writer -w apps/api   # writes to Neo4j + Qdrant
-npm run worker:drift -w apps/api          # drift detection (optional)
+docker compose up -d redis neo4j qdrant    # infra only
+npm run dev -w apps/api                    # API on :3001
+npm run worker:normalizer -w apps/api      # pass 1: rule-based signal extraction
+npm run worker:extractor -w apps/api       # pass 2: LLM decision extraction
+npm run worker:brain-writer -w apps/api    # writes to Neo4j + Qdrant
+npm run worker:drift -w apps/api           # drift detection (optional)
+```
+
+Tail Docker logs:
+
+```bash
+docker compose logs -f api extractor brain-writer
 ```

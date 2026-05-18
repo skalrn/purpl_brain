@@ -1,4 +1,5 @@
 services:
+  # ── Infrastructure ─────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     ports:
@@ -24,6 +25,108 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
+
+  # ── Application services (built from apps/api/Dockerfile) ─────────────────
+  # All workers and the API share one image. CMD is overridden per service so
+  # each container runs exactly one process. They reach the host's Ollama via
+  # host.docker.internal (Docker Desktop / host-gateway on Linux).
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - apps/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    depends_on:
+      - redis
+      - neo4j
+      - qdrant
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/index.js"]
+
+  normalizer:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - apps/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/normalizer.js"]
+    stop_grace_period: 20s
+
+  extractor:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - apps/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/extractor.js"]
+    stop_grace_period: 30s
+
+  brain-writer:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - apps/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    depends_on:
+      - redis
+      - neo4j
+      - qdrant
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/brain-writer.js"]
+    stop_grace_period: 30s
+
+  drift-detector:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - apps/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    depends_on:
+      - redis
+      - neo4j
+      - qdrant
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/drift-detector.js"]
+    stop_grace_period: 30s
 
 volumes:
   redis_data:

@@ -123,11 +123,17 @@ npm run build -w apps/mcp
 chmod +x apps/mcp/dist/index.js
 echo -e "${GREEN}✓ MCP server built at apps/mcp/dist/index.js${RESET}"
 
-# ── Start infrastructure ──────────────────────────────────────────────────────
+# ── Start everything via docker compose ───────────────────────────────────────
 echo ""
-echo -e "${YELLOW}── Starting infrastructure ──────────────────────────────${RESET}"
-docker compose up -d
-echo -e "${GREEN}✓ Redis, Neo4j, Qdrant started${RESET}"
+echo -e "${YELLOW}── Starting infrastructure + API + workers ──────────────${RESET}"
+echo "(First run builds the API image — typically 2-3 minutes)"
+docker compose up -d --build
+echo -e "${GREEN}✓ Redis, Neo4j, Qdrant, API, and all 4 workers started${RESET}"
+echo ""
+echo "  - API:           http://localhost:3001"
+echo "  - Neo4j Browser: http://localhost:7474  (neo4j / password)"
+echo "  - Qdrant:        http://localhost:6333"
+echo "  - Workers:       normalizer, extractor, brain-writer, drift-detector"
 
 # ── Print MCP config ──────────────────────────────────────────────────────────
 MCP_ABS_PATH="$(pwd)/apps/mcp/dist/index.js"
@@ -165,22 +171,18 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Start the API and workers (open four terminals or use a process manager):"
+echo "  1. Paste the MCP config above into ~/.claude/settings.json"
 echo ""
-echo "     npm run dev -w apps/api"
-echo "     npm run worker:normalizer -w apps/api"
-echo "     npm run worker:extractor -w apps/api"
-echo "     npm run worker:brain-writer -w apps/api"
+echo "  2. Verify the loop end-to-end:"
 echo ""
-echo "  2. Paste the MCP config above into ~/.claude/settings.json"
+echo "     BRAIN_API_KEY=${API_KEY} npm run demo:agent-memory -w apps/api"
 echo ""
-echo "  3. Verify the loop end-to-end:"
-echo ""
-echo "     cd apps/api"
-echo "     BRAIN_API_KEY=${API_KEY} npm run demo:agent-memory"
-echo ""
-echo "  4. Open a Claude Code session on any repo — brain_query and"
+echo "  3. Open a Claude Code session on any repo — brain_query and"
 echo "     brain_log_decision are now in the tool chain automatically."
+echo ""
+echo -e "${YELLOW}Tail logs:${RESET}"
+echo ""
+echo "  docker compose logs -f api extractor brain-writer"
 echo ""
 echo -e "${YELLOW}Optional — connect signal sources:${RESET}"
 echo ""
