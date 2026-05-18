@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { chunkText, detectDocumentType } from "../lib/document-chunker.js";
 import { crawlRepoDocs } from "../lib/github-doc-crawler.js";
+import { deletePointsBySourceId } from "../lib/qdrant.js";
 import { requireApiKey } from "../lib/auth-middleware.js";
 import type { CanonicalEvent } from "@purpl/types";
 
@@ -51,9 +52,14 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         ? `doc_${project_id}_${path.replace(/[^a-z0-9]/gi, "_")}`
         : `doc_${project_id}_${resolvedTitle.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
 
+      // Re-ingest path: if this source_id already processed, treat as REPLACE.
+      // Delete prior Qdrant chunks (filter on payload.source_id) and clear the
+      // dedup marker so the new chunks land cleanly. Otherwise stale chunks
+      // from the previous version pollute retrieval indefinitely.
       const alreadyProcessed = await redis.sismember(PROCESSED_SET, sourceId);
       if (alreadyProcessed) {
-        return reply.status(409).send({ error: "Document already ingested" });
+        await deletePointsBySourceId(sourceId);
+        await redis.srem(PROCESSED_SET, sourceId);
       }
 
       const chunks = chunkText(text);
@@ -137,15 +143,22 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         return { ok: true, chunks_queued: 0, message: "No .md files found under docs/" };
       }
 
-      for (const event of events) {
-        const alreadyProcessed = await redis.sismember(PROCESSED_SET, event.source_id);
-        if (!alreadyProcessed) {
-          await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+      // For each source_id: if already processed, delete prior Qdrant chunks
+      // and clear dedup marker so the recrawl REPLACES rather than DEDUPES.
+      const uniqueSourceIds = [...new Set(events.map((e) => e.source_id))];
+      for (const sid of uniqueSourceIds) {
+        const already = await redis.sismember(PROCESSED_SET, sid);
+        if (already) {
+          await deletePointsBySourceId(sid);
+          await redis.srem(PROCESSED_SET, sid);
         }
       }
 
+      for (const event of events) {
+        await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+      }
+
       // Mark each unique source file as processed (by source_id = repo/path)
-      const uniqueSourceIds = [...new Set(events.map((e) => e.source_id))];
       for (const sid of uniqueSourceIds) {
         await redis.sadd(PROCESSED_SET, sid);
       }

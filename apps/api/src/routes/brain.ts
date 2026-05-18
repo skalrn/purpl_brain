@@ -13,6 +13,7 @@ import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
+import { deletePointsBySourceId } from "../lib/qdrant.js";
 import { requireApiKey } from "../lib/auth-middleware.js";
 import { processSignal } from "../services/signal-engine.js";
 import type { CanonicalEvent, DriftResolution, EventSource } from "@purpl/types";
@@ -104,9 +105,13 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         ? `meeting_${project_id}_${Buffer.from(source_url).toString("base64").slice(0, 32)}`
         : `meeting_${project_id}_${(title ?? "transcript").toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
 
+      // Re-ingest path: REPLACE rather than 409. Delete prior Qdrant chunks
+      // before enqueueing so the new transcript content fully supersedes the
+      // old one in retrieval.
       const already = await redis.sismember(PROCESSED_SET, sourceId);
       if (already) {
-        return reply.status(409).send({ error: "Duplicate transcript" });
+        await deletePointsBySourceId(sourceId);
+        await redis.srem(PROCESSED_SET, sourceId);
       }
 
       // Parse VTT/SRT/plain and extract speakers

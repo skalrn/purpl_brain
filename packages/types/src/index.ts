@@ -106,6 +106,7 @@ export interface FollowUpTask {
 export interface ExtractionResult {
   event_id: string;
   project_id: string;
+  source_id?: string;
   source_url: string;
   raw_content: string;
   actor: Actor;

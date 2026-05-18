@@ -173,6 +173,7 @@ async function writeToQdrant(result: ExtractionResult, actorPersonId: string) {
     payload: {
       chunk_id: chunk.id,
       graph_node_id: result.event_id,
+      source_id: result.source_id ?? result.event_id,
       project_id: result.project_id,
       source: inferSourceFromEventId(result.event_id),
       source_url: result.source_url,

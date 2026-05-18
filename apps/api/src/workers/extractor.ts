@@ -150,6 +150,7 @@ async function processMessage(id: string, event: NormalizedEvent) {
   const result: ExtractionResult = {
     event_id: event.event_id,
     project_id: event.project_id,
+    source_id: event.source_id,
     source_url: event.url,
     raw_content: event.raw_content,
     actor: event.actor,
