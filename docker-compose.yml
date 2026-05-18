@@ -7,6 +7,11 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -14,6 +19,11 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/readyz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
 
   neo4j:
     image: neo4j:5-community
@@ -25,11 +35,18 @@ services:
       NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
-  # ── Application services (built from apps/api/Dockerfile) ─────────────────
-  # All workers and the API share one image. CMD is overridden per service so
-  # each container runs exactly one process. They reach the host's Ollama via
-  # host.docker.internal (Docker Desktop / host-gateway on Linux).
+  # ── Application services ───────────────────────────────────────────────────
+  # All workers and the API share one image built from apps/api/Dockerfile.
+  # Each container runs exactly one process via CMD override.
+  # Workers reach the host's Ollama via host.docker.internal (Docker Desktop /
+  # host-gateway on Linux).
 
   api:
     build:
@@ -45,12 +62,21 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
-      - redis
-      - neo4j
-      - qdrant
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/index.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   normalizer:
     build:
@@ -64,7 +90,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/workers/normalizer.js"]
@@ -82,7 +109,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/workers/extractor.js"]
@@ -100,9 +128,12 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
-      - redis
-      - neo4j
-      - qdrant
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/workers/brain-writer.js"]
@@ -120,13 +151,29 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
-      - redis
-      - neo4j
-      - qdrant
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/workers/drift-detector.js"]
     stop_grace_period: 30s
+
+  # ── Web UI ─────────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   redis_data:

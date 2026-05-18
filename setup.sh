@@ -128,9 +128,33 @@ echo ""
 echo -e "${YELLOW}── Starting infrastructure + API + workers ──────────────${RESET}"
 echo "(First run builds the API image — typically 2-3 minutes)"
 docker compose up -d --build
-echo -e "${GREEN}✓ Redis, Neo4j, Qdrant, API, and all 4 workers started${RESET}"
+echo -e "${GREEN}✓ All services started${RESET}"
+
+# Wait for the API to be healthy before running migrations
+echo ""
+echo -e "${YELLOW}── Waiting for API to be healthy ────────────────────────${RESET}"
+API_TIMEOUT=120
+API_ELAPSED=0
+until curl -sf http://localhost:3001/health >/dev/null 2>&1; do
+  if [[ $API_ELAPSED -ge $API_TIMEOUT ]]; then
+    echo -e "${RED}❌  API did not become healthy within ${API_TIMEOUT}s.${RESET}"
+    echo "    Check logs: docker compose logs api"
+    exit 1
+  fi
+  sleep 2
+  API_ELAPSED=$((API_ELAPSED + 2))
+done
+echo -e "${GREEN}✓ API is healthy (${API_ELAPSED}s)${RESET}"
+
+# Apply Neo4j schema constraints (idempotent — safe to re-run)
+echo ""
+echo -e "${YELLOW}── Applying Neo4j schema constraints ───────────────────${RESET}"
+npm run migrate:constraints -w apps/api 2>&1 | grep -v "^$" || true
+echo -e "${GREEN}✓ Schema constraints applied${RESET}"
+
 echo ""
 echo "  - API:           http://localhost:3001"
+echo "  - Web UI:        http://localhost:3000"
 echo "  - Neo4j Browser: http://localhost:7474  (neo4j / password)"
 echo "  - Qdrant:        http://localhost:6333"
 echo "  - Workers:       normalizer, extractor, brain-writer, drift-detector"

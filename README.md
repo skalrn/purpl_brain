@@ -79,13 +79,17 @@ The brain works immediately from agent logs alone. You can enrich it with your t
 
 ### GitHub
 
+GitHub webhooks require a public URL to receive live events. For local dev, use the seed script instead — it backfills existing PRs and issues directly without needing a webhook:
+
 ```bash
-# In apps/api/.env, add:
+# In apps/api/.env, uncomment and set:
 GITHUB_TOKEN=ghp_...
 
-# Seed a repo (fetches last 50 PRs):
+# Seed a repo (fetches last 50 PRs/issues — no public URL needed):
 npm run seed:github -w apps/api -- --repo org/repo --limit 50
 ```
+
+For live webhook ingestion (staging/production), configure your GitHub webhook to point to `https://your-domain/webhooks/github` and set `GITHUB_WEBHOOK_SECRET` in `.env`.
 
 ### Slack
 
@@ -124,7 +128,9 @@ curl -X POST http://localhost:3001/brain/ingest/transcript \
 
 ## Web UI
 
-A query interface is available at `http://localhost:3000` after running:
+The query UI runs at `http://localhost:3000` and is started automatically by `setup.sh` / `docker compose up`.
+
+For local development outside Docker (faster iteration):
 
 ```bash
 npm run dev -w apps/web
@@ -153,8 +159,7 @@ Signal sources (GitHub, Slack, Jira, meetings) flow through the same pipeline an
 
 ## Running workers manually (local dev outside Docker)
 
-`setup.sh` starts the API and all four workers via `docker compose`. If you
-prefer to run them on the host (faster iteration, easier debugging):
+`setup.sh` starts everything via `docker compose`. To run on the host instead (faster iteration, easier debugging):
 
 ```bash
 docker compose up -d redis neo4j qdrant    # infra only
@@ -163,6 +168,13 @@ npm run worker:normalizer -w apps/api      # pass 1: rule-based signal extractio
 npm run worker:extractor -w apps/api       # pass 2: LLM decision extraction
 npm run worker:brain-writer -w apps/api    # writes to Neo4j + Qdrant
 npm run worker:drift -w apps/api           # drift detection (optional)
+npm run dev -w apps/web                    # web UI on :3000
+```
+
+Apply Neo4j schema constraints once after first start:
+
+```bash
+npm run migrate:constraints -w apps/api
 ```
 
 Tail Docker logs:

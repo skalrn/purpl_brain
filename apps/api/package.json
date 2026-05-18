@@ -15,6 +15,7 @@
     "seed:jira": "tsx src/scripts/seed-jira.ts",
     "seed:docs": "tsx src/scripts/seed-docs.ts",
     "seed:transcript": "tsx src/scripts/seed-transcript.ts",
+    "migrate:constraints": "tsx src/scripts/migrate-neo4j-constraints.ts",
     "migrate:phase2": "tsx src/scripts/migrate-phase2-schema.ts",
     "migrate:m5": "tsx src/scripts/migrate-m5-person-schema.ts",
     "eval:scaffold": "tsx src/scripts/generate-label-scaffold.ts",
