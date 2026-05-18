@@ -2,7 +2,7 @@
 
 export type EventSource = "github" | "slack" | "jira" | "linear" | "meeting" | "agent" | "document";
 
-export type ActorType = "human" | "agent";
+export type ActorType = "human" | "agent" | "collective";
 
 export type EventType =
   | "pr_opened"
@@ -51,6 +51,7 @@ export interface CanonicalEvent {
   document_title?: string;
   document_path?: string;
   document_type?: "adr" | "prd" | "runbook" | "unknown";
+  document_contributors?: string[]; // all git authors — populated for collective-authored docs
   chunk_index?: number;
   total_chunks?: number;
 }

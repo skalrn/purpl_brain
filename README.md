@@ -114,6 +114,20 @@ JIRA_WEBHOOK_SECRET=...
 npm run seed:jira -w apps/api -- --project MY_PROJECT
 ```
 
+### Local docs folder
+
+If your project keeps decisions in a `docs/` folder (ADRs, architecture docs, PRDs), seed them directly from your local checkout. No GitHub token needed — attribution is resolved from git history:
+
+```bash
+# ADRs get first-commit author. Other docs get collective attribution (all git authors).
+npm run seed:local-docs -w apps/api -- \
+  --dir ./docs \
+  --project my_project \
+  --base-url https://github.com/org/repo/blob/main/docs
+```
+
+`--base-url` sets the citation link prefix (clickable in query results). Omit it to use `file://` paths.
+
 ### Meeting transcripts
 
 ```bash
