@@ -107,4 +107,53 @@ export async function chatJSON<T>(
   return JSON.parse(cleaned) as T;
 }
 
+/**
+ * Streaming chat completion — yields text tokens as they arrive.
+ * Anthropic: uses messages.stream(). Ollama: uses OpenAI stream: true.
+ */
+export async function* chatStream(
+  model: string,
+  messages: Message[],
+  options: LLMOptions = {}
+): AsyncGenerator<string> {
+  const { maxTokens = 1024 } = options;
+
+  if (PROVIDER === "anthropic") {
+    const system = messages.find((m) => m.role === "system")?.content;
+    const userMessages = messages.filter((m) => m.role !== "system");
+
+    const stream = anthropicClient.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system: system
+        ? ([{ type: "text", text: system, cache_control: { type: "ephemeral" } }] as unknown as Anthropic.Messages.TextBlockParam[])
+        : undefined,
+      messages: userMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    });
+
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        yield event.delta.text;
+      }
+    }
+    return;
+  }
+
+  // Ollama via OpenAI-compatible streaming API
+  const stream = await ollamaClient.chat.completions.create({
+    model,
+    max_tokens: maxTokens,
+    messages,
+    stream: true as const,
+  });
+
+  for await (const chunk of stream) {
+    const text = chunk.choices[0]?.delta?.content ?? "";
+    if (text) yield text;
+  }
+}
+
 export { PROVIDER };

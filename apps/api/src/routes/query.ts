@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { QueryRequest } from "@purpl/types";
-import { runQuery } from "../services/query-engine.js";
+import { runQuery, runQueryStream } from "../services/query-engine.js";
 import { runTemporalQuery } from "../services/temporal-engine.js";
 import { analyzeImpact } from "../services/impact-engine.js";
 import { requireApiKey } from "../lib/auth-middleware.js";
@@ -40,6 +40,40 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
 
       const result = await runQuery({ query, project_id, mode: mode ?? "project" });
       return reply.code(200).send(result);
+    }
+  );
+
+  // ── POST /brain/query/stream — SSE streaming for project queries ──────────
+  app.post<{ Body: { query: string; project_id: string } }>(
+    "/query/stream",
+    { preHandler: requireApiKey },
+    async (request, reply) => {
+      const { query, project_id } = request.body;
+
+      if (!query || !project_id) {
+        return reply.code(400).send({ error: "query and project_id are required" } as never);
+      }
+
+      reply.hijack();
+      reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      reply.raw.setHeader("Cache-Control", "no-cache");
+      reply.raw.setHeader("Connection", "keep-alive");
+      reply.raw.setHeader("X-Accel-Buffering", "no");
+      reply.raw.flushHeaders();
+
+      const write = (data: object) => {
+        reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
+
+      try {
+        for await (const event of runQueryStream({ query, project_id, mode: "project" })) {
+          write(event);
+        }
+      } catch (e) {
+        write({ type: "error", message: String(e) });
+      } finally {
+        reply.raw.end();
+      }
     }
   );
 };

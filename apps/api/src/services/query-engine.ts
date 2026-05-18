@@ -1,7 +1,7 @@
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { getSession } from "../lib/neo4j.js";
-import { chat, MODELS } from "../lib/llm.js";
+import { chat, chatStream, MODELS } from "../lib/llm.js";
 import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
 
 // Tuned per LLM provider — see .env.local vs .env.aws
@@ -215,25 +215,23 @@ function validateCitations(answer: string, chunks: ContextChunk[]): boolean {
   return cited.every((i) => chunks.some((c) => c.index === i));
 }
 
-export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
+// ── Shared context preparation (embed → Qdrant → graph → assemble) ───────────
+
+interface PreparedContext {
+  chunks: ContextChunk[];
+  context: string;
+  userMessage: string;
+  startMs: number;
+}
+
+async function prepareContext(request: QueryRequest): Promise<PreparedContext | null> {
   const startMs = Date.now();
 
-  // Step 1: embed the query
   const queryVector = await embed(request.query);
-
-  // Step 2: vector search filtered by project
   const vectorResults = await vectorSearch(queryVector, request.project_id);
 
-  if (vectorResults.length === 0) {
-    return {
-      answer: "No relevant information found in the brain for this project. Try ingesting more GitHub events first.",
-      citations: [],
-      latency_ms: Date.now() - startMs,
-      citation_warning: false,
-    };
-  }
+  if (vectorResults.length === 0) return null;
 
-  // Step 3: build context chunks from vector results
   const chunks: ContextChunk[] = vectorResults
     .filter((r) => r.payload)
     .map((r, i) => ({
@@ -257,7 +255,6 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
       graph_node_id: String(r.payload!.graph_node_id ?? ""),
     }));
 
-  // Step 4: multi-hop graph expand to pull in decisions, author activity, and tickets
   const eventIds = [...new Set(chunks.map((c) => c.graph_node_id))].filter(Boolean);
   const sinceIso =
     request.time_range?.from ??
@@ -275,16 +272,12 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
     return `${days} days ago`;
   };
 
-  // Append graph context to relevant chunks
   for (const node of graphData) {
     const chunk = chunks.find((c) => c.graph_node_id === node.event_id);
     if (!chunk) continue;
 
     if (node.decisions.length > 0) {
-      const decisionLines = node.decisions
-        .map((d) => `${d.summary} (${d.status || "unknown"}, ${d.confidence || "?"})`)
-        .join("; ");
-      chunk.content += `\nDecisions: ${decisionLines}`;
+      chunk.content += `\nDecisions: ${node.decisions.map((d) => `${d.summary} (${d.status || "unknown"}, ${d.confidence || "?"})`).join("; ")}`;
     }
     if (node.related_event_ids.length > 0) {
       const sample = node.related_event_ids.slice(0, 3).join(", ");
@@ -303,15 +296,11 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
       const acts = node.recent_author_activity
         .map((a) => `${a.event_id} (${a.source || "unknown"}, ${formatAgo(a.timestamp)})`)
         .join("; ");
-      const who = node.author_name || "Author";
-      chunk.content += `\n${who} also worked on: ${acts}`;
+      chunk.content += `\n${node.author_name || "Author"} also worked on: ${acts}`;
     }
   }
 
-  // Step 5: assemble context window
   const context = assembleContext(chunks);
-
-  // Step 6: generate grounded answer
   const userMessage = `Question: ${request.query}
 
 Retrieved context:
@@ -319,22 +308,11 @@ ${context}
 
 Answer the question using only the context above. Cite every claim with [N].`;
 
-  const raw = await chat(
-    MODELS.QUERY,
-    [
-      { role: "system", content: ANSWER_SYSTEM_PROMPT },
-      { role: "user", content: userMessage },
-    ],
-    { maxTokens: 1024, temperature: 0 }
-  );
+  return { chunks, context, userMessage, startMs };
+}
 
-  // Strip the Sources section — citations are shown via UI cards
-  const answer = raw.replace(/\n+Sources:[\s\S]*$/i, "").trim();
-
-  // Step 7: validate citations
+function buildCitations(answer: string, chunks: ContextChunk[]): { citations: Citation[]; citationWarning: boolean } {
   const citationWarning = !validateCitations(answer, chunks);
-
-  // Step 8: build citation objects for cited chunks only
   const citedIndices = extractCitationIndices(answer);
   const citations: Citation[] = chunks
     .filter((c) => citedIndices.includes(c.index))
@@ -346,11 +324,97 @@ Answer the question using only the context above. Cite every claim with [N].`;
       timestamp: c.timestamp,
       quoted_text: c.content.slice(0, 200),
     }));
+  return { citations, citationWarning };
+}
 
-  return {
+// ── Non-streaming (existing callers / MCP) ────────────────────────────────────
+
+export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
+  const prepared = await prepareContext(request);
+
+  if (!prepared) {
+    return {
+      answer: "No relevant information found in the brain for this project. Try ingesting more GitHub events first.",
+      citations: [],
+      latency_ms: 0,
+      citation_warning: false,
+    };
+  }
+
+  const { chunks, userMessage, startMs } = prepared;
+
+  const raw = await chat(
+    MODELS.QUERY,
+    [
+      { role: "system", content: ANSWER_SYSTEM_PROMPT },
+      { role: "user", content: userMessage },
+    ],
+    { maxTokens: 1024, temperature: 0 }
+  );
+
+  const answer = raw.replace(/\n+Sources:[\s\S]*$/i, "").trim();
+  const { citations, citationWarning } = buildCitations(answer, chunks);
+
+  return { answer, citations, latency_ms: Date.now() - startMs, citation_warning: citationWarning };
+}
+
+// ── Streaming — yields SSE-ready events ───────────────────────────────────────
+
+export type StreamEvent =
+  | { type: "delta"; text: string }
+  | { type: "done"; answer: string; citations: Citation[]; citation_warning: boolean; latency_ms: number }
+  | { type: "error"; message: string };
+
+export async function* runQueryStream(request: QueryRequest): AsyncGenerator<StreamEvent> {
+  let prepared: PreparedContext | null;
+  try {
+    prepared = await prepareContext(request);
+  } catch (e) {
+    yield { type: "error", message: String(e) };
+    return;
+  }
+
+  if (!prepared) {
+    yield {
+      type: "done",
+      answer: "No relevant information found in the brain for this project. Try ingesting more events first.",
+      citations: [],
+      citation_warning: false,
+      latency_ms: 0,
+    };
+    return;
+  }
+
+  const { chunks, userMessage, startMs } = prepared;
+  let fullAnswer = "";
+
+  try {
+    const tokenStream = chatStream(
+      MODELS.QUERY,
+      [
+        { role: "system", content: ANSWER_SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      { maxTokens: 1024, temperature: 0 }
+    );
+
+    for await (const token of tokenStream) {
+      fullAnswer += token;
+      yield { type: "delta", text: token };
+    }
+  } catch (e) {
+    yield { type: "error", message: String(e) };
+    return;
+  }
+
+  const answer = fullAnswer.replace(/\n+Sources:[\s\S]*$/i, "").trim();
+  const { citations, citationWarning } = buildCitations(answer, chunks);
+
+  yield {
+    type: "done",
     answer,
     citations,
-    latency_ms: Date.now() - startMs,
     citation_warning: citationWarning,
+    latency_ms: Date.now() - startMs,
   };
 }

@@ -19,6 +19,7 @@ interface Message {
   content?: string;
   citations?: Citation[];
   citation_warning?: boolean;
+  streaming?: boolean;
   // temporal query
   changelog?: string;
   decisions_found?: number;
@@ -108,19 +109,13 @@ export default function Chat() {
     const { isTemporal, range } = detectTemporal(query);
 
     try {
-      const body = isTemporal
-        ? { query, project_id: projectId.trim(), mode: "temporal", time_range: range }
-        : { query, project_id: projectId.trim(), mode: "project" };
-
-      const res = await fetch(`${API_URL}/brain/query`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
       if (isTemporal) {
+        const res = await fetch(`${API_URL}/brain/query`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, project_id: projectId.trim(), mode: "temporal", time_range: range }),
+        });
+        const data = await res.json();
         setMessages((prev) => [
           ...prev,
           {
@@ -132,18 +127,80 @@ export default function Chat() {
             latency_ms: data.latency_ms,
           },
         ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            mode: "project",
-            content: data.answer,
-            citations: data.citations,
-            citation_warning: data.citation_warning,
-            latency_ms: data.latency_ms,
-          },
-        ]);
+        return;
+      }
+
+      // Project mode — streaming
+      const res = await fetch(`${API_URL}/brain/query/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, project_id: projectId.trim() }),
+      });
+
+      if (!res.ok || !res.body) {
+        throw new Error(`API error ${res.status}`);
+      }
+
+      // Add a placeholder message that we'll update token by token
+      setMessages((prev) => [...prev, { role: "assistant", mode: "project", content: "", streaming: true }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          let event: { type: string; text?: string; answer?: string; citations?: Citation[]; citation_warning?: boolean; latency_ms?: number; message?: string };
+          try {
+            event = JSON.parse(line.slice(6));
+          } catch {
+            continue;
+          }
+
+          if (event.type === "delta" && event.text) {
+            setMessages((prev) => {
+              const msgs = [...prev];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === "assistant") {
+                msgs[msgs.length - 1] = { ...last, content: (last.content ?? "") + event.text };
+              }
+              return msgs;
+            });
+          } else if (event.type === "done") {
+            setMessages((prev) => {
+              const msgs = [...prev];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === "assistant") {
+                msgs[msgs.length - 1] = {
+                  ...last,
+                  content: event.answer ?? last.content,
+                  citations: event.citations,
+                  citation_warning: event.citation_warning,
+                  latency_ms: event.latency_ms,
+                  streaming: false,
+                };
+              }
+              return msgs;
+            });
+          } else if (event.type === "error") {
+            setMessages((prev) => {
+              const msgs = [...prev];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === "assistant") {
+                msgs[msgs.length - 1] = { ...last, content: `Error: ${event.message ?? "unknown"}`, streaming: false };
+              }
+              return msgs;
+            });
+          }
+        }
       }
     } catch {
       setMessages((prev) => [
@@ -211,8 +268,11 @@ export default function Chat() {
               <>
                 <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed bg-gray-800 text-gray-100">
                   {msg.content}
+                  {msg.streaming && (
+                    <span className="inline-block w-0.5 h-4 bg-purple-400 ml-0.5 animate-pulse align-middle" />
+                  )}
                 </div>
-                {msg.citations && msg.citations.length > 0 && (
+                {!msg.streaming && msg.citations && msg.citations.length > 0 && (
                   <div className="flex flex-col gap-2 w-full max-w-[85%]">
                     {msg.citation_warning && (
                       <p className="text-xs text-yellow-400">⚠ Citation warning: some references may not be fully grounded.</p>
@@ -231,7 +291,7 @@ export default function Chat() {
           </div>
         ))}
 
-        {loading && (
+        {loading && !messages.some((m) => m.streaming) && (
           <div className="flex items-start">
             <div className="bg-gray-800 rounded-2xl px-4 py-3 text-sm text-gray-400 animate-pulse">
               Thinking…
