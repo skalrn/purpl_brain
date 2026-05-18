@@ -1,89 +1,92 @@
-# User Personas — Project Brain
+# User Personas — Purpl Brain
 
-## Persona 1: The Context Switcher (Primary)
-
-**Name:** Alex, Senior Software Engineer  
-**Team size:** 3–8 engineers  
-**Environment:** 1–3 active codebases, heavy AI-assisted development (Cursor, Claude)
-
-### Situation
-Alex works on a feature, gets pulled into a P0 bug for 4 days, then returns. The ticket has comments, there was a design discussion in Slack, and a PR touched adjacent code. Reconstructing where things were takes 45–90 minutes — often longer than the actual work.
-
-### Goals
-- Resume any task within minutes, not hours
-- Know what changed while away, and why
-- Not have to ask teammates to repeat context
-
-### Frustrations
-- Slack threads are the real source of truth but completely unsearchable at scale
-- Jira tickets are always stale relative to what was actually decided
-- AI assistants have no memory of what was decided in a prior session
-
-### How Project Brain Helps
-Queries the brain: *"What's the current state of the payment module PR and what decisions were made while I was on the P0?"* Gets a grounded, cited answer in seconds.
+The pivot ranking: the AI Agent is now the primary persona. The Agent Operator (a developer who runs AI coding agents heavily) is the primary human persona. The Context Switcher and Tech Lead / PM are kept as secondary beneficiaries — they get value from the brain as a byproduct of agents writing to it, but they are not the buyer.
 
 ---
 
-## Persona 2: The Floating Specialist (Primary)
+## Persona 1: The AI Agent (Primary)
 
-**Name:** Priya, Staff Security Engineer  
-**Team size:** Works across 4–6 product teams part-time  
-**Environment:** Drops into codebases to advise, does not own any single product
+**Type:** AI coding agent — Claude Code, Cursor, GitHub Copilot, Devin, Aider, custom MCP-aware client
+**Pattern:** Invoked by a developer for a bounded task. Runs in a session with a fixed context window. Session ends. Resumed (possibly in a different IDE, possibly by a different human) hours, days, or weeks later.
 
 ### Situation
-Priya is the go-to for auth and security across the org. She reviews a design in Product A on Monday, helps Product B with an OAuth issue Wednesday, then gets pinged by Product C about a token storage question Friday. She can't hold all four codebases' current state in her head simultaneously.
+A session opens on `repo/auth-service`. The agent has no awareness that two weeks ago, another session in the same repo decided to drop `jose` in favor of `node-jsonwebtoken` because of a JWE bug, evaluated and rejected a refresh-token-rotation pattern, and left an unresolved question about session revocation. The agent re-derives the library choice (possibly picking `jose` again), re-evaluates the refresh pattern, and the developer has to manually re-paste the prior decisions or accept the regression.
 
 ### Goals
-- Instantly understand the current state of any product's security posture when called in
-- Surface prior decisions she made in other products that are relevant to the current question
-- Leave her recommendations in a form the team can query later without her being present
+- Read prior session decisions on the same repo or module at session start, without the developer doing anything
+- Emit structured decisions, alternatives considered, and unresolved questions at session end so the next session inherits them
+- Avoid contradicting prior decisions made by itself, by other agent sessions, or by humans
+- Get cited context for any claim it makes back to the developer
 
-### Frustrations
-- Has to re-read entire Slack threads and PRs every time she's pulled in
-- Her advice is given verbally in meetings and then lost
-- Same problems get solved differently across products because her prior solutions aren't surfaced
+### How Purpl Brain Helps
+The brain is the agent's persistent memory across sessions. On invocation, the agent calls the `brain_query` MCP tool with the current task description and gets back a cited summary of prior decisions, open questions, and relevant signals. At session end, it calls `POST /brain/agent-log` with a structured decision log. The next session — same agent, different agent, doesn't matter — inherits that log via the same MCP read path.
 
-### How Project Brain Helps
-Expertise-scoped query: *"Show me all open decisions touching auth or token storage across active products."* Her prior recommendations are captured as specialist input and surfaced when the next related question arises.
+### Concrete Usage Scenario
+1. Developer opens Claude Code on `repo/auth-service` to add session revocation support.
+2. Claude Code, configured with Purpl Brain's MCP server, calls `brain_query` with the task description and the repo.
+3. The brain returns: "Two weeks ago, session `abc123` chose `node-jsonwebtoken` over `jose` (cited: agent-log `abc123`, rationale: JWE incompatibility in `jose@5.x`). The same session left an open question about session revocation strategy (cited: agent-log `abc123`, unresolved field)."
+4. Claude Code begins the task with that context. It does not re-evaluate the library choice; it picks up the open question directly.
+5. The developer makes one correction in chat: "use Redis for the revocation list, not Postgres."
+6. Claude Code completes the task. On session end, it calls `POST /brain/agent-log` with:
+   - decisions: `[{ decision: "revocation list stored in Redis", rationale: "low-latency lookup on every request, ttl-native eviction" }]`
+   - alternatives_considered: `[{ option: "Postgres", reason_rejected: "developer override; latency budget" }]`
+   - unresolved: `[{ question: "do we need a per-user revoke-all endpoint?" }]`
+7. Three days later the developer opens Cursor on the same repo. Cursor, configured with the same MCP server, calls `brain_query` and gets back both prior decisions (the library and the revocation list) plus the unresolved question. No human re-paste.
 
 ---
 
-## Persona 3: The AI Agent (Non-Human Actor)
+## Persona 2: The Agent Operator (Primary Human Persona)
 
-**Type:** Codegen agent (Claude, Cursor, Devin-style)  
-**Pattern:** Invoked by a human, runs a bounded task, session ends, resumed later
+**Name:** Sam, Senior Engineer / Solo Developer
+**Team size:** 1–8 engineers, often solo across multiple projects
+**Environment:** 2–5 active repos. Uses Cursor or Claude Code as a primary editor. Runs 5–20 agent sessions per day across personal projects, side projects, and client work. Already pays for Cursor Pro or Claude Max.
 
 ### Situation
-An agent is invoked Monday to scaffold a new API module. It makes decisions: REST over GraphQL, a specific error handling pattern, a library choice. Session ends. Thursday the agent is resumed on a follow-up task touching the same module. Without persistent memory, it re-derives context, potentially contradicts Monday's decisions, and the human has to course-correct.
+Sam runs AI coding agents heavily — most code touched in a day passes through an agent at some point. Sam's frustration is not that the agents are bad at code. It is that Sam has become the human memory bus: every new session starts with the same paragraph of pasted context ("we're on Next.js 15, App Router, Postgres with Drizzle, deployed on Fly, the auth is custom, don't suggest Clerk"). When the agent makes a decision Sam approves, that decision lives in the chat transcript and dies there. The next session re-asks.
 
 ### Goals
-- Access prior session decisions without re-prompting
-- Emit structured rationale at session end so the next actor inherits full context
-- Not contradict its own prior choices or the team's established patterns
+- Stop manually re-pasting project context at the start of every agent session
+- Audit and review what the agents decided, when, and why — with citations to source signals
+- Catch when a new agent session is about to contradict a prior decision before it lands as a commit
+- Hand off a repo to a future-self or a teammate with the agents' decision history intact
 
-### How Project Brain Helps
-The brain serves as the agent's persistent working memory. On resume, the agent queries: *"What decisions did I make in the last session on this module?"* At session end, the agent emits a decision log back into the brain.
+### Frustrations
+- Cursor's project rules require manual authorship and don't capture decisions agents make mid-session
+- Claude Projects' pinned files are static and only work in Claude.ai
+- Reviewing what an agent did three sessions ago requires scrolling through chat transcripts that no longer exist after a fresh window
+- No tool lets the agent itself write back what it learned
+
+### How Purpl Brain Helps
+Sam installs the Purpl Brain MCP server into Cursor and Claude Code in five minutes. From then on, every session reads from and writes to the brain automatically. Sam queries the brain from a web UI to audit agent decisions: "what did Claude Code decide about the cache layer last week" returns a cited answer pointing to the specific agent-log entry. Drift alerts surface when a new session is about to contradict an old decision. The context-paste ritual goes away.
 
 ---
 
-## Persona 4: The Tech Lead / PM
+## Persona 3: The Context Switcher (Secondary Beneficiary)
 
-**Name:** Jordan, Engineering Manager / Technical PM  
-**Team size:** Manages 2–4 squads across 2 products  
-**Environment:** Attends many meetings, reviews status async, rarely writes code
+**Name:** Alex, Senior Software Engineer
+**Status:** Secondary persona. Gets value from the brain because the agent decision history is also human-queryable, not because Purpl Brain was built primarily for them.
 
 ### Situation
-Jordan needs to know the current state of multiple work streams without attending every standup or reading every PR. When a decision changes — a scope cut, a deadline slip, a tech pivot — Jordan needs to know immediately, not when it surfaces in the next planning meeting.
+Alex works on a feature, gets pulled into a P0 for four days, returns to find their own prior agent sessions on the original branch. Reconstructing where the agent left off — what it tried, what it ruled out, what it was waiting on — takes time.
 
-### Goals
-- Current plan state across all work streams without information relay from reports
-- Immediate awareness when plans change or anomalies emerge
-- Impact analysis before signing off on a scope or tech change
+### How Purpl Brain Helps
+Same agent-log query path the next agent session would use. Alex queries: "what was the agent working on in this repo last week" and gets a cited summary. This persona is served by Persona 1's product; nothing in the roadmap is built specifically for it.
 
-### Frustrations
-- Learns about decisions after they've been acted on
-- Status updates in Jira don't reflect the real state, which lives in Slack
-- No easy way to ask "what changed this week and what does it affect"
+---
 
-### How Project Brain Helps
-Proactive anomaly alerts when plan drift is detected. Human-invokable impact analysis: *"We just decided to drop the mobile client from Phase 1 — what does this affect across current tickets and commitments?"*
+## Persona 4: The Tech Lead / PM (Secondary Beneficiary)
+
+**Name:** Jordan, Engineering Manager / Technical PM
+**Status:** Secondary persona. Benefits from agent decision auditability for oversight, not the target buyer.
+
+### Situation
+Jordan oversees a team of engineers who use AI coding agents heavily. Jordan needs to know what the agents decided, where the agents are likely to have made suboptimal choices, and whether the team is converging on consistent patterns across repos.
+
+### How Purpl Brain Helps
+Cross-session, cross-repo audit queries: "show me every decision the team's agents made about retry logic in the last 30 days." Drift alerts when agents in different repos converge on incompatible patterns. This is oversight, not the primary use case.
+
+---
+
+## Deprecated / Removed Personas
+
+**The Floating Specialist (Priya)** — removed as a primary persona during the agent-memory pivot. The original ICP analysis assumed enterprises with dedicated security or platform specialists. That is not the buyer for an agent memory layer priced at $10–30/month. The persona is preserved in git history (see `vision.md` pre-pivot) but is no longer a design target.

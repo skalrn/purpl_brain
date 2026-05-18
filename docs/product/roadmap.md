@@ -109,10 +109,11 @@ A single query returns a synthesized answer grounded in both a GitHub PR comment
 
 ---
 
-## Phase 4 — Document Brain + Cross-Product Graph
+## Phase 4 — Document Brain + Cross-Product Graph (Restructured)
 
-**Target duration:** 4–5 weeks (after Phase 3 complete)  
+**Target duration:** 4–5 weeks (after Phase 3 complete)
 **Primary persona:** Floating Specialist, Context Switcher
+**Status:** M1 and M2 complete. Remaining milestones (M3–M6) are paused. The phase is being restructured around the agent-memory pivot — see the **Pivot — Agent Memory** section below. Cross-product graph and meeting attachment vision processing are deprioritized; document and transcript ingestion (already shipped) remain in the product as context-enrichment sources for the agent memory layer.
 
 ### Thesis
 
@@ -137,14 +138,14 @@ Any intelligent actor can query across products *and* across artifact types — 
 
 ### Milestones
 
-#### M1 — Document ingestion (2–3 days)
+#### M1 — Document ingestion (COMPLETE)
 - `POST /ingest/document` REST endpoint (file upload: `.md`, `.pdf`, `.txt`, `.docx`)
 - GitHub repo file crawler: scans `docs/**/*.md` at seed time and on push events to `docs/` path
 - 512-token sliding window chunking with 20% overlap
 - Source type: `"document"`, sub-types: `"adr"`, `"prd"`, `"runbook"`, `"unknown"`
 - Exit: query returns a cited answer grounded in an ADR or PRD file
 
-#### M2 — Meeting transcript ingestion (2–3 days)
+#### M2 — Meeting transcript ingestion (COMPLETE)
 - File upload path: `.vtt`, `.srt`, `.txt` transcripts
 - Fireflies webhook path (optional, for users with Fireflies account)
 - Speaker resolution: fuzzy name → existing Person node by email
@@ -181,7 +182,57 @@ A specialist queries: *"Show me all auth-related decisions across my projects, i
 
 ---
 
-## Post-Phase 4 (Future, Not Planned)
+## Pivot — Agent Memory (Current Focus)
+
+**Target duration:** 4–6 weeks from start of P2
+**Primary persona:** AI Agent (Persona 1), Agent Operator (Persona 2)
+**Branch:** `pivot/agent-memory`
+
+### Why this pivot exists
+
+The honest project review on 2026-05-17 (`docs/review/project-review-2026-05-17.md`) concluded that the original positioning ("shared working memory for human-agent teams") competes head-on with Glean, Notion AI, and GitHub Copilot Spaces without a defensible wedge. The one genuinely differentiated capability already shipped in the codebase is the agent write-back loop (`POST /brain/agent-log`) combined with the MCP server skeleton in `apps/mcp`. No competitor is doing agent-first persistent memory with a documented write API and an MCP read path.
+
+The pivot narrows the ICP from "small teams running multiple products" to "individual developers and small teams (2–8 engineers) who use AI coding assistants heavily." The primary product surface becomes the MCP server. The web chat UI becomes secondary. Slack, Jira, and meeting ingestion stay in the product as context-enrichment sources, not as the lead pitch.
+
+### Milestones
+
+#### P1 — Auth hardening + eval coverage (COMPLETE)
+Steps 1–9 from the production-pivot checklist. API key auth on all `/brain/*` write endpoints, fail-closed webhook signature verification, startup-time assertions for `SESSION_SECRET` / `NEO4J_PASSWORD` / `ANTHROPIC_API_KEY`, hashed API keys at rest, fixed document idempotency, Neo4j uniqueness constraints, dead-letter queue, latency truth-telling on Anthropic, agent-log round-trip eval, project_id isolation eval. All landed on `pivot/agent-memory`.
+
+#### P2 — Agent onboarding entry point
+Rewrite the setup flow so the first thing a new user does is install the MCP server into their Cursor or Claude Code config, not set up a GitHub webhook. The web UI shows a one-page setup with the MCP server URL, the API key, and copy-pasteable config snippets for Cursor (`~/.cursor/mcp.json`) and Claude Code (`claude_desktop_config.json` / `.mcp.json`). GitHub webhook setup is demoted to "optional — enrich the brain with PR and commit context" on a secondary page.
+
+Exit: a new user goes from sign-up to first successful `brain_query` MCP call from Claude Code in under 5 minutes, with no GitHub setup required.
+
+#### P3 — Hosted agent demo
+A live, public, no-signup-required demo on `demo.purpl.dev` showing the full agent memory loop:
+- Session 1: Claude Code (or a scripted MCP client) opens against a sample repo, makes a few decisions, calls `POST /brain/agent-log` at session end.
+- Session 2: a second Claude Code session opens against the same repo, calls `brain_query` via MCP, receives the prior decisions with citations, and continues from there.
+- The visitor sees both transcripts side by side and the brain state in between.
+
+Exit: a 30-second screencast plus an interactive sandbox that reproduces the loop without the visitor running any local setup.
+
+#### P4 — Agent memory dashboard
+A simple web UI showing agent decision history per repo and per agent. Not a chat interface. The dashboard surfaces:
+- Recent agent sessions (timestamp, agent identity, repo, decision count, unresolved-question count)
+- A timeline of decisions per repo with rationale and citations
+- Drift alerts when a new session contradicts a prior decision
+- Search and filter by repo, by agent client (`claude-code`, `cursor`, `aider`, etc.), and by topic
+
+Exit: an Agent Operator (Persona 2) can answer "what did my agents decide about X in the last 7 days" in under 30 seconds without scrolling through chat transcripts.
+
+#### P5 — Public beta
+Open the product to developers using AI coding assistants. Pricing: free tier (1 repo, 100 agent sessions/month) + paid tier ($15/month, unlimited repos and sessions). Self-serve sign-up via GitHub OAuth. The MCP server URL and API key are issued on sign-up. No sales calls.
+
+Exit: 50 external sign-ups, 10 weekly-active Agent Operators, at least 3 unsolicited testimonials referencing the agent-memory loop as the reason they kept using it.
+
+### Pivot Exit Criterion
+
+A developer installs the MCP server, runs two Claude Code sessions on the same repo, and the second session correctly recalls a decision made in the first — cited, sourced, and without the developer doing anything manually.
+
+---
+
+## Post-Pivot (Future, Not Planned)
 
 The following are identified but not scoped:
 

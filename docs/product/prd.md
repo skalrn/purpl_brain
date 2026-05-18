@@ -9,12 +9,16 @@
 
 ## 1. Problem Statement
 
-Software teams lose disproportionate time to context reconstruction — rebuilding understanding of current state, prior decisions, and forward plan every time a human or AI agent switches tasks. This information exists but is fragmented across meetings, Slack, tickets, PRs, and AI agent sessions. No existing tool synthesizes it into a queryable, always-current working memory.
+AI coding agents (Claude Code, Cursor, GitHub Copilot, Aider, custom MCP clients) start every session from zero. The agent has no awareness of what was decided last week, what libraries were already evaluated and rejected, or what architectural constraints the project operates under. Each session re-derives context from scratch — often contradicting decisions that the same agent (or a different agent, or the human) already made in a prior session.
+
+The standard workaround is for the developer to act as a human memory bus: re-pasting the same paragraph of project context at the start of every session. This is manual, error-prone, and does not scale across multiple repos or multiple weeks. The agent decision history, even when the developer approves and acts on it, dies in the session transcript.
+
+Purpl Brain solves this by being the persistent memory layer that agents write to at session end and read from at session start, with citations to source signals and a structured decision schema.
 
 The problem is acute for:
-- Small teams running multiple products in parallel with AI-assisted development
-- Floating specialists who work part-time across multiple codebases
-- AI codegen agents whose session-scoped decisions evaporate on session end
+- Individual developers and small teams (2–8 engineers) running multiple AI agent sessions per day across one or more repos
+- Platform engineering teams running automated agents (CI bots, dependency-update agents, code-review agents) whose decisions need to be auditable
+- Anyone whose AI agent decisions currently die at session end with no path to inherit them in the next session
 
 ## 2. Goals
 
@@ -28,9 +32,10 @@ The problem is acute for:
 - Not a project management tool — does not replace Jira, Linear, or GitHub Issues
 - Not a communication tool — does not replace Slack or meeting software
 - Not a code editor or IDE — does not replace Cursor or Copilot
-- Not an enterprise compliance or audit system
-- Real-time collaboration features (live cursors, co-editing) are out of scope
-- Mobile clients are out of scope for Phase 1 and 2
+- Enterprise SSO and fine-grained permission mirroring (SAML, SCIM, per-channel ACL inheritance) are out of scope
+- Multi-region deployment (data residency, region-pinned brain stores) is out of scope
+- Real-time collaboration features (live cursors, co-editing, multi-user simultaneous query) are out of scope
+- Mobile clients are out of scope
 
 ## 4. User Personas
 
@@ -143,13 +148,25 @@ The brain maintains isolated namespaces per product but models cross-product rel
 
 ## 7. Success Metrics
 
-| Metric | Target (6-month POC) |
+Post-pivot, the primary metrics measure the agent memory loop. Human-side metrics are retained as secondary indicators.
+
+**Agent memory loop (primary):**
+
+| Metric | Target |
+|---|---|
+| Agent session write-back rate | ≥ 80% of agent sessions in active repos call `POST /brain/agent-log` at session end |
+| Agent query hit rate | ≥ 70% of MCP `brain_query` calls return at least one citation (i.e., the brain had relevant prior context) |
+| Agent decision retention | A decision recorded in session N is retrievable via `brain_query` in session N+1 in ≥ 95% of cases (measured by the agent-log round-trip eval) |
+| Agent contradiction rate | < 10% of resumed sessions contradict a prior decision without the drift detector flagging it |
+
+**Human surface (secondary):**
+
+| Metric | Target |
 |---|---|
 | Context acquisition time | Measured via user survey; target < 60 seconds for returning users |
-| Agent session continuity | Agent contradicts prior session decisions in < 10% of resumed sessions |
 | Anomaly detection precision | > 70% of proactive alerts rated as useful by recipient |
-| Source coverage | At least 2 ingestion sources active per project |
-| Trusted user retention | > 80% of POC users query the brain at least weekly |
+| Source coverage | At least 1 ingestion source (GitHub) active per repo; multi-source is bonus, not required |
+| Trusted user retention | > 50% of beta users run an MCP-backed agent session at least weekly |
 
 ## 8. Open Questions
 
