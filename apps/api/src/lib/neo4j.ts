@@ -137,16 +137,19 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
   }
 }
 
-// ── Person identity (M5) ──────────────────────────────────────────────────────
+// ── Person identity ───────────────────────────────────────────────────────────
 
 export interface PersonRecord {
   person_id: string;
-  email: string;
   name: string;
+  email?: string;
   github_login?: string;
+  slack_user_id?: string;
+  jira_user_id?: string;
   avatar_url?: string;
-  api_key: string;
-  aliases: string[];     // per-source IDs merged under this canonical person
+  api_key?: string;
+  aliases: string[];
+  provisional: boolean;  // true = created from signal, not explicitly registered
   created_at: string;
   last_active_at: string;
 }
@@ -167,38 +170,61 @@ export async function upsertPersonByEmail(params: {
   try {
     const now = new Date().toISOString();
     const hashedKey = hashApiKey(params.api_key);
+
+    // Create or update the canonical Person by email
     const result = await session.run(
       `MERGE (p:Person {email: $email})
        ON CREATE SET
-         p.person_id  = randomUUID(),
-         p.name       = $name,
+         p.person_id    = randomUUID(),
+         p.name         = $name,
          p.github_login = $github_login,
-         p.avatar_url = $avatar_url,
-         p.api_key    = $api_key,
-         p.aliases    = [$github_login],
-         p.created_at = $now,
+         p.avatar_url   = $avatar_url,
+         p.api_key      = $api_key,
+         p.aliases      = [$github_login],
+         p.provisional  = false,
+         p.created_at   = $now,
          p.last_active_at = $now
        ON MATCH SET
          p.name           = $name,
          p.github_login   = $github_login,
          p.avatar_url     = COALESCE($avatar_url, p.avatar_url),
+         p.api_key        = $api_key,
+         p.provisional    = false,
          p.last_active_at = $now,
          p.aliases        = CASE
-           WHEN $github_login IN p.aliases THEN p.aliases
-           ELSE p.aliases + [$github_login]
+           WHEN $github_login IN coalesce(p.aliases, []) THEN p.aliases
+           ELSE coalesce(p.aliases, []) + [$github_login]
          END
        RETURN p`,
       { ...params, api_key: hashedKey, now }
     );
     const p = result.records[0].get("p").properties as Record<string, unknown>;
+    const primaryId = p.person_id as string;
+
+    // Detect shadow node: a provisional stub created by the seed script with
+    // the same github_login but no email (different MERGE key → different node).
+    // Re-point its Event relationships to this canonical person then delete it.
+    await session.run(
+      `MATCH (stub:Person {github_login: $github_login})
+       WHERE stub.person_id <> $primary_id AND stub.email IS NULL
+       MATCH (e:Event)-[r:AUTHORED_BY]->(stub)
+       MATCH (primary:Person {person_id: $primary_id})
+       MERGE (e)-[:AUTHORED_BY]->(primary)
+       DELETE r
+       WITH stub
+       DETACH DELETE stub`,
+      { github_login: params.github_login, primary_id: primaryId }
+    );
+
     return {
-      person_id: p.person_id as string,
+      person_id: primaryId,
       email: p.email as string,
       name: p.name as string,
       github_login: p.github_login as string,
       avatar_url: p.avatar_url as string | undefined,
       api_key: p.api_key as string,
       aliases: (p.aliases as string[]) ?? [],
+      provisional: false,
       created_at: p.created_at as string,
       last_active_at: p.last_active_at as string,
     };
@@ -243,12 +269,15 @@ export async function getPersonByApiKey(api_key: string): Promise<PersonRecord |
     const p = result.records[0].get("p").properties as Record<string, unknown>;
     return {
       person_id: p.person_id as string,
-      email: p.email as string,
+      email: p.email as string | undefined,
       name: p.name as string,
       github_login: p.github_login as string | undefined,
+      slack_user_id: p.slack_user_id as string | undefined,
+      jira_user_id: p.jira_user_id as string | undefined,
       avatar_url: p.avatar_url as string | undefined,
       api_key: p.api_key as string,
       aliases: (p.aliases as string[]) ?? [],
+      provisional: (p.provisional as boolean) ?? false,
       created_at: p.created_at as string,
       last_active_at: p.last_active_at as string,
     };
@@ -338,38 +367,245 @@ export async function resolveOrCreateActorPerson(params: {
     const now = new Date().toISOString();
 
     if (params.source === "github") {
+      // Merge on github_login. If an email-keyed canonical person already has this
+      // github_login, MERGE finds them — no duplicate created.
       const result = await session.run(
         `MERGE (p:Person {github_login: $actor_id})
-         ON CREATE SET p.person_id = randomUUID(), p.name = $name, p.created_at = $now
-         ON MATCH SET p.name = coalesce(p.name, $name)
+         ON CREATE SET
+           p.person_id  = randomUUID(),
+           p.name       = $name,
+           p.provisional = true,
+           p.aliases    = [$actor_id],
+           p.created_at = $now,
+           p.last_active_at = $now
+         ON MATCH SET
+           p.name           = coalesce(p.name, $name),
+           p.last_active_at = $now
          RETURN p.person_id AS person_id`,
         { actor_id: params.actor_id, name: params.actor_name, now }
       );
       return result.records[0].get("person_id") as string;
     }
 
-    // For slack/jira: try alias lookup first (mergePersonAlias already linked them)
-    if (params.source === "slack" || params.source === "jira") {
-      const found = await session.run(
-        `MATCH (p:Person) WHERE any(a IN coalesce(p.aliases, []) WHERE a = $actor_id)
-         RETURN p.person_id AS person_id LIMIT 1`,
-        { actor_id: params.actor_id }
+    if (params.source === "slack") {
+      // Merge on slack_user_id — stable cross-session identifier, not display name
+      const result = await session.run(
+        `MERGE (p:Person {slack_user_id: $actor_id})
+         ON CREATE SET
+           p.person_id   = randomUUID(),
+           p.name        = $name,
+           p.provisional = true,
+           p.aliases     = [$actor_id],
+           p.created_at  = $now,
+           p.last_active_at = $now
+         ON MATCH SET
+           p.name           = coalesce(p.name, $name),
+           p.last_active_at = $now
+         RETURN p.person_id AS person_id`,
+        { actor_id: params.actor_id, name: params.actor_name, now }
       );
-      if (found.records.length > 0) {
-        return found.records[0].get("person_id") as string;
-      }
+      return result.records[0].get("person_id") as string;
     }
 
-    // Fallback: keyed stub for meeting speakers, agents, and unresolved slack/jira
+    if (params.source === "jira") {
+      // Merge on jira_user_id — Jira account ID or username
+      const result = await session.run(
+        `MERGE (p:Person {jira_user_id: $actor_id})
+         ON CREATE SET
+           p.person_id   = randomUUID(),
+           p.name        = $name,
+           p.provisional = true,
+           p.aliases     = [$actor_id],
+           p.created_at  = $now,
+           p.last_active_at = $now
+         ON MATCH SET
+           p.name           = coalesce(p.name, $name),
+           p.last_active_at = $now
+         RETURN p.person_id AS person_id`,
+        { actor_id: params.actor_id, name: params.actor_name, now }
+      );
+      return result.records[0].get("person_id") as string;
+    }
+
+    // Fallback for meeting speakers, agents, and unknown sources
     const displayKey = `${params.source}:${params.actor_id}`;
     const result = await session.run(
       `MERGE (p:Person {display_key: $display_key})
-       ON CREATE SET p.person_id = randomUUID(), p.name = $name, p.type = $type, p.created_at = $now
-       ON MATCH SET p.name = coalesce(p.name, $name)
+       ON CREATE SET
+         p.person_id   = randomUUID(),
+         p.name        = $name,
+         p.type        = $type,
+         p.provisional = true,
+         p.aliases     = [],
+         p.created_at  = $now,
+         p.last_active_at = $now
+       ON MATCH SET
+         p.name           = coalesce(p.name, $name),
+         p.last_active_at = $now
        RETURN p.person_id AS person_id`,
       { display_key: displayKey, name: params.actor_name, type: params.actor_type, now }
     );
     return result.records[0].get("person_id") as string;
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Explicitly link cross-source identities to a single canonical Person node.
+ * Finds all Person nodes that match any provided identifier, picks the best
+ * candidate as primary (prefer email-keyed > earliest created_at), re-points
+ * all Event relationships from duplicates to primary, then deletes duplicates.
+ *
+ * Safe to call multiple times — idempotent when all identifiers already live
+ * on the same node.
+ */
+export async function linkPersonIdentities(params: {
+  github_login?: string;
+  slack_user_id?: string;
+  jira_user_id?: string;
+  email?: string;
+  name?: string;
+}): Promise<{ person_id: string; merged_count: number }> {
+  const { github_login, slack_user_id, jira_user_id, email, name } = params;
+
+  const conditions: string[] = [];
+  if (github_login)  conditions.push("p.github_login = $github_login");
+  if (slack_user_id) conditions.push("p.slack_user_id = $slack_user_id");
+  if (jira_user_id)  conditions.push("p.jira_user_id = $jira_user_id");
+  if (email)         conditions.push("p.email = $email");
+  if (conditions.length === 0) throw new Error("At least one identifier is required");
+
+  const session = getSession();
+  try {
+    const now = new Date().toISOString();
+
+    // Find all candidate nodes ordered: email-keyed first, then by created_at asc
+    const findResult = await session.run(
+      `MATCH (p:Person) WHERE ${conditions.join(" OR ")}
+       RETURN p
+       ORDER BY
+         CASE WHEN p.email IS NOT NULL THEN 0 ELSE 1 END,
+         p.created_at ASC`,
+      { github_login: github_login ?? null, slack_user_id: slack_user_id ?? null,
+        jira_user_id: jira_user_id ?? null, email: email ?? null }
+    );
+
+    const candidates = findResult.records.map(
+      (r) => r.get("p").properties as Record<string, unknown>
+    );
+
+    let primaryId: string;
+
+    if (candidates.length === 0) {
+      // No existing node — create one with all provided identifiers
+      const cr = await session.run(
+        `CREATE (p:Person {
+           person_id:    randomUUID(),
+           name:         $name,
+           email:        $email,
+           github_login: $github_login,
+           slack_user_id: $slack_user_id,
+           jira_user_id: $jira_user_id,
+           aliases:      [],
+           provisional:  false,
+           created_at:   $now,
+           last_active_at: $now
+         }) RETURN p.person_id AS person_id`,
+        { name: name ?? "Unknown", email: email ?? null,
+          github_login: github_login ?? null, slack_user_id: slack_user_id ?? null,
+          jira_user_id: jira_user_id ?? null, now }
+      );
+      return { person_id: cr.records[0].get("person_id") as string, merged_count: 0 };
+    }
+
+    primaryId = candidates[0].person_id as string;
+
+    // Update primary with all provided identifiers (coalesce — don't overwrite existing)
+    await session.run(
+      `MATCH (p:Person {person_id: $primary_id})
+       SET p.github_login  = coalesce($github_login,  p.github_login),
+           p.slack_user_id = coalesce($slack_user_id, p.slack_user_id),
+           p.jira_user_id  = coalesce($jira_user_id,  p.jira_user_id),
+           p.email         = coalesce($email,         p.email),
+           p.name          = coalesce($name,          p.name),
+           p.provisional   = false,
+           p.last_active_at = $now`,
+      { primary_id: primaryId, github_login: github_login ?? null,
+        slack_user_id: slack_user_id ?? null, jira_user_id: jira_user_id ?? null,
+        email: email ?? null, name: name ?? null, now }
+    );
+
+    // Merge all duplicate nodes into primary
+    const secondaries = candidates.slice(1);
+    for (const secondary of secondaries) {
+      const secondaryId = secondary.person_id as string;
+
+      // Re-point AUTHORED_BY edges to primary, then detach-delete the duplicate
+      await session.run(
+        `MATCH (e:Event)-[r:AUTHORED_BY]->(stub:Person {person_id: $secondary_id})
+         MATCH (primary:Person {person_id: $primary_id})
+         MERGE (e)-[:AUTHORED_BY]->(primary)
+         DELETE r`,
+        { secondary_id: secondaryId, primary_id: primaryId }
+      );
+
+      // Copy any identifiers the primary doesn't yet have, then delete stub
+      await session.run(
+        `MATCH (primary:Person {person_id: $primary_id})
+         MATCH (stub:Person {person_id: $secondary_id})
+         SET primary.github_login  = coalesce(primary.github_login,  stub.github_login),
+             primary.slack_user_id = coalesce(primary.slack_user_id, stub.slack_user_id),
+             primary.jira_user_id  = coalesce(primary.jira_user_id,  stub.jira_user_id),
+             primary.email         = coalesce(primary.email,         stub.email),
+             primary.aliases = primary.aliases +
+               [x IN coalesce(stub.aliases, []) WHERE NOT x IN primary.aliases]
+         DETACH DELETE stub`,
+        { primary_id: primaryId, secondary_id: secondaryId }
+      );
+    }
+
+    return { person_id: primaryId, merged_count: secondaries.length };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * List all Person nodes that have authored at least one Event in the given project.
+ * Returns each person with their known source identifiers and event count.
+ */
+export async function listPeopleInProject(projectId: string): Promise<Array<{
+  person_id: string;
+  name: string;
+  email?: string;
+  github_login?: string;
+  slack_user_id?: string;
+  jira_user_id?: string;
+  provisional: boolean;
+  event_count: number;
+}>> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (e:Event {project_id: $project_id})-[:AUTHORED_BY]->(p:Person)
+       RETURN p, count(e) AS event_count
+       ORDER BY p.name ASC`,
+      { project_id: projectId }
+    );
+    return result.records.map((r) => {
+      const p = r.get("p").properties as Record<string, unknown>;
+      return {
+        person_id:    p.person_id as string,
+        name:         (p.name as string) ?? "Unknown",
+        email:        p.email as string | undefined,
+        github_login: p.github_login as string | undefined,
+        slack_user_id: p.slack_user_id as string | undefined,
+        jira_user_id: p.jira_user_id as string | undefined,
+        provisional:  (p.provisional as boolean) ?? true,
+        event_count:  (r.get("event_count") as number) ?? 0,
+      };
+    });
   } finally {
     await session.close();
   }

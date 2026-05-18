@@ -11,6 +11,7 @@ import { projectRoutes } from "./routes/projects.js";
 import { brainRoutes } from "./routes/brain.js";
 import { authRoutes } from "./routes/auth.js";
 import { ingestRoutes } from "./routes/ingest.js";
+import { identityRoutes } from "./routes/identity.js";
 
 const app = Fastify({ logger: true });
 
@@ -34,6 +35,7 @@ await app.register(queryRoutes, { prefix: "/brain" });
 await app.register(projectRoutes, { prefix: "/brain" });
 await app.register(brainRoutes);
 await app.register(ingestRoutes);
+await app.register(identityRoutes);
 
 app.get("/health", async () => ({ status: "ok", ts: new Date().toISOString() }));
 
