@@ -1,13 +1,13 @@
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { getSession } from "../lib/neo4j.js";
-import { chat, chatStream, MODELS } from "../lib/llm.js";
+import { chat, chatStream, MODELS, PROVIDER } from "../lib/llm.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
 
-// Tuned per LLM provider — see .env.local vs .env.aws
-const TOP_K = parseInt(process.env.QUERY_TOP_K ?? "20");
-const CONTEXT_BUDGET_CHARS = parseInt(process.env.QUERY_CONTEXT_BUDGET ?? "12000");
+// Ollama local dev uses tighter defaults to keep latency tolerable
+const TOP_K = parseInt(process.env.QUERY_TOP_K ?? (PROVIDER === "ollama" ? "8" : "20"));
+const CONTEXT_BUDGET_CHARS = parseInt(process.env.QUERY_CONTEXT_BUDGET ?? (PROVIDER === "ollama" ? "6000" : "12000"));
 
 const ANSWER_SYSTEM_PROMPT = `You are a precise knowledge assistant for software engineering teams.
 Answer questions using ONLY the provided source chunks. Every claim must be cited with [N] where N is the chunk number.
@@ -80,51 +80,58 @@ async function graphExpand(
   if (eventIds.length === 0) return [];
 
   const expandOne = async (eventId: string): Promise<GraphContext> => {
-    const session = getSession();
-    try {
-      const decisionQuery = session.run(
-        `MATCH (seed:Event {event_id: $event_id})
-         OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(seed)
-         OPTIONAL MATCH (d)-[:EXTRACTED_FROM]->(related:Event)
-           WHERE related.event_id <> seed.event_id
-           AND related.project_id = seed.project_id
-         RETURN d.summary AS decision_summary,
-                d.confidence AS confidence,
-                d.status AS status,
-                collect(DISTINCT related.event_id) AS related_event_ids`,
-        { event_id: eventId }
-      );
-
-      const authorQuery = session.run(
-        `MATCH (seed:Event {event_id: $event_id})-[:AUTHORED_BY]->(p:Person)
-         OPTIONAL MATCH (p)<-[:AUTHORED_BY]-(recent:Event)
-           WHERE recent.project_id = seed.project_id
-           AND recent.event_id <> seed.event_id
-           AND recent.timestamp >= $since
-         WITH p, recent
-         ORDER BY recent.timestamp DESC
-         WITH p, collect(DISTINCT {event_id: recent.event_id, timestamp: recent.timestamp, source: recent.source})[..5] AS recent_activity
-         RETURN p.name AS author_name,
-                p.person_id AS author_person_id,
-                recent_activity`,
-        { event_id: eventId, since }
-      );
-
-      const ticketQuery = session.run(
-        `MATCH (seed:Event {event_id: $event_id})-[:REFERENCES]->(t:Ticket)
-         OPTIONAL MATCH (other:Event)-[:REFERENCES]->(t)
-           WHERE other.event_id <> seed.event_id
-           AND other.project_id = seed.project_id
-         RETURN t.ref AS ticket_ref,
-                collect(DISTINCT other.event_id) AS co_referenced_event_ids`,
-        { event_id: eventId }
-      );
-
-      const [decisionRes, authorRes, ticketRes] = await Promise.all([
-        decisionQuery,
-        authorQuery,
-        ticketQuery,
-      ]);
+    const [decisionRes, authorRes, ticketRes] = await Promise.all([
+      (async () => {
+        const s = getSession();
+        try {
+          return await s.run(
+            `MATCH (seed:Event {event_id: $event_id})
+             OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(seed)
+             OPTIONAL MATCH (d)-[:EXTRACTED_FROM]->(related:Event)
+               WHERE related.event_id <> seed.event_id
+               AND related.project_id = seed.project_id
+             RETURN d.summary AS decision_summary,
+                    d.confidence AS confidence,
+                    d.status AS status,
+                    collect(DISTINCT related.event_id) AS related_event_ids`,
+            { event_id: eventId }
+          );
+        } finally { await s.close(); }
+      })(),
+      (async () => {
+        const s = getSession();
+        try {
+          return await s.run(
+            `MATCH (seed:Event {event_id: $event_id})-[:AUTHORED_BY]->(p:Person)
+             OPTIONAL MATCH (p)<-[:AUTHORED_BY]-(recent:Event)
+               WHERE recent.project_id = seed.project_id
+               AND recent.event_id <> seed.event_id
+               AND recent.timestamp >= $since
+             WITH p, recent
+             ORDER BY recent.timestamp DESC
+             WITH p, collect(DISTINCT {event_id: recent.event_id, timestamp: recent.timestamp, source: recent.source})[..5] AS recent_activity
+             RETURN p.name AS author_name,
+                    p.person_id AS author_person_id,
+                    recent_activity`,
+            { event_id: eventId, since }
+          );
+        } finally { await s.close(); }
+      })(),
+      (async () => {
+        const s = getSession();
+        try {
+          return await s.run(
+            `MATCH (seed:Event {event_id: $event_id})-[:REFERENCES]->(t:Ticket)
+             OPTIONAL MATCH (other:Event)-[:REFERENCES]->(t)
+               WHERE other.event_id <> seed.event_id
+               AND other.project_id = seed.project_id
+             RETURN t.ref AS ticket_ref,
+                    collect(DISTINCT other.event_id) AS co_referenced_event_ids`,
+            { event_id: eventId }
+          );
+        } finally { await s.close(); }
+      })(),
+    ]);
 
       // Aggregate decisions
       const decisions: GraphContext["decisions"] = [];
@@ -184,9 +191,6 @@ async function graphExpand(
         ticket_refs: ticketRefs,
         co_referenced_event_ids: [...coReferencedSet],
       };
-    } finally {
-      await session.close();
-    }
   };
 
   return Promise.all(eventIds.map(expandOne));
@@ -343,7 +347,7 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
       { role: "system", content: ANSWER_SYSTEM_PROMPT },
       { role: "user", content: userMessage },
     ],
-    { maxTokens: 1024, temperature: 0 }
+    { maxTokens: PROVIDER === "ollama" ? 512 : 1024, temperature: 0 }
   );
 
   const answer = raw.replace(/\n+Sources:[\s\S]*$/i, "").trim();
@@ -389,7 +393,7 @@ export async function* runQueryStream(request: QueryRequest): AsyncGenerator<Str
         { role: "system", content: ANSWER_SYSTEM_PROMPT },
         { role: "user", content: userMessage },
       ],
-      { maxTokens: 1024, temperature: 0 }
+      { maxTokens: PROVIDER === "ollama" ? 512 : 1024, temperature: 0 }
     );
 
     for await (const token of tokenStream) {

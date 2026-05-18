@@ -19,10 +19,14 @@ const anthropicClient = new Anthropic({
 });
 
 export const MODELS = {
-  // Fast model for extraction and intent parsing
-  EXTRACTION: PROVIDER === "anthropic" ? "claude-haiku-4-5" : (process.env.OLLAMA_FAST_MODEL ?? "gemma3:4b"),
-  // Full model for query answering
-  QUERY: PROVIDER === "anthropic" ? "claude-sonnet-4-6" : (process.env.OLLAMA_SMART_MODEL ?? "gemma3:12b"),
+  // Fast model for extraction and intent parsing — override via EXTRACTION_MODEL env var
+  EXTRACTION: PROVIDER === "anthropic"
+    ? (process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5-20251001")
+    : (process.env.OLLAMA_FAST_MODEL ?? "gemma3:4b"),
+  // Full model for query answering — override via LLM_MODEL env var
+  QUERY: PROVIDER === "anthropic"
+    ? (process.env.LLM_MODEL ?? "claude-sonnet-4-6")
+    : (process.env.OLLAMA_SMART_MODEL ?? "gemma3:12b"),
 } as const;
 
 export interface Message {
