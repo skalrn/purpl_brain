@@ -30,6 +30,7 @@ interface QdrantResult {
 interface ContextChunk {
   index: number;
   content: string;
+  source: string;
   source_url: string;
   actor_name: string;
   timestamp: string;
@@ -120,6 +121,16 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
     .map((r, i) => ({
       index: i + 1,
       content: String(r.payload!.content ?? ""),
+      source: (() => {
+        if (r.payload!.source) return String(r.payload!.source);
+        const gni = String(r.payload!.graph_node_id ?? "");
+        if (gni.startsWith("slack_")) return "slack";
+        if (gni.startsWith("meeting_")) return "meeting";
+        if (gni.startsWith("jira_")) return "jira";
+        if (gni.startsWith("doc_")) return "document";
+        if (gni.startsWith("agent_")) return "agent";
+        return "github";
+      })(),
       source_url: String(r.payload!.source_url ?? ""),
       actor_name: String(r.payload!.actor_name ?? ""),
       timestamp: String(r.payload!.timestamp ?? ""),
@@ -177,7 +188,7 @@ Answer the question using only the context above. Cite every claim with [N].`;
     .filter((c) => citedIndices.includes(c.index))
     .map((c) => ({
       chunk_id: `${c.graph_node_id}_${c.index}`,
-      source: "github" as const,
+      source: c.source as Citation["source"],
       source_url: c.source_url,
       actor: { type: "human" as const, id: c.actor_name, name: c.actor_name },
       timestamp: c.timestamp,

@@ -38,8 +38,11 @@ export function chunkText(text: string, chunkSize = CHUNK_CHARS, overlap = OVERL
     const chunk = text.slice(start, end).trim();
     if (chunk.length > 20) chunks.push(chunk);
 
-    start = end - overlap;
-    if (start >= text.length) break;
+    if (end >= text.length) break;
+
+    const nextStart = end - overlap;
+    if (nextStart <= start) break; // no forward progress — text shorter than overlap
+    start = nextStart;
   }
 
   return chunks;

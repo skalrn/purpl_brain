@@ -49,10 +49,12 @@ async function writeToNeo4j(result: ExtractionResult) {
   const session = getSession();
   try {
     // Create/merge Event node
-    // Derive source from event_id prefix (slack_, meeting_, jira_) or default github
+    // Derive source from event_id prefix
     const source = result.event_id.startsWith("slack_") ? "slack"
       : result.event_id.startsWith("meeting_") ? "meeting"
       : result.event_id.startsWith("jira_") ? "jira"
+      : result.event_id.startsWith("doc_") ? "document"
+      : result.event_id.startsWith("agent_") ? "agent"
       : "github";
 
     await session.run(
@@ -164,6 +166,12 @@ async function writeToQdrant(result: ExtractionResult) {
       chunk_id: chunk.id,
       graph_node_id: result.event_id,
       project_id: result.project_id,
+      source: result.event_id.startsWith("slack_") ? "slack"
+        : result.event_id.startsWith("meeting_") ? "meeting"
+        : result.event_id.startsWith("jira_") ? "jira"
+        : result.event_id.startsWith("doc_") ? "document"
+        : result.event_id.startsWith("agent_") ? "agent"
+        : "github",
       source_url: result.source_url,
       actor_id: result.actor.id,
       actor_name: result.actor.name,
