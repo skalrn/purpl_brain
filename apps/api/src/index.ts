@@ -3,6 +3,7 @@ import { validateEnv } from "./lib/config.js";
 validateEnv();
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import fastifyCookie from "@fastify/cookie";
 import fastifySession from "@fastify/session";
 import { webhookRoutes } from "./routes/webhooks.js";
@@ -18,6 +19,24 @@ const app = Fastify({ logger: true });
 await app.register(cors, {
   origin: process.env.UI_BASE_URL ?? "http://localhost:3000",
   credentials: true,
+});
+
+// Global rate limit — keyed by API key when present, otherwise by IP.
+// Protects LLM-backed routes from runaway spend on a compromised key.
+await app.register(rateLimit, {
+  global: true,
+  max: parseInt(process.env.RATE_LIMIT_MAX ?? "60"),
+  timeWindow: "1 minute",
+  keyGenerator: (req) => {
+    const auth = req.headers["authorization"];
+    if (auth?.startsWith("Bearer ")) return `key:${auth.slice(7)}`;
+    return req.ip;
+  },
+  errorResponseBuilder: (_req, context) => ({
+    error: "Too many requests",
+    message: `Rate limit exceeded — max ${context.max} requests per minute`,
+    retry_after_ms: context.ttl,
+  }),
 });
 await app.register(fastifyCookie);
 await app.register(fastifySession, {

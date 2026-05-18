@@ -106,18 +106,20 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── POST /brain/ingest/crawl-docs ────────────────────────────────────────
   // Crawl docs/**/*.md from a GitHub repo and ingest all found documents.
+  // GitHub token must be supplied as a second Bearer token in the
+  // X-Github-Token header, or pre-configured as GITHUB_TOKEN env var.
+  // It must NOT be sent in the request body to avoid accidental logging.
   fastify.post<{
     Body: {
       repo: string;         // "org/repo"
       project_id: string;
       path_prefix?: string; // default: "docs"
-      github_token?: string;
     };
   }>(
     "/brain/ingest/crawl-docs",
     { preHandler: requireApiKey },
     async (req, reply) => {
-      const { repo, project_id, path_prefix, github_token } = req.body;
+      const { repo, project_id, path_prefix } = req.body;
 
       if (!repo || !repo.includes("/")) {
         return reply.status(400).send({ error: "repo must be in org/repo format" });
@@ -126,9 +128,10 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "project_id is required" });
       }
 
-      const token = github_token ?? process.env.GITHUB_TOKEN;
+      // Accept GitHub token from dedicated header or env — never from body.
+      const token = (req.headers["x-github-token"] as string | undefined) ?? process.env.GITHUB_TOKEN;
       if (!token) {
-        return reply.status(400).send({ error: "GitHub token required (GITHUB_TOKEN env or github_token body field)" });
+        return reply.status(400).send({ error: "GitHub token required — set GITHUB_TOKEN env or send X-Github-Token header" });
       }
 
       let events: CanonicalEvent[];
