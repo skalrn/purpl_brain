@@ -309,3 +309,30 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
     await session.close();
   }
 }
+
+// Fuzzy-match a speaker name to an existing Person node.
+// Tries exact match first, then case-insensitive first-name match.
+// Returns the canonical email/id if found, or null.
+export async function resolvePersonByName(name: string): Promise<{ email: string; id: string; name: string } | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (p:Person)
+       WHERE toLower(p.name) = toLower($name)
+          OR toLower(p.name) STARTS WITH toLower(split($name, ' ')[0])
+          OR any(alias IN coalesce(p.aliases, []) WHERE toLower(alias) = toLower($name))
+       RETURN p.email AS email, p.id AS id, p.name AS name
+       LIMIT 1`,
+      { name }
+    );
+    if (result.records.length === 0) return null;
+    const r = result.records[0];
+    return {
+      email: r.get("email") as string,
+      id: r.get("id") as string,
+      name: r.get("name") as string,
+    };
+  } finally {
+    await session.close();
+  }
+}

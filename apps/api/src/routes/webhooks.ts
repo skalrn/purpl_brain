@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { mergePersonAlias } from "../lib/neo4j.js";
 import { crawlSingleFile } from "../lib/github-doc-crawler.js";
+import { chunkText } from "../lib/document-chunker.js";
 import type { CanonicalEvent, EventType } from "@purpl/types";
 
 // Resolve Jira account ID → email via Jira REST API (M5 identity resolution)
@@ -271,5 +272,98 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
 
     request.log.info({ issueKey, eventType, projectKey }, "Jira event enqueued");
     return reply.code(200).send({ status: "queued", event_id: event.event_id });
+  });
+
+  // ── Fireflies.ai webhook (M2) ──────────────────────────────────────────────
+  // Fireflies sends a POST when a transcript is ready. Payload contains:
+  //   meetingId, title, date, participants[], transcript.sentences[]
+  // Each sentence: { speaker_name, text, start_time (seconds) }
+  // We flatten sentences into speaker-tagged lines, chunk them, and enqueue.
+  app.post<{ Body: Buffer }>("/fireflies", async (request, reply) => {
+    // Optional shared secret verification
+    const secret = process.env.FIREFLIES_WEBHOOK_SECRET;
+    if (secret) {
+      const sig = request.headers["x-fireflies-signature"] as string | undefined;
+      if (!sig || sig !== secret) {
+        return reply.code(401).send({ error: "Invalid signature" });
+      }
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(request.body.toString()) as Record<string, unknown>;
+    } catch {
+      return reply.code(400).send({ error: "Invalid JSON" });
+    }
+
+    const meetingId = String(payload.meetingId ?? payload.id ?? uuidv4());
+    const title = String(payload.title ?? "Meeting");
+    const projectId = String(
+      payload.project_id ?? process.env.FIREFLIES_DEFAULT_PROJECT ?? "default"
+    );
+    const occurredAt = String(payload.date ?? new Date().toISOString());
+
+    const sourceId = `meeting_fireflies_${meetingId}`;
+    const already = await redis.sismember(PROCESSED_SET, sourceId);
+    if (already) return reply.code(200).send({ status: "duplicate" });
+
+    // Extract transcript sentences
+    type Sentence = { speaker_name?: string; text?: string; start_time?: number };
+    const transcript = payload.transcript as Record<string, unknown> | undefined;
+    const sentences: Sentence[] = (transcript?.sentences as Sentence[] | undefined) ?? [];
+
+    if (sentences.length === 0) {
+      return reply.code(200).send({ status: "ignored", reason: "no sentences" });
+    }
+
+    // Flatten to "Speaker: text" lines
+    const lines = sentences.map((s) => {
+      const speaker = s.speaker_name?.trim();
+      const text = s.text?.trim() ?? "";
+      return speaker ? `${speaker}: ${text}` : text;
+    });
+    const flatText = lines.join("\n");
+    const chunks = chunkText(flatText);
+
+    const participants = (payload.participants as string[] | undefined) ?? [];
+    const url = `brain://meeting/fireflies/${meetingId}`;
+    const eventIds: string[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      const speakerMatch = chunks[i].match(/^([A-Z][^:\n]{1,40}):/m);
+      const chunkSpeaker = speakerMatch ? speakerMatch[1].trim() : null;
+
+      const event: CanonicalEvent = {
+        event_id: `meeting_${uuidv4()}`,
+        source: "meeting",
+        source_id: sourceId,
+        project_id: projectId,
+        actor: {
+          type: "human",
+          id: chunkSpeaker ?? "meeting",
+          name: chunkSpeaker ?? title,
+        },
+        timestamp: occurredAt,
+        event_type: "meeting_transcript",
+        raw_content: chunks[i],
+        url,
+        meeting_title: title,
+        meeting_participants: participants,
+        chunk_index: i,
+        total_chunks: chunks.length,
+      };
+
+      await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+      eventIds.push(event.event_id);
+    }
+
+    await redis.sadd(PROCESSED_SET, sourceId);
+
+    request.log.info({ meetingId, title, chunks: chunks.length, projectId }, "Fireflies transcript enqueued");
+    return reply.code(200).send({
+      status: "queued",
+      chunks_queued: chunks.length,
+      event_ids: eventIds,
+    });
   });
 };

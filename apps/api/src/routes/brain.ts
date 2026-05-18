@@ -10,7 +10,9 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, resolveDriftAlert, countActiveSeats } from "../lib/neo4j.js";
+import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName } from "../lib/neo4j.js";
+import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
+import { chunkText } from "../lib/document-chunker.js";
 import type { CanonicalEvent, DriftResolution } from "@purpl/types";
 
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
@@ -54,19 +56,21 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ── POST /brain/ingest/transcript (M3) ──────────────────────────────────
+  // ── POST /brain/ingest/transcript (Phase 4 M2) ──────────────────────────
+  // Accepts VTT, SRT, or plain-text transcripts. Auto-detects format.
+  // Chunks long transcripts, resolves speaker names to Person nodes.
   fastify.post<{
     Body: {
       text: string;
       title?: string;
-      participants?: string[];
       occurred_at?: string;
       project_id: string;
+      source_url?: string;
     };
   }>(
     "/brain/ingest/transcript",
     async (req, reply) => {
-      const { text, title, participants, occurred_at, project_id } = req.body;
+      const { text, title, occurred_at, project_id, source_url } = req.body;
 
       if (!text || text.trim().length < 20) {
         return reply.status(400).send({ error: "text is required (min 20 chars)" });
@@ -75,36 +79,77 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "project_id is required" });
       }
 
-      const eventId = `meeting_${uuidv4()}`;
-      const sourceId = `meeting_${uuidv4()}`;
-      const timestamp = occurred_at ?? new Date().toISOString();
-
-      const event: CanonicalEvent = {
-        event_id: eventId,
-        source: "meeting",
-        source_id: sourceId,
-        project_id,
-        actor: { type: "human", id: "transcript", name: "Meeting Transcript" },
-        timestamp,
-        event_type: "meeting_transcript",
-        raw_content: text,
-        url: `brain://meeting/${eventId}`,
-        meeting_title: title,
-        meeting_participants: participants,
-      };
+      const baseDate = occurred_at ?? new Date().toISOString();
+      // Stable dedup key: prefer caller-supplied source_url, fall back to title+project slug
+      const sourceId = source_url
+        ? `meeting_${project_id}_${Buffer.from(source_url).toString("base64").slice(0, 32)}`
+        : `meeting_${project_id}_${(title ?? "transcript").toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
 
       const already = await redis.sismember(PROCESSED_SET, sourceId);
       if (already) {
         return reply.status(409).send({ error: "Duplicate transcript" });
       }
 
-      await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+      // Parse VTT/SRT/plain and extract speakers
+      const parsed = detectAndParse(text, baseDate);
+      const flatText = flattenToText(parsed.segments);
+      const chunks = chunkText(flatText);
+
+      // Best-effort speaker resolution (non-fatal)
+      const resolvedSpeakers: string[] = [];
+      for (const name of parsed.speakers) {
+        const person = await resolvePersonByName(name).catch(() => null);
+        resolvedSpeakers.push(person?.name ?? name);
+      }
+
+      const url = source_url ?? `brain://meeting/${sourceId}`;
+      const eventIds: string[] = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkSpeaker = (() => {
+          // Try to identify dominant speaker for this chunk
+          const match = chunks[i].match(/^([A-Z][^:\n]{1,40}):/m);
+          return match ? match[1].trim() : null;
+        })();
+
+        const event: CanonicalEvent = {
+          event_id: `meeting_${uuidv4()}`,
+          source: "meeting",
+          source_id: sourceId,
+          project_id,
+          actor: {
+            type: "human",
+            id: chunkSpeaker ?? "meeting",
+            name: chunkSpeaker ?? (title ?? "Meeting Transcript"),
+          },
+          timestamp: baseDate,
+          event_type: "meeting_transcript",
+          raw_content: chunks[i],
+          url,
+          meeting_title: title,
+          meeting_participants: resolvedSpeakers,
+          chunk_index: i,
+          total_chunks: chunks.length,
+        };
+
+        await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+        eventIds.push(event.event_id);
+      }
+
       await redis.sadd(PROCESSED_SET, sourceId);
+
+      fastify.log.info(
+        { project_id, title, chunks: chunks.length, format: parsed.format, speakers: parsed.speakers },
+        "Transcript ingested"
+      );
 
       return {
         ok: true,
-        event_id: eventId,
-        message: "Transcript queued for processing",
+        chunks_queued: chunks.length,
+        event_ids: eventIds,
+        format: parsed.format,
+        speakers: parsed.speakers,
+        message: `${chunks.length} chunk(s) queued for processing`,
       };
     }
   );
