@@ -33,6 +33,7 @@
     "eval:isolation": "tsx src/scripts/eval-project-isolation.ts",
     "eval:drift-fp": "tsx src/scripts/eval-drift-fp.ts",
     "eval:graph-integrity": "tsx src/scripts/eval-graph-integrity.ts",
+    "eval:integration": "tsx src/scripts/eval-integration.ts",
     "demo:agent-memory": "tsx src/scripts/demo-agent-memory.ts",
     "pipeline:reset": "tsx src/scripts/reset-pipeline.ts",
     "build": "tsc",

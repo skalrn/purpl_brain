@@ -53,7 +53,7 @@ async function query<T>(cypher: string, params: Record<string, unknown> = {}): P
     const result = await session.run(cypher, params);
     return result.records.map((r) => {
       const obj: Record<string, unknown> = {};
-      for (const key of r.keys) obj[key] = r.get(key);
+      for (const key of r.keys) obj[String(key)] = r.get(key);
       return obj as T;
     });
   } finally {
