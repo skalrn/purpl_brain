@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { chunkText, detectDocumentType } from "../lib/document-chunker.js";
 import { crawlRepoDocs } from "../lib/github-doc-crawler.js";
+import { requireApiKey } from "../lib/auth-middleware.js";
 import type { CanonicalEvent } from "@purpl/types";
 
 export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
@@ -28,6 +29,7 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/document",
+    { preHandler: requireApiKey },
     async (req, reply) => {
       const { text, title, path, document_type, project_id, source_url } = req.body;
 
@@ -41,7 +43,13 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
       const resolvedType = document_type ?? (path ? detectDocumentType(path) : "unknown");
       const resolvedTitle = title ?? (path ? path.split("/").pop()?.replace(/\.md$/, "").replace(/[-_]/g, " ") : "Untitled Document") ?? "Untitled Document";
       const url = source_url ?? `brain://document/${uuidv4()}`;
-      const sourceId = `doc_${project_id}_${resolvedTitle}_${Date.now()}`;
+      // Stable dedup key — never include Date.now() or the 409 check can never fire.
+      // Prefer source_url (canonical per document), then file path, then title slug.
+      const sourceId = source_url
+        ? `doc_${project_id}_${Buffer.from(source_url).toString("base64").slice(0, 32)}`
+        : path
+        ? `doc_${project_id}_${path.replace(/[^a-z0-9]/gi, "_")}`
+        : `doc_${project_id}_${resolvedTitle.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
 
       const alreadyProcessed = await redis.sismember(PROCESSED_SET, sourceId);
       if (alreadyProcessed) {
@@ -101,6 +109,7 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/crawl-docs",
+    { preHandler: requireApiKey },
     async (req, reply) => {
       const { repo, project_id, path_prefix, github_token } = req.body;
 

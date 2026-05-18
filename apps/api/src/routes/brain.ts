@@ -13,6 +13,7 @@ import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
+import { requireApiKey } from "../lib/auth-middleware.js";
 import type { CanonicalEvent, DriftResolution } from "@purpl/types";
 
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
@@ -69,6 +70,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/transcript",
+    { preHandler: requireApiKey },
     async (req, reply) => {
       const { text, title, occurred_at, project_id, source_url } = req.body;
 
@@ -183,6 +185,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/agent-log",
+    { preHandler: requireApiKey },
     async (req, reply) => {
       const log = req.body;
 
