@@ -1,5 +1,25 @@
+/**
+ * Temporal engine — "what changed in the last N days" diff path.
+ *
+ * Per docs/technical/query-layer.md:
+ *   1. Query Neo4j for Decision nodes whose valid_from falls in [from, to].
+ *   2. For each, look up a prior version: a Decision in the same project,
+ *      with valid_from BEFORE this decision, whose summary is semantically
+ *      similar (Qdrant vector search) above SUPERSEDES_THRESHOLD.
+ *   3. Group by source (inferred from the extracting Event's event_id prefix).
+ *   4. Produce a structured changelog: created vs. superseded, by source,
+ *      with who decided and what it replaced.
+ *
+ * This is a real diff: it identifies "what replaced what," not just
+ * "what happened in this window." Distinct from runQuery — does NOT use
+ * vector retrieval to assemble context; only to find supersedes candidates.
+ */
 import { getSession } from "../lib/neo4j.js";
+import { embed } from "../lib/embed.js";
+import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { chat, MODELS } from "../lib/llm.js";
+import { inferSourceFromEventId } from "../lib/event-source.js";
+import type { EventSource } from "@purpl/types";
 
 export interface TimeRange {
   from: string; // ISO 8601
@@ -14,39 +34,60 @@ export interface TemporalResult {
 }
 
 interface DecisionRow {
+  decision_id: string;
+  event_id: string;
   summary: string;
-  rationale: string;
+  rationale: string | null;
   confidence: string;
   valid_from: string;
   source_url: string;
-  actor_name: string;
+  actor_name: string | null;
 }
 
-interface EventRow {
-  event_type: string;
-  timestamp: string;
-  url: string;
-  actor_name: string;
+interface PriorMatch {
+  decision_id: string;
+  summary: string;
+  valid_from: string;
+  source_url: string;
+  score: number;
 }
 
-const CHANGELOG_SYSTEM_PROMPT = `You are a precise changelog generator for software engineering teams.
-Summarize the provided decisions and events into a structured changelog.
+interface ChangelogEntry {
+  decision: DecisionRow;
+  source: EventSource;
+  kind: "created" | "superseded";
+  replaced?: PriorMatch;
+}
 
-Format as markdown bullet lists grouped by type:
-## Decisions
-- [confidence] Summary of decision — Author, Date [cited as source URL]
+const SUPERSEDES_SCORE_THRESHOLD = parseFloat(
+  process.env.TEMPORAL_SUPERSEDES_THRESHOLD ?? "0.72"
+);
+const SUPERSEDES_TOP_K = 5;
 
-## Activity
-- Event type: URL — Author, Date
+const CHANGELOG_SYSTEM_PROMPT = `You are a precise changelog generator for a software engineering team's decision history.
+
+You are given a structured delta of decisions from a time window. Produce a markdown changelog grouped by source.
+
+Format:
+
+## <Source name, e.g. GitHub / Slack / Meeting / Agent>
+
+- **Created**: <one-line summary of the decision> — <author>, <date> [<url>]
+- **Replaced**: <one-line summary of the new decision> — <author>, <date> [<url>]
+  - Previously: <one-line summary of the prior decision> [<url>]
 
 Rules:
-- Most recent first within each group
-- If no decisions exist, say "No decisions recorded in this period"
-- If no activity exists, say "No activity recorded in this period"
-- Be concise — one line per item
-- Do not add commentary or analysis`;
+- Most recent first within each group.
+- Use the actor name; if missing, write "unknown".
+- Dates as YYYY-MM-DD.
+- Keep each bullet to one line; do not commentate.
+- If a source has no entries, omit the section entirely.
+- Never invent decisions, dates, or URLs that are not in the input.`;
 
-async function fetchDecisions(projectId: string, range: TimeRange): Promise<DecisionRow[]> {
+async function fetchDecisionsInRange(
+  projectId: string,
+  range: TimeRange
+): Promise<DecisionRow[]> {
   const session = getSession();
   try {
     const result = await session.run(
@@ -55,22 +96,40 @@ async function fetchDecisions(projectId: string, range: TimeRange): Promise<Deci
          AND d.valid_from >= $from
          AND d.valid_from <= $to
        OPTIONAL MATCH (e)-[:AUTHORED_BY]->(p:Person)
-       RETURN d.summary AS summary,
-              d.rationale AS rationale,
-              d.confidence AS confidence,
-              d.valid_from AS valid_from,
-              e.url AS source_url,
-              p.name AS actor_name
+       RETURN d.decision_id  AS decision_id,
+              e.event_id     AS event_id,
+              d.summary      AS summary,
+              d.rationale    AS rationale,
+              d.confidence   AS confidence,
+              d.valid_from   AS valid_from,
+              e.url          AS source_url,
+              p.name         AS actor_name
        ORDER BY d.valid_from DESC`,
       { project_id: projectId, from: range.from, to: range.to }
     );
-    return result.records.map((r) => r.toObject() as DecisionRow);
+    return result.records.map((r) => ({
+      decision_id: r.get("decision_id") as string,
+      event_id: r.get("event_id") as string,
+      summary: r.get("summary") as string,
+      rationale: (r.get("rationale") as string | null) ?? null,
+      confidence: (r.get("confidence") as string) ?? "",
+      valid_from: r.get("valid_from") as string,
+      source_url: (r.get("source_url") as string) ?? "",
+      actor_name: (r.get("actor_name") as string | null) ?? null,
+    }));
   } finally {
     await session.close();
   }
 }
 
-async function fetchEvents(projectId: string, range: TimeRange): Promise<EventRow[]> {
+/**
+ * Count of all Event nodes in the time window (used as a sanity stat in the
+ * response; not gated on Decision existence).
+ */
+async function countEventsInRange(
+  projectId: string,
+  range: TimeRange
+): Promise<number> {
   const session = getSession();
   try {
     const result = await session.run(
@@ -78,37 +137,134 @@ async function fetchEvents(projectId: string, range: TimeRange): Promise<EventRo
        WHERE e.project_id = $project_id
          AND e.timestamp >= $from
          AND e.timestamp <= $to
-       OPTIONAL MATCH (e)-[:AUTHORED_BY]->(p:Person)
-       RETURN e.event_type AS event_type,
-              e.timestamp AS timestamp,
-              e.url AS url,
-              p.name AS actor_name
-       ORDER BY e.timestamp DESC
-       LIMIT 20`,
+       RETURN count(e) AS n`,
       { project_id: projectId, from: range.from, to: range.to }
     );
-    return result.records.map((r) => r.toObject() as EventRow);
+    const n = result.records[0]?.get("n");
+    // neo4j-driver returns Integer; coerce safely
+    return typeof n === "number" ? n : Number(n?.toNumber?.() ?? 0);
   } finally {
     await session.close();
   }
 }
 
-function formatDecisions(decisions: DecisionRow[]): string {
-  if (decisions.length === 0) return "No decisions recorded in this period.";
-  return decisions
-    .map((d) =>
-      `- [${d.confidence}] ${d.summary}${d.rationale ? ` — ${d.rationale}` : ""} (${d.actor_name ?? "unknown"}, ${d.valid_from?.slice(0, 10) ?? ""}) — ${d.source_url}`
-    )
-    .join("\n");
+/**
+ * Find a likely prior version of `decision` via Qdrant semantic similarity,
+ * filtered to the same project and chunks with has_decisions=true. Returns
+ * null when no candidate clears the threshold or every candidate is the
+ * decision itself / not strictly before it.
+ */
+async function findPriorVersion(
+  projectId: string,
+  decision: DecisionRow
+): Promise<PriorMatch | null> {
+  const vector = await embed(decision.summary).catch(() => null);
+  if (!vector) return null;
+
+  const results = (await qdrant.search(COLLECTION, {
+    vector,
+    limit: SUPERSEDES_TOP_K,
+    filter: {
+      must: [
+        { key: "project_id", match: { value: projectId } },
+        { key: "has_decisions", match: { value: true } },
+      ],
+    },
+    with_payload: true,
+    score_threshold: SUPERSEDES_SCORE_THRESHOLD,
+  })) as Array<{ score: number; payload?: Record<string, unknown> }>;
+
+  // Filter to chunks whose underlying Event is OLDER than this decision and
+  // belongs to a DIFFERENT Decision. We need a Neo4j lookup for the latter,
+  // so collect candidate event_ids first.
+  const candidateEventIds = [
+    ...new Set(
+      results
+        .map((r) => String(r.payload?.graph_node_id ?? ""))
+        .filter((id) => id && id !== decision.event_id)
+    ),
+  ];
+  if (candidateEventIds.length === 0) return null;
+
+  const session = getSession();
+  try {
+    const lookup = await session.run(
+      `UNWIND $ids AS eid
+       MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {event_id: eid})
+       WHERE d.decision_id <> $self
+         AND d.valid_from < $valid_from
+       RETURN d.decision_id AS decision_id,
+              d.summary     AS summary,
+              d.valid_from  AS valid_from,
+              e.url         AS source_url,
+              eid           AS event_id
+       ORDER BY d.valid_from DESC`,
+      {
+        ids: candidateEventIds,
+        self: decision.decision_id,
+        valid_from: decision.valid_from,
+      }
+    );
+
+    if (lookup.records.length === 0) return null;
+
+    // Pick the highest-scoring candidate whose event_id is in the lookup set
+    const eligibleEventIds = new Set(
+      lookup.records.map((r) => r.get("event_id") as string)
+    );
+
+    const bestQdrant = results.find((r) =>
+      eligibleEventIds.has(String(r.payload?.graph_node_id ?? ""))
+    );
+    if (!bestQdrant) return null;
+
+    const matchingNode = lookup.records.find(
+      (r) =>
+        (r.get("event_id") as string) ===
+        String(bestQdrant.payload?.graph_node_id ?? "")
+    );
+    if (!matchingNode) return null;
+
+    return {
+      decision_id: matchingNode.get("decision_id") as string,
+      summary: matchingNode.get("summary") as string,
+      valid_from: matchingNode.get("valid_from") as string,
+      source_url: (matchingNode.get("source_url") as string) ?? "",
+      score: bestQdrant.score,
+    };
+  } finally {
+    await session.close();
+  }
 }
 
-function formatEvents(events: EventRow[]): string {
-  if (events.length === 0) return "No activity recorded in this period.";
-  return events
-    .map((e) =>
-      `- ${e.event_type}: ${e.url} — ${e.actor_name ?? "unknown"}, ${e.timestamp?.slice(0, 10) ?? ""}`
-    )
-    .join("\n");
+function formatDelta(entries: ChangelogEntry[]): string {
+  if (entries.length === 0) return "(no decisions)";
+
+  const bySource = new Map<EventSource, ChangelogEntry[]>();
+  for (const e of entries) {
+    if (!bySource.has(e.source)) bySource.set(e.source, []);
+    bySource.get(e.source)!.push(e);
+  }
+
+  const sections: string[] = [];
+  for (const [source, items] of bySource) {
+    const lines = items.map((it) => {
+      const d = it.decision;
+      const date = (d.valid_from ?? "").slice(0, 10);
+      const author = d.actor_name ?? "unknown";
+      if (it.kind === "superseded" && it.replaced) {
+        const priorDate = it.replaced.valid_from.slice(0, 10);
+        return (
+          `- Replaced: ${d.summary} — ${author}, ${date} [${d.source_url}]\n` +
+          `  - Previously: ${it.replaced.summary} (${priorDate}) [${it.replaced.source_url}]`
+        );
+      }
+      return `- Created: ${d.summary} — ${author}, ${date} [${d.source_url}]`;
+    });
+    sections.push(`SOURCE=${source}\n${lines.join("\n")}`);
+  }
+
+  return sections.join("\n\n");
 }
 
 export async function runTemporalQuery(
@@ -118,30 +274,45 @@ export async function runTemporalQuery(
 ): Promise<TemporalResult> {
   const startMs = Date.now();
 
-  const [decisions, events] = await Promise.all([
-    fetchDecisions(projectId, range),
-    fetchEvents(projectId, range),
+  const [decisions, eventCount] = await Promise.all([
+    fetchDecisionsInRange(projectId, range),
+    countEventsInRange(projectId, range),
   ]);
 
-  if (decisions.length === 0 && events.length === 0) {
+  if (decisions.length === 0) {
     return {
-      changelog: `No decisions or activity found between ${range.from.slice(0, 10)} and ${range.to.slice(0, 10)}.`,
+      changelog: `No decisions recorded between ${range.from.slice(0, 10)} and ${range.to.slice(0, 10)}.${
+        eventCount > 0 ? ` ${eventCount} event(s) ingested in this window but none produced extracted decisions.` : ""
+      }`,
       decisions_found: 0,
-      events_found: 0,
+      events_found: eventCount,
       latency_ms: Date.now() - startMs,
     };
   }
 
+  // For each decision, look up a possible prior version
+  const entries: ChangelogEntry[] = await Promise.all(
+    decisions.map(async (d): Promise<ChangelogEntry> => {
+      const prior = await findPriorVersion(projectId, d).catch(() => null);
+      return {
+        decision: d,
+        source: inferSourceFromEventId(d.event_id),
+        kind: prior ? "superseded" : "created",
+        replaced: prior ?? undefined,
+      };
+    })
+  );
+
   const userMessage = `Question: "${originalQuery}"
 Time range: ${range.from.slice(0, 10)} to ${range.to.slice(0, 10)}
+Decisions found: ${entries.length}
+Decisions replaced: ${entries.filter((e) => e.kind === "superseded").length}
 
-Decisions in this period:
-${formatDecisions(decisions)}
+Delta (grouped by source):
 
-Activity in this period:
-${formatEvents(events)}
+${formatDelta(entries)}
 
-Generate a changelog summarizing what happened.`;
+Produce the changelog now.`;
 
   const changelog = await chat(
     MODELS.QUERY,
@@ -155,7 +326,7 @@ Generate a changelog summarizing what happened.`;
   return {
     changelog,
     decisions_found: decisions.length,
-    events_found: events.length,
+    events_found: eventCount,
     latency_ms: Date.now() - startMs,
   };
 }
