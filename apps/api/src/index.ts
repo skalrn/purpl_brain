@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { validateEnv } from "./lib/config.js";
+validateEnv();
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import fastifyCookie from "@fastify/cookie";

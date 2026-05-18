@@ -1,5 +1,11 @@
 import neo4j from "neo4j-driver";
+import { createHash } from "crypto";
 import type { DriftAlert } from "@purpl/types";
+
+/** One-way SHA-256 hash for API keys stored at rest. */
+export function hashApiKey(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
 
 const NEO4J_URI = process.env.NEO4J_URI ?? "bolt://localhost:7687";
 const NEO4J_USER = process.env.NEO4J_USER ?? "neo4j";
@@ -160,6 +166,7 @@ export async function upsertPersonByEmail(params: {
   const session = getSession();
   try {
     const now = new Date().toISOString();
+    const hashedKey = hashApiKey(params.api_key);
     const result = await session.run(
       `MERGE (p:Person {email: $email})
        ON CREATE SET
@@ -181,7 +188,7 @@ export async function upsertPersonByEmail(params: {
            ELSE p.aliases + [$github_login]
          END
        RETURN p`,
-      { ...params, now }
+      { ...params, api_key: hashedKey, now }
     );
     const p = result.records[0].get("p").properties as Record<string, unknown>;
     return {
@@ -230,7 +237,7 @@ export async function getPersonByApiKey(api_key: string): Promise<PersonRecord |
     const result = await session.run(
       `MATCH (p:Person {api_key: $api_key})
        RETURN p`,
-      { api_key }
+      { api_key: hashApiKey(api_key) }
     );
     if (result.records.length === 0) return null;
     const p = result.records[0].get("p").properties as Record<string, unknown>;

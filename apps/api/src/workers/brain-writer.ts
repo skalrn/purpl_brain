@@ -13,6 +13,8 @@ const GROUP = "brain-writer";
 const CONSUMER = "brain-writer-1";
 const BLOCK_MS = 5000;
 const CHUNK_MAX_CHARS = 1600; // ~400 tokens at 4 chars/token
+const QDRANT_RETRY_KEY = "retry:qdrant_writes";
+const QDRANT_RETRY_MAX = 3;
 
 async function ensureGroup() {
   try {
@@ -185,9 +187,43 @@ async function writeToQdrant(result: ExtractionResult, actorPersonId: string) {
   console.log(`[brain-writer] qdrant: ${points.length} chunk(s) indexed for ${result.event_id}`);
 }
 
+async function enqueueQdrantRetry(result: ExtractionResult, personId: string, attempt: number): Promise<void> {
+  await redis.lpush(QDRANT_RETRY_KEY, JSON.stringify({ result, personId, attempt, failed_at: new Date().toISOString() }));
+}
+
+async function drainQdrantRetries(): Promise<void> {
+  const count = await redis.llen(QDRANT_RETRY_KEY);
+  if (count === 0) return;
+  console.log(`[brain-writer] retrying ${count} failed Qdrant write(s)...`);
+
+  for (let i = 0; i < count; i++) {
+    const raw = await redis.rpop(QDRANT_RETRY_KEY);
+    if (!raw) break;
+    try {
+      const { result, personId, attempt } = JSON.parse(raw) as { result: ExtractionResult; personId: string; attempt: number };
+      await writeToQdrant(result, personId);
+      console.log(`[brain-writer] qdrant retry succeeded: ${result.event_id}`);
+    } catch (e) {
+      const { result, personId, attempt } = JSON.parse(raw) as { result: ExtractionResult; personId: string; attempt: number };
+      if (attempt < QDRANT_RETRY_MAX) {
+        await enqueueQdrantRetry(result, personId, attempt + 1);
+        console.warn(`[brain-writer] qdrant retry ${attempt + 1}/${QDRANT_RETRY_MAX} queued: ${result.event_id}`);
+      } else {
+        console.error(`[brain-writer] qdrant write permanently failed after ${QDRANT_RETRY_MAX} attempts: ${result.event_id}`, e);
+      }
+    }
+  }
+}
+
 async function processMessage(id: string, result: ExtractionResult) {
   const personId = await writeToNeo4j(result);
-  await writeToQdrant(result, personId);
+  try {
+    await writeToQdrant(result, personId);
+  } catch (e) {
+    // Neo4j write succeeded — enqueue Qdrant write for retry rather than losing the event
+    console.error(`[brain-writer] qdrant write failed for ${result.event_id}, queuing retry:`, e);
+    await enqueueQdrantRetry(result, personId, 1);
+  }
   await redis.xack(STREAMS.EXTRACTED, GROUP, id);
   console.log(`[brain-writer] done: ${result.event_id}`);
 }
@@ -239,6 +275,7 @@ async function run() {
   await ensureCollection();
   await ensureGroup();
   await drainPending();
+  await drainQdrantRetries();
   console.log("[brain-writer] started, reading from", STREAMS.EXTRACTED);
 
   while (true) {
