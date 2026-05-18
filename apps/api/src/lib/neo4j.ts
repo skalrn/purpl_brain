@@ -19,22 +19,28 @@ export const driver = neo4j.driver(
 export const getSession = () => driver.session();
 
 export async function writeDriftAlert(alert: DriftAlert): Promise<void> {
+  // Fingerprint on decision + content so the same observation can't create duplicate alerts.
+  const fingerprint = createHash("sha256")
+    .update(`${alert.decision_id}:${alert.content.slice(0, 200)}`)
+    .digest("hex");
+
   const session = getSession();
   try {
     await session.run(
       `MATCH (d:Decision {decision_id: $decision_id})
-       CREATE (a:DriftAlert {
-         alert_id: $alert_id,
-         event_id: $event_id,
-         source: $source,
-         content: $content,
-         actor: $actor,
-         timestamp: $timestamp,
-         confirmed_by_llm: $confirmed_by_llm,
-         resolution: $resolution
-       })
-       CREATE (a)-[:CHALLENGES]->(d)`,
+       MERGE (a:DriftAlert {fingerprint: $fingerprint})
+       ON CREATE SET
+         a.alert_id        = $alert_id,
+         a.event_id        = $event_id,
+         a.source          = $source,
+         a.content         = $content,
+         a.actor           = $actor,
+         a.timestamp       = $timestamp,
+         a.confirmed_by_llm = $confirmed_by_llm,
+         a.resolution      = $resolution
+       MERGE (a)-[:CHALLENGES]->(d)`,
       {
+        fingerprint,
         decision_id: alert.decision_id,
         alert_id: alert.alert_id,
         event_id: alert.event_id,

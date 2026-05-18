@@ -82,10 +82,11 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
     for (const ref of result.ticket_refs) {
       await session.run(
         `MERGE (t:Ticket {ref: $ref})
+         ON CREATE SET t.project_id = $project_id
          WITH t
          MATCH (e:Event {event_id: $event_id})
          MERGE (e)-[:REFERENCES]->(t)`,
-        { ref, event_id: result.event_id }
+        { ref, project_id: result.project_id, event_id: result.event_id }
       );
     }
 
@@ -95,6 +96,7 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
         `MATCH (e:Event {event_id: $event_id})
          CREATE (d:Decision {
            decision_id: $decision_id,
+           project_id: $project_id,
            event_id: $event_id,
            quoted_text: $quoted_text,
            summary: $summary,
@@ -107,6 +109,7 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
          CREATE (d)-[:EXTRACTED_FROM]->(e)`,
         {
           event_id: result.event_id,
+          project_id: result.project_id,
           decision_id: decisionId,
           quoted_text: decision.quoted_text,
           summary: decision.summary,
