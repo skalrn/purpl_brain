@@ -82,6 +82,10 @@ export interface Decision {
   rationale: string | null;
   alternatives_considered: string[];
   confidence: ConfidenceLevel;
+  // Fields from entity-extraction spec (optional — populated when extractable)
+  decision_maker?: string;   // who made or announced the decision
+  scope?: string;            // what this decision applies to
+  reversible?: boolean;      // false = final, true = tentative/revisable
 }
 
 export interface ExtractionResult {
@@ -100,7 +104,9 @@ export interface ExtractionResult {
 
 // Query layer
 
-export type QueryMode = "project" | "temporal";
+// "project" and "temporal" are fully implemented.
+// "expertise", "agent-resume", "impact" are spec-defined, degrade to "project" until implemented.
+export type QueryMode = "project" | "temporal" | "expertise" | "agent-resume" | "impact";
 
 export interface QueryRequest {
   query: string;
@@ -110,6 +116,10 @@ export interface QueryRequest {
     from: string;
     to: string;
   };
+  // Optional filters parsed from intent or passed directly
+  domain_tags?: string[];          // e.g. ["auth", "payments"]
+  question_type?: "current-state" | "why-decided" | "what-changed" | "what-affects";
+  person_id?: string;              // filter by actor_person_id (for @mention queries)
 }
 
 export interface Citation {

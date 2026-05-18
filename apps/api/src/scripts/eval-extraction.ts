@@ -273,7 +273,7 @@ async function run() {
   console.log(`  FN            : ${FN}  (missed a real decision)`);
   console.log(`  TN            : ${TN}  (correctly found none)`);
   console.log("───────────────────────────────────────────────────────");
-  console.log(`  Precision     : ${(precision * 100).toFixed(1)}%  (target: >75%)`);
+  console.log(`  Precision     : ${(precision * 100).toFixed(1)}%  (target: >90%)`);
   console.log(`  Recall        : ${(recall * 100).toFixed(1)}%  (target: >65%)`);
   console.log(`  F1            : ${(f1 * 100).toFixed(1)}%`);
   console.log("───────────────────────────────────────────────────────");
@@ -287,7 +287,7 @@ async function run() {
   console.log(`  Projected recall after re-processing            : ${(projectedRecall * 100).toFixed(1)}%`);
   console.log("═══════════════════════════════════════════════════════\n");
 
-  const precisionPass = precision >= 0.75;
+  const precisionPass = precision >= 0.90;
   const recallPass    = recall >= 0.65;
   console.log(`  Precision ${precisionPass ? "✓ PASS" : "✗ FAIL"}`);
   console.log(`  Recall    ${recallPass    ? "✓ PASS" : "✗ FAIL"}`);
