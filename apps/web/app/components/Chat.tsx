@@ -35,7 +35,6 @@ interface TimeRange {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
 const TEMPORAL_PATTERNS: Array<{ re: RegExp; rangeFn: () => TimeRange }> = [
   {
@@ -93,7 +92,15 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [apiKey, setApiKey] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/auth/me`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.api_key) setApiKey(d.api_key); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -113,7 +120,7 @@ export default function Chat() {
       if (isTemporal) {
         const res = await fetch(`${API_URL}/brain/query`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": API_KEY },
+          headers: { "Content-Type": "application/json", "x-api-key": apiKey },
           body: JSON.stringify({ query, project_id: projectId.trim(), mode: "temporal", time_range: range }),
         });
         const data = await res.json();
@@ -134,7 +141,7 @@ export default function Chat() {
       // Project mode — streaming
       const res = await fetch(`${API_URL}/brain/query/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": API_KEY },
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
         body: JSON.stringify({ query, project_id: projectId.trim() }),
       });
 

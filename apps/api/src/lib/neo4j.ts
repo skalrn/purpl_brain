@@ -786,3 +786,31 @@ export async function resolvePersonByName(name: string): Promise<{ email: string
     await session.close();
   }
 }
+
+export async function addPersonToProject(person_id: string, project_id: string): Promise<void> {
+  const session = getSession();
+  try {
+    await session.run(
+      `MATCH (p:Person {person_id: $person_id})
+       MERGE (proj:Project {project_id: $project_id})
+       MERGE (p)-[:MEMBER_OF]->(proj)`,
+      { person_id, project_id }
+    );
+  } finally {
+    await session.close();
+  }
+}
+
+export async function checkPersonInProject(person_id: string, project_id: string): Promise<boolean> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (:Person {person_id: $person_id})-[:MEMBER_OF]->(:Project {project_id: $project_id})
+       RETURN 1 LIMIT 1`,
+      { person_id, project_id }
+    );
+    return result.records.length > 0;
+  } finally {
+    await session.close();
+  }
+}

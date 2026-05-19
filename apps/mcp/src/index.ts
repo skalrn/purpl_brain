@@ -359,6 +359,11 @@ function buildServer(): McpServer {
 if (process.env.MCP_TRANSPORT === "http") {
   // HTTP + Streamable HTTP mode — remote clients (cloud-deployed brain)
   const port = parseInt(process.env.MCP_PORT ?? "3002");
+  const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
+
+  if (!MCP_AUTH_TOKEN) {
+    console.warn("[purpl-brain-mcp] WARNING: MCP_AUTH_TOKEN is not set. HTTP transport is unauthenticated. Set MCP_AUTH_TOKEN in the environment before exposing this port to any network.");
+  }
 
   // One transport per session; keyed by the session ID the transport assigns.
   const sessions = new Map<string, StreamableHTTPServerTransport>();
@@ -375,6 +380,18 @@ if (process.env.MCP_TRANSPORT === "http") {
     if (url.pathname !== "/mcp") {
       res.writeHead(404).end("Not found");
       return;
+    }
+
+    // Require bearer token on all /mcp requests when MCP_AUTH_TOKEN is configured
+    if (MCP_AUTH_TOKEN) {
+      const authHeader = req.headers["authorization"] ?? "";
+      const provided = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+      const token = provided.replace(/^Bearer\s+/i, "").trim();
+      if (token !== MCP_AUTH_TOKEN) {
+        res.writeHead(401, { "Content-Type": "application/json" })
+          .end(JSON.stringify({ error: "Unauthorized — set Authorization: Bearer <MCP_AUTH_TOKEN>" }));
+        return;
+      }
     }
 
     // Route to existing session if client sends Mcp-Session-Id
@@ -412,8 +429,8 @@ if (process.env.MCP_TRANSPORT === "http") {
     }
   });
 
-  httpServer.listen(port, () => {
-    console.log(`[purpl-brain-mcp] Streamable HTTP transport on port ${port}`);
+  httpServer.listen(port, "127.0.0.1", () => {
+    console.log(`[purpl-brain-mcp] Streamable HTTP transport on 127.0.0.1:${port}`);
     console.log(`[purpl-brain-mcp] Brain API: ${API_URL}`);
     console.log(`[purpl-brain-mcp] Endpoint: http://localhost:${port}/mcp`);
   });

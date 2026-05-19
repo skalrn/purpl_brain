@@ -11,17 +11,13 @@ interface Me {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
 export default function UserMenu() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/auth/me`, {
-      credentials: "include",
-      headers: { "x-api-key": API_KEY },
-    })
+    fetch(`${API_URL}/auth/me`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { setMe(d); setLoading(false); })
       .catch(() => setLoading(false));

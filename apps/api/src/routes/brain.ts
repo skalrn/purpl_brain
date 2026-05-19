@@ -14,7 +14,7 @@ import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByNam
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
-import { requireApiKey } from "../lib/auth-middleware.js";
+import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
 import { processSignal } from "../services/signal-engine.js";
 import type { CanonicalEvent, DriftResolution, EventSource, ExtractionResult, Decision } from "@purpl/types";
 
@@ -23,6 +23,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   // ── GET /brain/drift-alerts ─────────────────────────────────────────────
   fastify.get<{ Querystring: { project_id?: string } }>(
     "/brain/drift-alerts",
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const projectId = req.query.project_id ?? "default";
       try {
@@ -41,6 +42,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     Body: { resolution: DriftResolution };
   }>(
     "/brain/drift-alerts/:id/resolve",
+    { preHandler: requireApiKey },
     async (req, reply) => {
       const { id } = req.params;
       const { resolution } = req.body;
@@ -364,7 +366,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // ── GET /brain/seats (M5) ────────────────────────────────────────────────
-  fastify.get("/brain/seats", async (_req, reply) => {
+  fastify.get("/brain/seats", { preHandler: requireApiKey }, async (_req, reply) => {
     try {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const seats = await countActiveSeats(since);

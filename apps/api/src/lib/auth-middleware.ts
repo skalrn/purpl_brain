@@ -1,13 +1,13 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { getPersonByApiKey } from "./neo4j.js";
+import type { PersonRecord } from "./neo4j.js";
+import { getPersonByApiKey, checkPersonInProject } from "./neo4j.js";
 
-/**
- * Fastify preHandler that validates X-API-Key (or Bearer token) against
- * the Person.api_key field in Neo4j. Returns 401 if missing or invalid.
- *
- * Apply to any route that writes to the brain:
- *   fastify.post("/route", { preHandler: requireApiKey }, handler)
- */
+declare module "fastify" {
+  interface FastifyRequest {
+    actor?: PersonRecord;
+  }
+}
+
 // DEV_API_KEY bypasses Neo4j lookup — set in .env for local dev only
 const DEV_API_KEY = process.env.DEV_API_KEY;
 
@@ -24,5 +24,23 @@ export async function requireApiKey(req: FastifyRequest, reply: FastifyReply): P
   const person = await getPersonByApiKey(raw as string);
   if (!person) {
     return reply.status(401).send({ error: "Invalid API key" });
+  }
+  req.actor = person;
+}
+
+export async function requireProjectMember(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const person_id = req.actor?.person_id;
+  if (!person_id) return; // DEV_API_KEY path — skip project check
+
+  const project_id =
+    (req.body as Record<string, unknown> | undefined)?.project_id as string | undefined ??
+    (req.query as Record<string, unknown> | undefined)?.project_id as string | undefined ??
+    (req.params as Record<string, unknown> | undefined)?.project_id as string | undefined;
+
+  if (!project_id) return; // no project scope in request — let handler validate
+
+  const isMember = await checkPersonInProject(person_id, project_id);
+  if (!isMember) {
+    return reply.status(403).send({ error: "Access denied to project" });
   }
 }

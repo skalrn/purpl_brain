@@ -4,12 +4,12 @@ import { runQuery, runQueryStream } from "../services/query-engine.js";
 import { runTemporalQuery } from "../services/temporal-engine.js";
 import { analyzeImpact } from "../services/impact-engine.js";
 import { parseQueryIntent } from "../lib/intent-parser.js";
-import { requireApiKey } from "../lib/auth-middleware.js";
+import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
 
 export const queryRoutes: FastifyPluginAsync = async (app) => {
   app.post<{ Body: QueryRequest & { change_description?: string } }>(
     "/query",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (request, reply) => {
       const { query, project_id, mode, time_range, change_description } = request.body;
 
@@ -59,7 +59,7 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
   // ── POST /brain/query/stream — SSE streaming for project queries ──────────
   app.post<{ Body: { query: string; project_id: string } }>(
     "/query/stream",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (request, reply) => {
       const { query, project_id } = request.body;
 
@@ -67,8 +67,17 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(400).send({ error: "query and project_id are required" } as never);
       }
 
+      const requestOrigin = request.headers.origin ?? "";
+      const allowedOrigins = new Set(
+        (process.env.CORS_ALLOWED_ORIGINS ?? process.env.UI_BASE_URL ?? "http://localhost:3000")
+          .split(",").map((o) => o.trim()).filter(Boolean)
+      );
+      if (requestOrigin && !allowedOrigins.has(requestOrigin)) {
+        return reply.code(403).send({ error: "Origin not allowed" });
+      }
+
       reply.hijack();
-      const origin = request.headers.origin ?? process.env.UI_BASE_URL ?? "http://localhost:3000";
+      const origin = requestOrigin || [...allowedOrigins][0];
       reply.raw.setHeader("Access-Control-Allow-Origin", origin);
       reply.raw.setHeader("Access-Control-Allow-Credentials", "true");
       reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");

@@ -2,13 +2,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Build args — NEXT_PUBLIC_* must be present at build time to be baked into
-# the client bundle by Next.js. Runtime environment vars are not visible to
-# the browser in standalone mode.
+# NEXT_PUBLIC_API_URL is the only build-time var needed.
+# API keys are never baked into the image — they are issued per-user via OAuth
+# and retrieved at runtime from /auth/me (session-scoped).
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
-ARG NEXT_PUBLIC_API_KEY=dev-local
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
 
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/

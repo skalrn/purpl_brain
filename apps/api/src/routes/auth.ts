@@ -19,7 +19,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import fastifyOauth2, { type FastifyOAuth2Options } from "@fastify/oauth2";
 import { v4 as uuidv4 } from "uuid";
-import { upsertPersonByEmail } from "../lib/neo4j.js";
+import { upsertPersonByEmail, addPersonToProject } from "../lib/neo4j.js";
 
 // Extend session type to carry the logged-in person
 declare module "fastify" {
@@ -125,6 +125,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         avatar_url: ghUser.avatar_url,
         api_key: apiKey,
       });
+
+      // Grant membership on the default project for this brain deployment
+      const defaultProjectId = process.env.DEFAULT_PROJECT_ID ?? "default";
+      await addPersonToProject(person.person_id, defaultProjectId);
 
       // Store identity in session
       request.session.person_id = person.person_id;
