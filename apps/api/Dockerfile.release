@@ -1,0 +1,38 @@
+# Release build — identical to Dockerfile but runs obfuscation after tsc.
+# Used by GitHub Actions on release-* and release-beta-* branches.
+# Local dev uses Dockerfile (no obfuscation — faster rebuilds, readable stack traces).
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY packages/types/package*.json ./packages/types/
+COPY apps/api/package*.json ./apps/api/
+
+RUN npm ci --workspace=packages/types --workspace=apps/api
+
+COPY packages/types/ ./packages/types/
+COPY apps/api/src/ ./apps/api/src/
+COPY apps/api/tsconfig.json ./apps/api/
+COPY apps/api/scripts/ ./apps/api/scripts/
+
+# Build types, then compile + obfuscate API
+RUN npm run build -w packages/types && npm run build:release -w apps/api
+
+# ── Runtime image ─────────────────────────────────────────────────────────────
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY apps/api/package*.json ./apps/api/
+
+RUN npm ci --omit=dev --workspace=apps/api
+
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+WORKDIR /app/apps/api
+
+EXPOSE 3001
+
+CMD ["node", "dist/index.js"]

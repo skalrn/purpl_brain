@@ -1,0 +1,163 @@
+# docker-compose.prod.yml — for testers running purpl-brain locally.
+# Pulls pre-built images from GHCR instead of building from source.
+#
+# Usage:
+#   docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
+#   cp .env.example .env && nano .env      # fill in your API key + project name
+#   docker compose -f docker-compose.prod.yml up -d
+#   open http://localhost:3000             # Web UI
+#   open http://localhost:3001/health      # API health check
+
+services:
+  # ── Infrastructure (public images — no login required) ────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' 2>/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # ── Application services (pre-built GHCR images) ──────────────────────────
+  api:
+    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    ports:
+      - "3001:3001"
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/index.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  normalizer:
+    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/normalizer.js"]
+    stop_grace_period: 20s
+
+  extractor:
+    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/extractor.js"]
+    stop_grace_period: 30s
+
+  brain-writer:
+    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/brain-writer.js"]
+    stop_grace_period: 30s
+
+  drift-detector:
+    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      NEO4J_URI: bolt://neo4j:7687
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/drift-detector.js"]
+    stop_grace_period: 30s
+
+  web:
+    image: ghcr.io/skalrn/purpl-brain-web:beta-latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+  qdrant_data:
+  neo4j_data:

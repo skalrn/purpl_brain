@@ -1,0 +1,97 @@
+name: Release — build and push to GHCR
+
+# Triggers on push to release-* or release-beta-* branches.
+# Examples:
+#   release-beta-0.1.0  → image tags: beta-0.1.0, beta-latest
+#   release-0.1.0       → image tags: 0.1.0, latest
+on:
+  push:
+    branches:
+      - 'release-*'
+
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain-api
+  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain-web
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version and channel from branch name
+        id: meta
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          if [[ "$BRANCH" == release-beta-* ]]; then
+            VERSION="${BRANCH#release-beta-}"
+            CHANNEL="beta"
+            LATEST_TAG="beta-latest"
+          else
+            VERSION="${BRANCH#release-}"
+            CHANNEL="stable"
+            LATEST_TAG="latest"
+          fi
+          echo "version=${VERSION}"    >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}"   >> "$GITHUB_OUTPUT"
+          echo "latest_tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
+          echo "api_version_tag=${CHANNEL}-${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "web_version_tag=${CHANNEL}-${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Branch: $BRANCH | Channel: $CHANNEL | Version: $VERSION"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push API image (obfuscated)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile.release
+          push: true
+          tags: |
+            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.api_version_tag }}
+            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:3001
+            NEXT_PUBLIC_API_KEY=dev-local
+          tags: |
+            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.web_version_tag }}
+            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.latest_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "## Release built ✓" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image | Tags |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| API (obfuscated) | \`${{ steps.meta.outputs.api_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Web | \`${{ steps.meta.outputs.web_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tester pull command:" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
+          echo "docker pull ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
