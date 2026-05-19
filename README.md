@@ -1,39 +1,86 @@
 # purpl-brain
 
-Shared, auditable, cross-agent working memory for AI-assisted software teams.
+**Institutional knowledge that doesn't retire when your engineers do.**
 
-An agent finishes a session and logs its decisions to the brain. The next session — different IDE, different week, different agent — reads those decisions back with full citations before writing a line of code. The developer does nothing between them.
+purpl-brain captures what your team decided, why, and tells your next agent before it repeats the mistake.
 
-**Eval results (real numbers, not marketing):**
-- 91% recall on Backstage (Spotify) public ADRs — cold ingestion, 11/12 ground-truth questions answered correctly
-- 33/33 integration eval PASS — full pipeline: ingestion → extraction → graph integrity → query → drift detection
-- ~7s average query latency with Anthropic Claude Haiku
-- 8/8 MCP tool eval PASS
+An agent starts a session and queries the brain — retrieving the decisions your team made three months ago, the rationale behind them, and any open contradictions — before writing a line of code. When the session ends, its own decisions are written back in. The next session — different agent, different engineer, different week — picks up with full context. The team does nothing between them.
 
 ---
 
-## Documentation
+## The problem
 
-| Audience | Document |
-|----------|----------|
-| Business / investors | [docs/pitch/business-brief.md](docs/pitch/business-brief.md) |
-| Senior engineers / architects | [docs/pitch/technical-deep-dive.md](docs/pitch/technical-deep-dive.md) |
-| Q&A / rebuttal prep | [docs/pitch/faq.md](docs/pitch/faq.md) |
-| Full product vision | [docs/product/vision.md](docs/product/vision.md) |
-| Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
-| Why Qdrant + Neo4j | [docs/technical/adrs/001-hybrid-brain-store.md](docs/technical/adrs/001-hybrid-brain-store.md) |
-| Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
-| Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
-| Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
-| Query layer spec | [docs/technical/query-layer.md](docs/technical/query-layer.md) |
-| LLM cost controls | [docs/technical/llm-cost-controls.md](docs/technical/llm-cost-controls.md) |
-| Risk register | [docs/risk/risk-register.md](docs/risk/risk-register.md) |
+Your agents are starting cold on a codebase your team has been building for years.
+
+They don't know you chose PostgreSQL over MongoDB because of your compliance requirement. They don't know you rejected the microservices rewrite six months ago. They don't know the JWT expiry was shortened after a security audit, not arbitrarily. Every session, they rediscover or — worse — contradict decisions your team already made.
+
+CLAUDE.md files cap out at a few hundred lines and go stale. Session history captures noise, not signal. Decisions happen in Slack threads, Jira comments, design reviews, and PR discussions — none of which any agent has access to at session start.
 
 ---
 
-## Quick start (10 minutes, source build)
+## What purpl-brain does differently
 
-**Prerequisites:** Docker Desktop, Node.js 20+, Anthropic API key + OpenAI API key (for embeddings)
+**Decision extraction, not session capture.** purpl-brain reads your GitHub PRs, Slack threads, Jira tickets, meeting transcripts, and ADRs and extracts concluded decisions — the choices your team settled, with rationale and attribution. A developer debugging for three hours is not a decision. Choosing jose over jsonwebtoken because of Edge compatibility is. purpl-brain stores signal, not noise.
+
+**Multi-source truth.** The real decision usually happened before the agent was involved — in a design review, a Slack debate, a PR comment thread. purpl-brain ingests where your team actually decides things. An agent session is just one more signal source, not the only one.
+
+**Drift detection.** When work in progress contradicts a decision made months ago, purpl-brain surfaces it before the code ships — not in the post-mortem. Two-stage detection: semantic similarity flags candidates, LLM confirmation eliminates false positives.
+
+**Full provenance.** Every answer includes source URL, actor, and timestamp. Not "the team decided X" — "@alice closed this in favor of X on 2025-11-14, referencing Jira ticket AUTH-312."
+
+---
+
+## Real numbers
+
+- **91% recall** on Backstage (Spotify) public ADRs — cold ingestion, 11/12 ground-truth questions answered correctly
+- **33/33** integration eval PASS — full pipeline: ingestion → extraction → graph integrity → query → drift detection
+- **~7s** average query latency with Anthropic Claude Haiku
+- **8/8** MCP tool eval PASS
+
+---
+
+## How it works
+
+```
+Signal sources: GitHub PRs · Slack · Jira · meetings · ADRs · agent sessions
+  │
+  ▼  normalizer (rule-based schema normalisation — no LLM)
+  ▼  extractor (LLM: extract decisions, people, tickets, linked PR threads)
+  │
+  ├──▶  brain-writer ──▶  Neo4j (graph) + Qdrant (vectors)
+  └──▶  drift-detector ──▶  DriftAlert nodes in Neo4j
+
+Agent session (brain_log_decision)
+  └──▶  bypass extractor ──▶  directly into the brain
+
+Query (brain_query)
+  └──▶  embed → Qdrant ANN search → Neo4j graph expand → LLM answer with citations
+```
+
+**Why two databases:** Qdrant finds semantically related chunks. Neo4j expands from those entry points to full causal context — who decided what, which tickets it affected, what drift it triggered. Neither alone answers both types of query. See [ADR-001](docs/technical/adrs/001-hybrid-brain-store.md).
+
+---
+
+## The four MCP tools
+
+Add purpl-brain to Claude Code or Cursor. Four tools become available in every session:
+
+| Tool | When to call |
+|------|-------------|
+| `brain_query` | Session start — recall prior decisions and open drift alerts before touching anything |
+| `brain_log_decision` | Session end — log what you decided, what you rejected, and why |
+| `brain_analyze_impact` | Before any architectural change — check which decisions your change affects |
+| `brain_log_signal` | When you find something unexpected — report findings that may contradict existing decisions |
+
+Four tools, not fifty-three. The discipline is the product. If decisions are logged explicitly, they are precise, attributed, and queryable. If everything is captured automatically, you get a session dump — not institutional knowledge.
+
+Add the CLAUDE.md snippet from `setup.sh` to your project repo and these calls happen automatically, not by model judgment.
+
+---
+
+## Quick start
+
+**Prerequisites:** Docker Desktop, Node.js 20+, Anthropic API key, OpenAI API key (embeddings)
 
 ```bash
 git clone https://github.com/skalrn/purpl_brain
@@ -41,16 +88,16 @@ cd purpl_brain
 bash setup.sh
 ```
 
-`setup.sh` collects your API keys, writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste Claude Code MCP config + CLAUDE.md snippet.
+`setup.sh` collects your keys, writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste MCP config and CLAUDE.md snippet.
 
-### Quick start (beta tester, pre-built images)
+### Beta testers (pre-built images)
 
-No source code needed. Requires Docker and a GitHub account with access to the GHCR images.
+No source build needed. Requires Docker and a GitHub account with access to the GHCR images.
 
 ```bash
 docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
 cp .env.example .env
-# Edit .env: fill in ANTHROPIC_API_KEY + OPENAI_API_KEY  (or set LLM_PROVIDER=ollama)
+# Fill in ANTHROPIC_API_KEY + OPENAI_API_KEY (or set LLM_PROVIDER=ollama)
 docker compose -f docker-compose.prod.yml up -d
 ```
 
@@ -63,16 +110,16 @@ Web UI: `http://localhost:3000` · API: `http://localhost:3001/health`
 | | Anthropic path | Ollama path |
 |---|---|---|
 | LLM | Claude Haiku (extraction + query) | gemma3n:e2b + gemma2:9b |
-| Embeddings | OpenAI text-embedding-3-small (768-dim) | nomic-embed-text:v1.5 (768-dim) |
-| Avg query latency | ~7s | ~60-90s (hardware dependent) |
-| External dependency | Anthropic API key + OpenAI API key | Ollama running on host |
-| Cost | ~$5-15/month active team | Free |
+| Embeddings | OpenAI text-embedding-3-small | nomic-embed-text:v1.5 |
+| Avg query latency | ~7s | ~60–90s |
+| External keys | Anthropic + OpenAI | None |
+| Cost | ~$5–15/month active team | Free |
 
 Both paths produce 768-dim vectors — the Qdrant collection is compatible between providers.
 
 ---
 
-## MCP tools (Claude Code / Cursor)
+## Wiring the MCP server
 
 Paste into `~/.claude/settings.json`:
 
@@ -92,53 +139,11 @@ Paste into `~/.claude/settings.json`:
 }
 ```
 
-See `apps/mcp/claude-code-config.example.json` for a ready-to-paste template. For Cursor: `apps/mcp/cursor-config.example.json`.
+For Cursor: `apps/mcp/cursor-config.example.json`.
 
-| Tool | When to call |
-|------|-------------|
-| `brain_query` | Session start — recall prior decisions and open drift alerts |
-| `brain_log_decision` | Session end — log what you decided and why |
-| `brain_analyze_impact` | Before refactoring — check which decisions your change affects |
-| `brain_log_signal` | When you find something unexpected — report findings that may contradict past decisions |
+**Make Claude call these automatically** — add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
 
-Also available: `/analyze-impact` slash command. Copy `.claude/commands/analyze-impact.md` into your project's `.claude/commands/` directory.
-
-**Make Claude call these automatically** — add the snippet printed by `setup.sh` to your project's `CLAUDE.md`. Without it, tool calls depend on model judgment and will be inconsistent.
-
----
-
-## Architecture
-
-```
-Signal sources (GitHub / Slack / Jira / meetings / agent sessions)
-  │
-  ▼
-POST webhook or seed script
-  │
-  ▼
-Redis Streams: events:raw
-  │
-  ▼  normalizer worker (rule-based schema normalisation — no LLM)
-Redis Streams: events:normalized
-  │
-  ▼  extractor worker (LLM: extract decisions, people, tickets)
-Redis Streams: events:extracted
-  │
-  ├──▶  brain-writer worker ──▶  Neo4j (graph) + Qdrant (vectors)
-  └──▶  drift-detector worker ──▶  DriftAlert nodes in Neo4j
-
-Agent session (POST /brain/agent-log)
-  └──▶  bypass LLM extractor ──▶  directly to events:extracted
-        (agent output is pre-structured — no LLM re-extraction needed)
-
-Query (POST /brain/query or brain_query MCP tool)
-  └──▶  embed query (768-dim)
-         └──▶  Qdrant ANN search (has_decisions=true filter, project_id filter)
-                └──▶  Neo4j graph expand (Event + Decision + Person + Ticket)
-                       └──▶  LLM answer with citations (source_url, actor, timestamp)
-```
-
-**Why two databases:** Qdrant finds semantically related chunks (cosine similarity). Neo4j expands from those entry points to the full causal/relational context — who decided what, what tickets it affected, what drift alerts it triggered. Neither alone answers both types of query. See [ADR-001](docs/technical/adrs/001-hybrid-brain-store.md).
+Also available: `/analyze-impact` slash command. Copy `.claude/commands/analyze-impact.md` into your project's `.claude/commands/` directory for an explicit on-demand impact check before significant changes.
 
 ---
 
@@ -147,11 +152,11 @@ Query (POST /brain/query or brain_query MCP tool)
 ### GitHub
 
 ```bash
-# Backfill existing PRs (no webhook/public URL needed):
+# Backfill existing PRs and linked PR comment threads:
 GITHUB_TOKEN=ghp_... npm run seed:github -w apps/api -- --repo org/repo --limit 50
 ```
 
-For live ingestion: configure a GitHub webhook to `https://your-domain/webhooks/github` with the `GITHUB_WEBHOOK_SECRET` from `.env`.
+For live ingestion: configure a GitHub webhook to `POST /webhooks/github`.
 
 ### Slack
 
@@ -164,10 +169,10 @@ npm run worker:slack -w apps/api
 
 ```bash
 # In .env: JIRA_BASE_URL, JIRA_WEBHOOK_SECRET
-npm run seed:jira -w apps/api -- --project MY_PROJECT
+npm run seed:jira -w apps/api -- --project YOUR_PROJECT
 ```
 
-### Local docs / ADRs
+### ADRs and local docs
 
 ```bash
 npm run seed:local-docs -w apps/api -- \
@@ -176,7 +181,7 @@ npm run seed:local-docs -w apps/api -- \
   --base-url https://github.com/org/repo/blob/main/docs
 ```
 
-Attribution is resolved from git history — first commit author for ADRs, collective for general docs.
+Attribution resolved from git history. Linked GitHub PR threads are automatically followed and ingested.
 
 ### Meeting transcripts
 
@@ -192,10 +197,10 @@ curl -X POST http://localhost:3001/brain/ingest/transcript \
 ## Verify everything works
 
 ```bash
-bash demo.sh verify    # checks all services + auth + query + CORS
+bash demo.sh verify    # checks all services, auth, query, CORS
 ```
 
-End-to-end eval:
+End-to-end evals:
 
 ```bash
 npm run eval:integration -w apps/api   # 33 checks, full pipeline
@@ -206,23 +211,31 @@ npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
 
 ## Snapshot and restore
 
-Export the full brain state (Neo4j graph + Qdrant vectors + metadata) to a portable archive:
-
 ```bash
 bash brain-snapshot.sh my-project-v1.0          # creates brain_snapshot_my-project-v1.0.tar.gz
 bash brain-snapshot.sh my-project-v1.0 --push   # also creates a GitHub release
-```
-
-Restore on any machine:
-
-```bash
-bash brain-restore.sh brain_snapshot_my-project-v1.0.tar.gz   # from local file
-bash brain-restore.sh my-project-v1.0                          # from GitHub release
+bash brain-restore.sh brain_snapshot_my-project-v1.0.tar.gz
 ```
 
 ---
 
-## Running workers outside Docker (local dev)
+## Architecture and design documents
+
+| Audience | Document |
+|----------|----------|
+| Business / investors | [docs/pitch/business-brief.md](docs/pitch/business-brief.md) |
+| Senior engineers | [docs/pitch/technical-deep-dive.md](docs/pitch/technical-deep-dive.md) |
+| Q&A / rebuttal prep | [docs/pitch/faq.md](docs/pitch/faq.md) |
+| Full product vision | [docs/product/vision.md](docs/product/vision.md) |
+| Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
+| Why Qdrant + Neo4j | [docs/technical/adrs/001-hybrid-brain-store.md](docs/technical/adrs/001-hybrid-brain-store.md) |
+| Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
+| Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
+| Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
+
+---
+
+## Running locally without Docker
 
 ```bash
 docker compose up -d redis neo4j qdrant   # infra only
@@ -234,23 +247,19 @@ npm run worker:drift -w apps/api
 npm run dev -w apps/web                   # web UI on :3000
 ```
 
-Apply Neo4j constraints once after first start:
-
-```bash
-npm run migrate:constraints -w apps/api
-```
-
 ---
 
-## Cutting a release
+## Releasing
+
+Push a branch prefixed `release-` to trigger the GitHub Actions build:
 
 ```bash
 git checkout -b release-beta-0.1.0
 git push
 ```
 
-GitHub Actions builds obfuscated Docker images and pushes to GHCR:
+Builds obfuscated Docker images and pushes to GHCR:
 - `ghcr.io/skalrn/purpl-brain-api:beta-latest`
 - `ghcr.io/skalrn/purpl-brain-web:beta-latest`
 
-For stable releases: `release-0.1.0` → tags `0.1.0` and `latest`.
+Stable releases: `release-0.1.0` → tags `0.1.0` and `latest`.

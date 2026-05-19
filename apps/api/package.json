@@ -27,6 +27,7 @@
     "eval:demo": "tsx src/scripts/eval-demo.ts",
     "eval:mcp": "tsx src/scripts/eval-mcp.ts",
     "eval:docs": "tsx src/scripts/eval-docs.ts",
+    "eval:link-following": "tsx src/scripts/eval-link-following.ts",
     "eval:transcript": "tsx src/scripts/eval-transcript.ts",
     "eval:agent-log": "tsx src/scripts/eval-agent-log.ts",
     "eval:cross-source": "tsx src/scripts/eval-cross-source.ts",
