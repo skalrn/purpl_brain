@@ -8,3 +8,4 @@ dist/
 .DS_Store
 .next/
 .claude/scheduled_tasks.lock
+brain_snapshot_*.tar.gz

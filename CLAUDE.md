@@ -98,6 +98,17 @@ Set `BRAIN_API_URL` to your deployed brain URL. Required for AWS-hosted deployme
 
 **Cursor setup:** see `apps/mcp/cursor-config.example.json`.
 
+## Session Handoff Protocol
+
+When the user says anything like "new session", "switching sessions", "let's start a new session", or "I'll continue this later":
+
+1. **Before they leave**, review the current conversation for non-obvious insights that aren't already in memory or code — things like: why a bug happened, ordering constraints between tasks, positioning arguments, patterns to avoid.
+2. **Ask the user** which of those are worth saving. List them as short bullet points.
+3. **Save the ones they confirm** to the memory system (`~/.claude/projects/.../memory/`).
+4. **Remind them** what their next session should start with (the highest-priority pending task).
+
+Do not skip this even if the session was short. The cost of asking is low; the cost of losing a non-obvious insight is re-deriving it next session.
+
 ## Build Order
 
 Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met. See `docs/product/roadmap.md` for exit criteria per phase.
