@@ -8,6 +8,84 @@ import type { CanonicalEvent, ExtractionResult, Decision } from "@purpl/types";
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 
+// ── GitHub PR link-following (fixes 91% recall gap) ───────────────────────────
+// When a document (ADR, transcript) embeds GitHub PR URLs, those PR comment
+// threads are never ingested — only the doc text is. This causes missed
+// decisions that were hashed out in the linked PR discussion.
+
+const GITHUB_API = "https://api.github.com";
+const LINKED_PR_SET = "brain:linked_pr_processed";
+const GITHUB_PR_RE = /https:\/\/github\.com\/([^/\s"')]+)\/([^/\s"')]+)\/pull\/(\d+)/g;
+
+async function fetchLinkedPRs(
+  rawContent: string,
+  projectId: string,
+  token: string | undefined
+): Promise<void> {
+  if (!token) return; // skip silently — no auth means 60 req/hr, too risky for unexpected fetch
+
+  const matches = [...rawContent.matchAll(GITHUB_PR_RE)];
+  if (matches.length === 0) return;
+
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    Authorization: `Bearer ${token}`,
+  };
+
+  for (const match of matches) {
+    const [, owner, repo, prNum] = match;
+    const key = `${owner}/${repo}/pull/${prNum}`;
+
+    const already = await redis.sismember(LINKED_PR_SET, key);
+    if (already) continue;
+
+    try {
+      const [pr, comments] = await Promise.all([
+        fetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNum}`, { headers }).then(r => r.ok ? r.json() : null),
+        fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNum}/comments?per_page=100`, { headers }).then(r => r.ok ? r.json() : []),
+      ]);
+
+      if (!pr) continue;
+
+      const prUrl = `https://github.com/${owner}/${repo}/pull/${prNum}`;
+      const body = pr.body ?? "";
+      const commentThread = (comments as Array<{ body: string; user: { login: string } }>)
+        .map(c => `${c.user.login}: ${c.body}`)
+        .join("\n\n");
+      const combined = [body, commentThread].filter(Boolean).join("\n\n---\n\n");
+
+      if (!combined.trim()) {
+        await redis.sadd(LINKED_PR_SET, key);
+        continue;
+      }
+
+      const linkedEvent: CanonicalEvent = {
+        event_id: `linked_pr_${owner}_${repo}_${prNum}`,
+        source: "github",
+        source_id: `${owner}/${repo}/pull/${prNum}`,
+        project_id: projectId,
+        actor: {
+          type: "human",
+          id: pr.user?.login ?? "unknown",
+          name: pr.user?.login ?? "unknown",
+        },
+        timestamp: pr.merged_at ?? pr.updated_at ?? new Date().toISOString(),
+        event_type: pr.merged ? "pr_merged" : pr.state === "closed" ? "pr_closed" : "pr_opened",
+        url: prUrl,
+        raw_content: combined,
+        document_title: pr.title ?? `PR #${prNum}`,
+      };
+
+      await writer.xadd(STREAMS.RAW, "*", "event", JSON.stringify(linkedEvent));
+      await redis.sadd(LINKED_PR_SET, key);
+      console.log(`[extractor] queued linked PR ${key} for ingestion`);
+    } catch (err) {
+      console.warn(`[extractor] failed to fetch linked PR ${key}:`, err);
+    }
+  }
+}
+
 interface NormalizedEvent extends CanonicalEvent {
   ticket_refs: string[];
   person_mentions: string[];
@@ -148,6 +226,18 @@ class Extractor extends StreamWorker {
   protected async processMessage(id: string, value: string): Promise<void> {
     const event = JSON.parse(value) as NormalizedEvent;
     let decisions: Decision[] = [];
+
+    // Follow embedded GitHub PR links in document events before LLM extraction.
+    // This is the fix for the 91% recall gap: ADRs reference PR discussions but
+    // those PRs were never ingested, so decisions in linked PR comment threads
+    // were invisible to the brain.
+    if (event.source === "document" || event.event_type === "document_chunk") {
+      await fetchLinkedPRs(
+        event.raw_content,
+        event.project_id,
+        process.env.GITHUB_TOKEN
+      );
+    }
 
     if (event.decision_candidate) {
       decisions = await extractDecisions(event);
