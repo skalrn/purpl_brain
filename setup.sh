@@ -150,7 +150,8 @@ echo -e "${GREEN}✓ API is healthy (${API_ELAPSED}s)${RESET}"
 echo ""
 echo -e "${YELLOW}── Applying Neo4j schema constraints ───────────────────${RESET}"
 npm run migrate:constraints -w apps/api 2>&1 | grep -v "^$" || true
-echo -e "${GREEN}✓ Schema constraints applied${RESET}"
+npm run migrate:m5 -w apps/api 2>&1 | grep -v "^$" || true
+echo -e "${GREEN}✓ Schema constraints and identity fields applied${RESET}"
 
 echo ""
 echo "  - API:           http://localhost:3001"
