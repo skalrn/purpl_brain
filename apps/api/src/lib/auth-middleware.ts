@@ -19,7 +19,7 @@ export async function requireApiKey(req: FastifyRequest, reply: FastifyReply): P
     return reply.status(401).send({ error: "API key required — set X-API-Key header" });
   }
 
-  if (DEV_API_KEY && raw === DEV_API_KEY) return;
+  if (DEV_API_KEY && raw === DEV_API_KEY && process.env.NODE_ENV !== "production") return;
 
   const person = await getPersonByApiKey(raw as string);
   if (!person) {

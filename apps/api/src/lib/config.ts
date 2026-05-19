@@ -7,19 +7,26 @@ const DEV_DEFAULTS: Record<string, string> = {
 };
 
 /**
- * Validate required env vars at startup. In production, missing or
- * default-value secrets cause a hard crash with a clear message.
- * In dev, they log a warning so local runs still work.
+ * Validate required env vars at startup.
+ * SESSION_SECRET must always be set and must not be the dev default — session
+ * hijacking is possible with a known secret regardless of environment.
+ * NEO4J_URI/NEO4J_USER and other infra vars warn in dev, fail hard in prod.
  */
 export function validateEnv(): void {
   const isProd = process.env.NODE_ENV === "production";
 
-  const required = [
+  // Always required, always fails hard (not just in prod)
+  const alwaysRequired = [
     "SESSION_SECRET",
+  ];
+
+  // Required in prod, warn in dev
+  const required = [
     "NEO4J_URI",
     "NEO4J_USER",
   ];
 
+  // Must not be default value — always enforced
   const mustNotBeDefault = [
     "SESSION_SECRET",
     "NEO4J_PASSWORD",
@@ -27,6 +34,12 @@ export function validateEnv(): void {
 
   const errors: string[] = [];
   const warnings: string[] = [];
+
+  for (const key of alwaysRequired) {
+    if (!process.env[key]) {
+      errors.push(`${key} is not set`);
+    }
+  }
 
   for (const key of required) {
     if (!process.env[key]) {
@@ -37,7 +50,7 @@ export function validateEnv(): void {
   for (const key of mustNotBeDefault) {
     const val = process.env[key] ?? process.env[key.replace("PASSWORD", "PASS")];
     if (val && DEV_DEFAULTS[key] && val === DEV_DEFAULTS[key]) {
-      (isProd ? errors : warnings).push(`${key} is using the insecure dev default`);
+      errors.push(`${key} is using the insecure dev default — run setup.sh to generate real credentials`);
     }
   }
 

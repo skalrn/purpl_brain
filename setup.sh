@@ -53,8 +53,9 @@ fi
 # Normalise to underscore slug
 PROJECT_ID="${PROJECT_ID//[^a-zA-Z0-9]/_}"
 
-# Generate a random API key for local use
+# Generate random credentials for local use
 API_KEY="pbk_$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)"
+NEO4J_PASSWORD_GEN="$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)"
 
 # ── Write apps/api/.env ───────────────────────────────────────────────────────
 ENV_FILE="apps/api/.env"
@@ -66,7 +67,8 @@ cat > "$ENV_FILE" << ENVEOF
 REDIS_URL=redis://localhost:6379
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=password
+NEO4J_PASSWORD=${NEO4J_PASSWORD_GEN}
+NEO4J_AUTH=neo4j/${NEO4J_PASSWORD_GEN}
 QDRANT_URL=http://localhost:6333
 
 # ── LLM ────────────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ EXTRACTION_MODEL=claude-haiku-4-5-20251001
 
 # ── Auth ────────────────────────────────────────────────────────────────────
 SESSION_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | base64 | head -c 44)
+SESSION_COOKIE_SECURE=false
 
 # ── Default project ─────────────────────────────────────────────────────────
 DEFAULT_PROJECT_ID=${PROJECT_ID}
@@ -156,7 +159,7 @@ echo -e "${GREEN}✓ Schema constraints and identity fields applied${RESET}"
 echo ""
 echo "  - API:           http://localhost:3001"
 echo "  - Web UI:        http://localhost:3000"
-echo "  - Neo4j Browser: http://localhost:7474  (neo4j / password)"
+echo "  - Neo4j Browser: http://localhost:7474  (neo4j / ${NEO4J_PASSWORD_GEN})"
 echo "  - Qdrant:        http://localhost:6333"
 echo "  - Workers:       normalizer, extractor, brain-writer, drift-detector"
 

@@ -16,6 +16,16 @@ const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const GITHUB_API = "https://api.github.com";
 const LINKED_PR_SET = "brain:linked_pr_processed";
 const GITHUB_PR_RE = /https:\/\/github\.com\/([^/\s"')]+)\/([^/\s"')]+)\/pull\/(\d+)/g;
+const GITHUB_SLUG_RE = /^[a-zA-Z0-9_.-]+$/;
+const MAX_LINKS_PER_EVENT = 5;
+
+// Allowlist of org/repo slugs this instance is permitted to follow.
+// Format: "owner/repo" comma-separated. Empty = allow all (default for self-hosted).
+const GITHUB_LINK_FOLLOW_ALLOWLIST: Set<string> | null = (() => {
+  const raw = process.env.GITHUB_LINK_FOLLOW_ALLOWLIST;
+  if (!raw) return null;
+  return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+})();
 
 async function fetchLinkedPRs(
   rawContent: string,
@@ -24,7 +34,7 @@ async function fetchLinkedPRs(
 ): Promise<void> {
   if (!token) return; // skip silently — no auth means 60 req/hr, too risky for unexpected fetch
 
-  const matches = [...rawContent.matchAll(GITHUB_PR_RE)];
+  const matches = [...rawContent.matchAll(GITHUB_PR_RE)].slice(0, MAX_LINKS_PER_EVENT);
   if (matches.length === 0) return;
 
   const headers: Record<string, string> = {
@@ -35,6 +45,18 @@ async function fetchLinkedPRs(
 
   for (const match of matches) {
     const [, owner, repo, prNum] = match;
+
+    // Reject slugs that don't look like valid GitHub identifiers
+    if (!GITHUB_SLUG_RE.test(owner) || !GITHUB_SLUG_RE.test(repo)) {
+      console.warn(`[extractor] skipping malformed linked PR slug: ${owner}/${repo}`);
+      continue;
+    }
+
+    // Enforce allowlist if configured
+    if (GITHUB_LINK_FOLLOW_ALLOWLIST && !GITHUB_LINK_FOLLOW_ALLOWLIST.has(`${owner}/${repo}`)) {
+      console.warn(`[extractor] linked PR ${owner}/${repo} not in GITHUB_LINK_FOLLOW_ALLOWLIST — skipping`);
+      continue;
+    }
     const key = `${owner}/${repo}/pull/${prNum}`;
 
     const already = await redis.sismember(LINKED_PR_SET, key);
@@ -127,8 +149,7 @@ A decision is a CONCLUDED choice — something that has been settled, not propos
     "confidence": "high|medium|low",
     "decision_maker": "name/handle of who made the decision, or null",
     "scope": "what this applies to (module, service, project), or null",
-    "reversible": true/false — true if described as tentative, false if presented as final,
-    "codegen_prompt": null, or a concise one-paragraph implementation prompt for an AI coding agent — ONLY when the decision clearly requires code changes (e.g. chose a library, adopted a pattern, dropped a dependency). Null for architecture discussions, process decisions, or anything non-code.
+    "reversible": true/false — true if described as tentative, false if presented as final
   }]
 }
 

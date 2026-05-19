@@ -689,8 +689,8 @@ export async function createFollowUpTaskFromAlert(alertId: string): Promise<{
          suggested_owner: a.actor,
          source:        'drift_reopen',
          status:        'open',
+         requires_approval: true,
          decision_id:   d.decision_id,
-         codegen_prompt: d.codegen_prompt,
          created_at:    $now
        })
        CREATE (t)-[:ADDRESSES]->(d)
@@ -720,7 +720,7 @@ export async function getFollowUpTasks(projectId: string, status?: string): Prom
   title: string;
   description: string;
   suggested_owner?: string;
-  codegen_prompt?: string;
+  requires_approval: boolean;
   source: string;
   status: string;
   decision_id: string;
@@ -747,7 +747,7 @@ export async function getFollowUpTasks(projectId: string, status?: string): Prom
         title:            t.title as string,
         description:      t.description as string,
         suggested_owner:  t.suggested_owner as string | undefined,
-        codegen_prompt:   t.codegen_prompt as string | undefined,
+        requires_approval: (t.requires_approval as boolean) ?? true,
         source:           t.source as string,
         status:           t.status as string,
         decision_id:      t.decision_id as string,

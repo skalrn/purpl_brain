@@ -297,8 +297,8 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /brain/tasks ─────────────────────────────────────────────────────
   // Lists follow-up tasks created from drift alert resolutions.
-  // An agent can call brain_query("what open tasks are waiting?") and get
-  // these back with codegen_prompt attached for immediate execution.
+  // All tasks require human approval before execution — requires_approval is
+  // always true. Agents should surface these to humans, not auto-execute.
   fastify.get<{ Querystring: { project_id: string; status?: string } }>(
     "/brain/tasks",
     { preHandler: requireApiKey },

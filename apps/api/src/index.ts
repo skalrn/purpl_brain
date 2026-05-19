@@ -44,7 +44,9 @@ await app.register(fastifyCookie);
 await app.register(fastifySession, {
   secret: process.env.SESSION_SECRET ?? "purpl-brain-dev-secret-change-in-production",
   cookie: {
-    secure: process.env.NODE_ENV === "production",
+    // Secure by default — opt out with SESSION_COOKIE_SECURE=false only in
+    // local dev (http://localhost). Never disable in production.
+    secure: process.env.SESSION_COOKIE_SECURE !== "false",
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   },
