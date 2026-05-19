@@ -382,16 +382,12 @@ if (process.env.MCP_TRANSPORT === "http") {
     let transport = sessionId ? sessions.get(sessionId) : undefined;
 
     if (!transport) {
-      // New session
+      // New session — sessionId is assigned during handleRequest (initialize)
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
       });
       const server = buildServer();
       await server.connect(transport);
-      if (transport.sessionId) {
-        sessions.set(transport.sessionId, transport);
-        transport.onclose = () => sessions.delete(transport!.sessionId!);
-      }
     }
 
     // Read body for POST requests
@@ -408,6 +404,12 @@ if (process.env.MCP_TRANSPORT === "http") {
     }
 
     await transport.handleRequest(req, res, body);
+
+    // Register session after handleRequest assigns the session ID
+    if (transport.sessionId && !sessions.has(transport.sessionId)) {
+      sessions.set(transport.sessionId, transport);
+      transport.onclose = () => sessions.delete(transport!.sessionId!);
+    }
   });
 
   httpServer.listen(port, () => {
