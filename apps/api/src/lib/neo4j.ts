@@ -360,6 +360,8 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
   actor: string;
   timestamp: string;
   resolution: string;
+  confirmed_by_llm: boolean;
+  fingerprint: string | null;
 }>> {
   const session = getSession();
   try {
@@ -373,7 +375,9 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
               a.content AS content,
               a.actor AS actor,
               a.timestamp AS timestamp,
-              a.resolution AS resolution
+              a.resolution AS resolution,
+              a.confirmed_by_llm AS confirmed_by_llm,
+              a.fingerprint AS fingerprint
        ORDER BY a.timestamp DESC`,
       { project_id: projectId }
     );
@@ -386,6 +390,8 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
       actor: r.get("actor") as string,
       timestamp: r.get("timestamp") as string,
       resolution: r.get("resolution") as string,
+      confirmed_by_llm: r.get("confirmed_by_llm") as boolean,
+      fingerprint: r.get("fingerprint") as string | null,
     }));
   } finally {
     await session.close();

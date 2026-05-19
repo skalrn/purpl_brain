@@ -34,9 +34,10 @@ const RUN_ID = Date.now();
 const PROJECT_ID = `eval_integration_${RUN_ID}`;
 const DECOY_PROJECT = `eval_decoy_${RUN_ID}`;
 
-// Distinctive vocabulary — avoids accidental embedding overlap with existing data
-const DECISION_TERM = "Vortexlite"; // fictional vector DB name for session 1
-const CONTRADICT_TERM = "Nebulastore"; // fictional alternative for session 2
+// Real tech terms with meaningful embeddings — fictional names score below the
+// drift detector's cosine similarity threshold (0.55) in nomic-embed-text.
+const DECISION_TERM = "Qdrant";
+const CONTRADICT_TERM = "Weaviate";
 
 const SESSION_1_ID = `sess_int_s1_${RUN_ID}`;
 const SESSION_2_ID = `sess_int_s2_${RUN_ID}`;
@@ -141,7 +142,7 @@ const AGENT_LOG_S1 = {
     {
       id: "vs-001",
       description: `Use ${DECISION_TERM} as the vector store for semantic retrieval`,
-      rationale: `${DECISION_TERM} provides native support for payload filtering and named vectors, which lets us scope semantic searches to a project without a separate index per tenant. Pinecone requires a namespace-per-project model that adds operational complexity.`,
+      rationale: `${DECISION_TERM} provides native payload filtering and named vectors, letting us scope semantic searches by project_id on a single collection without a separate index per tenant. Weaviate's schema management and Pinecone's namespace-per-project model both add operational overhead we want to avoid.`,
       alternatives_considered: ["Pinecone", "Weaviate", "pgvector"],
       confidence: "high" as const,
     },
@@ -182,17 +183,15 @@ const AGENT_LOG_S2 = {
   decisions: [
     {
       id: "vs-002",
-      description: `Switch from ${DECISION_TERM} to ${NEBULASTORE_TERM()} for vector storage`,
-      rationale: `${NEBULASTORE_TERM()} offers a managed cloud tier that eliminates self-hosting. The ${DECISION_TERM} self-hosted deployment adds operational burden.`,
-      alternatives_considered: [DECISION_TERM],
+      description: `Switch from ${DECISION_TERM} to ${CONTRADICT_TERM} for vector storage`,
+      rationale: `${CONTRADICT_TERM} offers a managed cloud tier with a GraphQL API and built-in hybrid search. The ${DECISION_TERM} vector store requires self-hosting and lacks a native hybrid search interface. Switching to ${CONTRADICT_TERM} reduces operational burden and removes the need to maintain our own Qdrant cluster.`,
+      alternatives_considered: [DECISION_TERM, "Pinecone"],
       confidence: "medium" as const,
     },
   ],
-  work_completed: `Proposed migration from ${DECISION_TERM} to ${NEBULASTORE_TERM()}. Needs team review.`,
+  work_completed: `Proposed migration from ${DECISION_TERM} to ${CONTRADICT_TERM}. Needs team review — contradicts prior decision to use ${DECISION_TERM}.`,
   files_modified: [],
 };
-
-function NEBULASTORE_TERM() { return CONTRADICT_TERM; }
 
 const DECOY_DOC = `# Decoy project document
 
@@ -482,8 +481,14 @@ async function main() {
     const answer = canaryQuery.body.answer ?? "";
     const citations = canaryQuery.body.citations ?? [];
 
+    // Check retrieved context (citations), not the LLM answer — local models confabulate
+    // by echoing the query term back even when no matching document was retrieved.
+    const canaryInCitations = citations.some((c) =>
+      String(c.quoted_text ?? "").includes(`DECOY_ISOLATION_CANARY_${RUN_ID}`) ||
+      String(c.source_url ?? "").includes(DECOY_PROJECT)
+    );
     check("canary term from decoy project not found in eval project query",
-      looksLikeNoInfo(answer, citations) || !answer.includes(`DECOY_ISOLATION_CANARY_${RUN_ID}`),
+      !canaryInCitations,
       `answer=${answer.slice(0, 120)} citations=${citations.length}`);
   }
 

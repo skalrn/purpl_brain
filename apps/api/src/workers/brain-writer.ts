@@ -103,6 +103,7 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
            rationale: $rationale,
            confidence: $confidence,
            codegen_prompt: $codegen_prompt,
+           status: "confirmed",
            valid_from: $valid_from,
            valid_to: null
          })

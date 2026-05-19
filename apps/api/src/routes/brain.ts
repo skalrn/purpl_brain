@@ -16,7 +16,7 @@ import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
 import { requireApiKey } from "../lib/auth-middleware.js";
 import { processSignal } from "../services/signal-engine.js";
-import type { CanonicalEvent, DriftResolution, EventSource } from "@purpl/types";
+import type { CanonicalEvent, DriftResolution, EventSource, ExtractionResult, Decision } from "@purpl/types";
 
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -228,7 +228,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(409).send({ error: "Session already logged", session_id: log.session_id });
       }
 
-      // Flatten decisions into raw_content so the extraction pipeline can process them
+      // Build raw_content summary for Event node + Qdrant text
       const decisionText = log.decisions
         .map((d) => {
           const alts = d.alternatives_considered?.length
@@ -249,19 +249,34 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         .filter(Boolean)
         .join("\n");
 
-      const event: CanonicalEvent = {
+      // Map structured agent decisions directly to Decision[] — bypass LLM extractor.
+      // The extractor is designed for raw human text; agent logs are already structured.
+      // Publishing to events:extracted ensures has_decisions=true in Qdrant and proper
+      // Decision nodes in Neo4j, which is required for drift detection Stage A.
+      const decisions: Decision[] = log.decisions.map((d) => ({
+        quoted_text: `Decision: ${d.description}. Rationale: ${d.rationale ?? ""}`,
+        summary: d.description,
+        rationale: d.rationale ?? null,
+        alternatives_considered: d.alternatives_considered ?? [],
+        confidence: d.confidence ?? "medium",
+      }));
+
+      const extractionResult: ExtractionResult = {
         event_id: eventId,
-        source: "agent",
-        source_id: sourceId,
         project_id: log.project_id,
+        source_id: sourceId,
+        source_url: `brain://agent/${eventId}`,
+        raw_content: rawContent,
         actor: { type: "agent", id: log.agent_id, name: log.agent_id },
         timestamp: log.timestamp_end ?? new Date().toISOString(),
-        event_type: "agent_session",
-        raw_content: rawContent,
-        url: `brain://agent/${eventId}`,
+        decisions,
+        ticket_refs: [],
+        person_mentions: [],
+        concept_tags: [],
+        decision_candidate: true,
       };
 
-      await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+      await redis.xadd(STREAMS.EXTRACTED, "*", "result", JSON.stringify(extractionResult));
       await redis.sadd(PROCESSED_SET, sourceId);
 
       fastify.log.info(
