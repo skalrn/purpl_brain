@@ -3,10 +3,18 @@
 #
 # Usage:
 #   docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
-#   cp .env.example .env && nano .env      # fill in your API key + project name
+#   cp .env.example .env && nano .env      # choose Anthropic or Ollama provider
 #   docker compose -f docker-compose.prod.yml up -d
 #   open http://localhost:3000             # Web UI
 #   open http://localhost:3001/health      # API health check
+#
+# Ollama users: Ollama must be running on the host before starting.
+#   Install: https://ollama.com
+#   Required models:
+#     ollama pull nomic-embed-text:v1.5   # embeddings — always required
+#     ollama pull gemma3n:e2b             # fast extraction  (LLM_PROVIDER=ollama)
+#     ollama pull gemma2:9b              # query answering  (LLM_PROVIDER=ollama)
+#   Then set LLM_PROVIDER=ollama in .env (leave ANTHROPIC_API_KEY blank).
 
 services:
   # ── Infrastructure (public images — no login required) ────────────────────
@@ -64,6 +72,7 @@ services:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
       redis:
         condition: service_healthy
@@ -88,6 +97,7 @@ services:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
       redis:
         condition: service_healthy
@@ -103,6 +113,7 @@ services:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
       redis:
         condition: service_healthy
@@ -118,6 +129,7 @@ services:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
       redis:
         condition: service_healthy
@@ -137,6 +149,7 @@ services:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_URL: http://qdrant:6333
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     depends_on:
       redis:
         condition: service_healthy
