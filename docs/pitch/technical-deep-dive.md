@@ -305,10 +305,13 @@ This query is not expressible as a vector similarity search or a SQL join withou
 
 | Eval | Result | Notes |
 |---|---|---|
-| `eval:integration` | 33/33 PASS | Full pipeline: ingestion → extraction → graph integrity → query → citations → cross-source → project isolation → drift detection → scope isolation |
-| Backstage recall | 91% (11/12) | Cold ingestion of 13 public Spotify Backstage ADRs. 1 failure: question about a decision mentioned only in a comment deep in a linked PR — retrieval coverage gap, not hallucination |
-| `eval:mcp` | 8/8 PASS | All 4 MCP tools + resource verified against REST API equivalents |
-| `eval:drift-fp` | < 8% false positive rate | Stage A + Stage C pipeline |
+| `eval:cross-session` | **5/5 (100%)** | 5 decisions logged by 3 agents (claude-code, cursor, windsurf) across a simulated 3-week window. Each recalled correctly by a new session with no prior context. Latency p50 4.7s, p95 9.8s. |
+| `eval:extraction` | **F1 85.7%** | Precision 92.3%, recall 80.0% against manually labeled ground truth on 30 real encode/httpx PRs. 2 rule-based misses, 1 LLM miss, 1 LLM hallucination. |
+| `eval:integration` | **33/33 PASS** | Full pipeline: ingestion → extraction → graph integrity → query → citations → cross-source → project isolation → drift detection → scope isolation |
+| Backstage recall | **91% (11/12)** | Cold ingestion of Backstage (Spotify) public ADRs. 1 failure: decision existed only in a PR comment thread linked from an ADR — not the ADR text itself. Fix shipped: extractor now follows embedded GitHub PR links during document ingestion (`eval:link-following`). |
+| `eval:mcp` | **8/8 PASS** | All 4 MCP tools + resource verified against REST API equivalents |
+| `eval:citations` | **0 fabricated** | Every cited source_url and quoted_text verified against source documents across all query evals |
+| `eval:drift` + `eval:drift-fp` | **≥ 80% recall / < 8% FP rate** | Stage A (semantic) + Stage C (LLM confirmation) pipeline. Threshold tunable via `DRIFT_SEMANTIC_THRESHOLD`. |
 
 ---
 
@@ -377,4 +380,8 @@ GPT-4o-mini is a valid alternative at similar cost. Haiku was chosen because the
 
 **"91% recall — what is the plan for the 9%?"**
 
-The 1 failure in the Backstage eval was not a hallucination — it was a retrieval gap. The ground-truth decision was mentioned only in a comment inside a linked PR, not in the ADR text itself. The fix is expanding the ingestion scope: index PR review comments, not just PR descriptions and bodies. This is a known Phase 4 retrieval coverage improvement, not a fundamental architectural limitation.
+The 1 failure in the Backstage eval was not a hallucination — it was a retrieval gap. The ground-truth decision was mentioned only in a comment thread inside a linked GitHub PR, not in the ADR text itself. The brain ingested the ADR but not the PR it referenced.
+
+Fix shipped: the extractor now scans every document event for embedded GitHub PR URLs (regex match on `github.com/*/pull/*`), fetches the PR body and issue comments via the GitHub API, and queues each as a new raw event through the full normalizer → extractor → brain-writer pipeline. A Redis deduplication set (`brain:linked_pr_processed`) prevents re-fetching. The `eval:link-following` eval verifies the mechanism end-to-end.
+
+The 91% figure predates the fix. Re-running the Backstage eval with linked PR ingestion active is the next recall measurement.

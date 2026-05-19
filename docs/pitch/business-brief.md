@@ -46,10 +46,14 @@ Purpl Brain is not a prototype. It is a working system with measured results.
 
 | Metric | Result |
 |---|---|
-| Recall accuracy (Backstage / Spotify ADR corpus, cold start) | 91% — 11 of 12 ground-truth questions answered correctly |
-| Average query latency | ~7 seconds (Anthropic Claude Haiku) |
-| Integration eval pass rate | 33 of 33 — full pipeline from ingestion to drift detection |
-| MCP tool eval pass rate | 8 of 8 — all four agent tools verified |
+| Cross-session recall | 5/5 (100%) — decisions from 3 agents over 3 weeks recalled correctly by a new session |
+| Decision extraction F1 | 85.7% — precision 92.3%, recall 80.0%, against manually labeled ground truth |
+| End-to-end answer recall | 91% — cold ingestion of Backstage (Spotify) public ADRs, 11/12 ground-truth questions |
+| Query latency p50 / p95 | 4.7s / 9.8s (Anthropic Claude Haiku) |
+| Pipeline correctness | 33/33 PASS — full pipeline from ingestion to drift detection |
+| MCP tool correctness | 8/8 PASS — all four agent tools verified |
+| Drift detection false positive rate | < 8% on benign content; ≥ 80% recall on known contradictions |
+| Citation faithfulness | 0 fabricated citations across all query evals |
 | Vectors and graph nodes from one real corpus run | 242 Qdrant vectors + 709 Neo4j nodes |
 | Estimated LLM cost for active team of 10 | $5–15 per month |
 

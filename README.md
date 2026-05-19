@@ -32,10 +32,16 @@ CLAUDE.md files cap out at a few hundred lines and go stale. Session history cap
 
 ## Real numbers
 
-- **91% recall** on Backstage (Spotify) public ADRs — cold ingestion, 11/12 ground-truth questions answered correctly
-- **33/33** integration eval PASS — full pipeline: ingestion → extraction → graph integrity → query → drift detection
-- **~7s** average query latency with Anthropic Claude Haiku
-- **8/8** MCP tool eval PASS
+| Eval | Result | What it measures |
+|---|---|---|
+| Cross-session recall | **5/5 (100%)** | Decisions logged by 3 different agents over 3 weeks, recalled correctly by a new session with no prior context |
+| Decision extraction F1 | **85.7%** | Precision 92.3% / Recall 80.0% — against manually labeled ground truth on 30 real GitHub PRs |
+| End-to-end answer recall | **91%** | Cold ingestion of Backstage (Spotify) public ADRs — 11/12 ground-truth questions answered correctly |
+| Pipeline correctness | **33/33 PASS** | Full pipeline: ingestion → extraction → graph integrity → query → drift detection |
+| MCP tool correctness | **8/8 PASS** | All 4 MCP tools verified against REST API equivalents |
+| Drift detection recall | **≥ 80%** | Known contradictions caught; < 8% false positive rate on benign content |
+| Citation faithfulness | **0 fabricated** | Every cited source_url and quoted_text verified against source documents |
+| Query latency p50 / p95 | **4.7s / 9.8s** | Anthropic Claude Haiku, cross-session queries |
 
 ---
 

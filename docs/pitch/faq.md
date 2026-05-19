@@ -47,9 +47,11 @@ The brain is an audit log, not an authority. Everything is citable, attributable
 
 ### "91% recall sounds good — what happened with the other 9%?"
 
-One question out of twelve failed on the Backstage corpus. The missed answer was about a specific implementation detail mentioned only in a comment thread deep inside a linked GitHub PR — not in the ADR text itself. The brain had ingested the ADR but not the linked PR's comment thread. This is a retrieval coverage problem (we ingested the pointer, not the destination), not a hallucination or a reasoning failure.
+One question out of twelve failed on the Backstage corpus. The missed answer was about a decision mentioned only in a comment thread inside a linked GitHub PR — not in the ADR text itself. The brain ingested the ADR but not the PR it referenced. This is a retrieval coverage gap, not a hallucination or a reasoning failure.
 
-The fix is straightforward: follow linked PR URLs during ingestion and index their content too. Not yet implemented but on the roadmap.
+The fix shipped: the extractor now scans document content for embedded GitHub PR URLs and queues each linked PR for full ingestion — body and comment thread — before processing the document. A deduplication set prevents re-fetching on repeat runs. The `eval:link-following` eval verifies the mechanism end-to-end.
+
+The 91% figure was measured before the fix. Re-running the Backstage eval with linked PR ingestion active is the next measurement milestone.
 
 ---
 
