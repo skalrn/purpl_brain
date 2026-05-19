@@ -54,6 +54,7 @@ Purpl Brain is not a prototype. It is a working system with measured results.
 | MCP tool correctness | 8/8 PASS — all four agent tools verified |
 | Drift detection false positive rate | < 8% on benign content; ≥ 80% recall on known contradictions |
 | Citation faithfulness | 0 fabricated citations across all query evals |
+| Attribution accuracy | 5/5 (100%) — actor, source type, and quoted rationale all correct across 5 distinct agent_ids |
 | Vectors and graph nodes from one real corpus run | 242 Qdrant vectors + 709 Neo4j nodes |
 | Estimated LLM cost for active team of 10 | $5–15 per month |
 

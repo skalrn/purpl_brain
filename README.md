@@ -41,6 +41,7 @@ CLAUDE.md files cap out at a few hundred lines and go stale. Session history cap
 | MCP tool correctness | **8/8 PASS** | All 4 MCP tools verified against REST API equivalents |
 | Drift detection recall | **≥ 80%** | Known contradictions caught; < 8% false positive rate on benign content |
 | Citation faithfulness | **0 fabricated** | Every cited source_url and quoted_text verified against source documents |
+| Attribution accuracy | **5/5 (100%)** | actor.id, source type, and quote overlap correct across 5 agent_ids — quote overlap 0.62–0.73 |
 | Query latency p50 / p95 | **4.7s / 9.8s** | Anthropic Claude Haiku, cross-session queries |
 
 ---

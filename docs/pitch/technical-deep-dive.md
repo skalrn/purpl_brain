@@ -311,6 +311,7 @@ This query is not expressible as a vector similarity search or a SQL join withou
 | Backstage recall | **91% (11/12)** | Cold ingestion of Backstage (Spotify) public ADRs. 1 failure: decision existed only in a PR comment thread linked from an ADR — not the ADR text itself. Fix shipped: extractor now follows embedded GitHub PR links during document ingestion (`eval:link-following`). |
 | `eval:mcp` | **8/8 PASS** | All 4 MCP tools + resource verified against REST API equivalents |
 | `eval:citations` | **0 fabricated** | Every cited source_url and quoted_text verified against source documents across all query evals |
+| `eval:attribution` | **5/5 (100%)** | actor.id, source type, and quote overlap all correct across 5 agent_ids (claude-code, cursor, windsurf, gemini-cli). Quote overlap range: 0.62–0.73. |
 | `eval:drift` + `eval:drift-fp` | **≥ 80% recall / < 8% FP rate** | Stage A (semantic) + Stage C (LLM confirmation) pipeline. Threshold tunable via `DRIFT_SEMANTIC_THRESHOLD`. |
 
 ---

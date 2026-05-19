@@ -33,6 +33,7 @@
     "eval:agent-log": "tsx src/scripts/eval-agent-log.ts",
     "eval:cross-source": "tsx src/scripts/eval-cross-source.ts",
     "eval:cross-session": "tsx src/scripts/eval-cross-session.ts",
+    "eval:attribution": "tsx src/scripts/eval-attribution.ts",
     "eval:isolation": "tsx src/scripts/eval-project-isolation.ts",
     "eval:drift-fp": "tsx src/scripts/eval-drift-fp.ts",
     "eval:graph-integrity": "tsx src/scripts/eval-graph-integrity.ts",
