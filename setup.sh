@@ -187,6 +187,36 @@ echo ""
 echo -e "${YELLOW}For Cursor: paste the same block into .cursor/mcp.json in your project root.${RESET}"
 echo -e "${YELLOW}Change BRAIN_AGENT_ID to \"cursor\" if using Cursor.${RESET}"
 
+# ── Print CLAUDE.md snippet ───────────────────────────────────────────────────
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}║  Add this to CLAUDE.md in your project repo              ║${RESET}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${RESET}"
+echo ""
+cat << 'CLAUDEMD'
+## Brain (purpl-brain MCP)
+
+The purpl-brain MCP is connected. Follow these rules in every session:
+
+- **Session start:** call `brain_query` before picking up existing work to surface
+  relevant decisions and open drift alerts. Use your project's `project_id`.
+- **Before changing anything architectural:** call `brain_analyze_impact` before
+  refactoring a core module, switching a library, changing an API contract, or
+  any change that could invalidate a prior design decision.
+- **When you make a significant choice:** call `brain_log_decision` at the end of
+  the session — library choice, approach taken, approach rejected, unresolved question.
+- **When you find something unexpected:** call `brain_log_signal` if you discover
+  a constraint, performance finding, or API limitation that may contradict an
+  existing decision.
+
+Never skip these calls because they seem obvious — the value is in the audit trail,
+not just the lookup.
+CLAUDEMD
+
+echo ""
+echo -e "${YELLOW}This snippet makes Claude proactively check the brain before every significant change.${RESET}"
+echo -e "${YELLOW}Without it, brain tool calls depend on model judgment and will be inconsistent.${RESET}"
+
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
@@ -197,11 +227,15 @@ echo "Next steps:"
 echo ""
 echo "  1. Paste the MCP config above into ~/.claude/settings.json"
 echo ""
-echo "  2. Verify the loop end-to-end:"
+echo "  2. Paste the CLAUDE.md snippet above into CLAUDE.md in your project repo"
+echo "     (this makes Claude check the brain proactively — without it, coverage"
+echo "     depends on model judgment and will be inconsistent)"
+echo ""
+echo "  3. Verify the loop end-to-end:"
 echo ""
 echo "     BRAIN_API_KEY=${API_KEY} npm run demo:agent-memory -w apps/api"
 echo ""
-echo "  3. Open a Claude Code session on any repo — brain_query and"
+echo "  4. Open a Claude Code session in your project repo — brain_query and"
 echo "     brain_log_decision are now in the tool chain automatically."
 echo ""
 echo -e "${YELLOW}Tail logs:${RESET}"
