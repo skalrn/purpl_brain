@@ -20,6 +20,7 @@
     "migrate:phase2": "tsx src/scripts/migrate-phase2-schema.ts",
     "migrate:m5": "tsx src/scripts/migrate-m5-person-schema.ts",
     "eval:scaffold": "tsx src/scripts/generate-label-scaffold.ts",
+    "label:prs": "tsx src/scripts/label-prs.ts",
     "eval:extraction": "tsx src/scripts/eval-extraction.ts",
     "eval:query": "tsx src/scripts/eval-query.ts",
     "eval:citations": "tsx src/scripts/eval-citations.ts",
