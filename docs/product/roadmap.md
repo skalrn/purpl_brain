@@ -202,7 +202,7 @@ The pivot narrows the ICP to individual developers and small teams (2–8 engine
 | M1 | MCP server — `brain_query`, `brain_log_decision`, `brain_analyze_impact`, `brain_log_signal` tools; stdio + HTTP transports | ✅ Complete |
 | M2 | Agent write-back — `POST /brain/agent-log` ingests agent decisions through the same pipeline as human signals | ✅ Complete |
 | M3 | MCP eval + CLAUDE.md setup instructions | ✅ Complete |
-| M4 | Beta setup polish — single `docker compose up`, `setup.sh` wizard, healthchecks, web UI in compose, constraints migration | ✅ Complete |
+| M4 | Beta setup polish — single `docker compose up`, `setup.sh` wizard, healthchecks, web UI in compose, constraints migration, MEMBER_OF per-project auth | ✅ Complete |
 | M5 | GitHub OAuth + seat identity — email as Person primary key, per-source alias merge, per-seat billing anchor | Not started |
 | M6 | AWS packaging — CDK/CloudFormation, ECS Fargate, HTTP+SSE MCP transport, AWS Marketplace metered billing | Not started |
 

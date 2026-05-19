@@ -1,6 +1,6 @@
 # ADR-002: Expose Brain as an MCP Server
 
-**Status:** Accepted (Phase 4)  
+**Status:** Accepted (Phase 3, M1 complete)  
 **Date:** 2026-05-15  
 **Deciders:** Deepak Kollipalli  
 
@@ -25,7 +25,9 @@ MCP is Anthropic's open standard for how AI agents access external context and t
 **MCP surface exposed:**
 - Resource: `brain://project/{project_id}/context` — returns current brain state summary for a project
 - Tool: `brain_query(query: str, project_id: str, mode: str)` — natural language query with mode (project, expertise, agent-resume)
-- Tool: `brain_impact_analysis(event_id: str)` — reactive impact analysis
+- Tool: `brain_log_decision(...)` — write structured agent session decisions into the brain
+- Tool: `brain_analyze_impact(event_id: str)` — reactive impact analysis
+- Tool: `brain_log_signal(...)` — report a finding that may contradict existing decisions
 
 ## Alternatives Considered
 
@@ -40,7 +42,7 @@ Rejected. OpenAI-specific standard with limited adoption outside ChatGPT. MCP ha
 
 ## Consequences
 
-- MCP server implementation deferred to Phase 4 — REST API serves agent needs in Phases 1–3 via the write-back endpoint
+- MCP server shipped in Phase 3 M1 — all four tools implemented and eval'd (8/8 PASS). REST API remains available for programmatic use.
 - Must track MCP spec evolution; it is still maturing as of 2026
 - The REST API and MCP server share the same underlying query layer — no business logic duplication
 - MCP support is a strong portfolio differentiator and signals awareness of current agent infrastructure trends

@@ -161,7 +161,7 @@ Translates a natural language question into a grounded, cited answer. Five stage
 
 **Stage 1 — Intent parsing:** a fast Haiku call classifies the question into one of five modes (project-scoped, temporal, expertise-scoped, agent-resume, impact analysis) and extracts structured parameters (project ID, time range, entity references). This takes ~400ms.
 
-**Stage 2 — Retrieval (runs in parallel with intent parsing):** the raw query is embedded immediately — before intent parsing finishes. Vector search on Qdrant starts with that embedding. When intent parsing finishes, its filters are applied to the already-running search. This saves ~400ms by running embedding + vector search in parallel with the LLM intent parse. After vector search returns top-K chunks, graph traversal expands the result set by following 1-hop neighbors in Neo4j. Graph expansion is what makes this better than plain RAG — it pulls in causally related content that vector similarity alone would miss.
+**Stage 2 — Retrieval (runs in parallel with intent parsing):** the raw query is embedded immediately — before intent parsing finishes. Vector search on Qdrant starts with that embedding. When intent parsing finishes, its filters are applied to the already-running search. This saves ~400ms by running embedding + vector search in parallel with the LLM intent parse. After vector search returns top-K chunks, graph traversal expands the result set via three parallel Neo4j patterns: decision chain (other events sharing the same decisions), author activity (recent events by the same person), and ticket linkage (events co-referencing the same tickets). Graph expansion is what makes this better than plain RAG — it pulls in causally related content that vector similarity alone would miss.
 
 **Stage 3 — Context budget:** the retrieval result is ranked and trimmed to a 6,000-token context budget. Exact entity matches (the user specifically asked about PR #234, and PR #234 is in the results) are never dropped. High-similarity chunks are dropped last. Graph-expanded neighbors are dropped first. Chunks that are dropped are also removed from the citation list — the LLM cannot cite what it cannot see.
 
@@ -452,7 +452,7 @@ The teammate sees a complete answer with clickable citations — one to the Marc
 
 Honesty matters in technical demos. The following known limitations are worth being able to address directly:
 
-**Per-project authorization (security critical, pre-beta):** currently, any authenticated user can read any project's knowledge graph. Multi-tenant project isolation is not implemented. This is a known critical finding and a pre-beta blocker.
+**Per-project authorization:** implemented via `MEMBER_OF` edges in Neo4j and `requireProjectMember` middleware. Users are granted membership on GitHub OAuth login. Fine-grained permission mirroring from source systems (respecting GitHub repo visibility rules at the query layer) is a post-beta item.
 
 **Selective backfill:** when the extraction schema changes (a new attribute is added, or a new node type is introduced), the current system replays the full event history to pick up the new schema. There is no selective backfill for just the affected time range or just events missing a specific attribute. This is a post-beta improvement.
 

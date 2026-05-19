@@ -28,7 +28,7 @@
 
 ## Hosting
 
-Single VM running all services via Docker Compose (FastAPI + Redis + Qdrant + Kuzu + Next.js UI + Ollama).
+Single VM running all services via Docker Compose (Fastify + Redis + Qdrant + Neo4j + Next.js UI + Ollama).
 
 | Provider | Spec | Cost/month | Notes |
 |---|---|---|---|
@@ -49,7 +49,7 @@ Single VM running all services via Docker Compose (FastAPI + Redis + Qdrant + Ku
 | FastAPI app | ~200MB |
 | Redis | ~100MB |
 | Qdrant (25 repos) | ~1.5GB |
-| Kuzu (embedded) | ~200MB |
+| Neo4j (Docker) | ~500MB |
 | Next.js UI | ~100MB |
 | Ollama + nomic-embed-text | ~500MB |
 | **Total** | **~2.6GB** |

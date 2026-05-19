@@ -72,7 +72,10 @@ Natural language query
 ```
 vector search (filter: project_id) → top-K=10 chunks
     ↓
-for each chunk: graph lookup → 1-hop neighbors
+for each chunk: graph expansion (3 parallel patterns) →
+    decision chain: decisions shared across events
+    author activity: recent events by the same person
+    ticket linkage: events co-referencing the same tickets
     ↓
 score neighbors: (parent_similarity × 0.7) + recency_bonus
     ↓
@@ -224,7 +227,7 @@ Validation catches hallucinated citations — cases where the LLM cites `[3]` fo
 | Embed raw query | ~80ms | Runs immediately, parallel with intent |
 | Intent parsing (Haiku) | ~400ms | Parallel with vector search |
 | Vector search (Qdrant) | ~100ms | Returns while intent parsing finishes |
-| Graph expansion (1-hop, Kuzu) | ~150ms | In-process, fast |
+| Graph expansion (multi-hop, Neo4j) | ~150ms | 3 parallel traversal patterns: decision chain, author activity, ticket linkage |
 | Ranking + budget trim | ~30ms | In-memory |
 | Answer generation (Sonnet) | 2,000–3,500ms | Largest variable |
 | Citation validation | ~80ms | Regex + chunk lookup |
@@ -238,8 +241,8 @@ Answer generation is the only step that cannot be parallelized. Stream the respo
 
 | Phase | Approach | Threshold |
 |---|---|---|
-| Phase 1–2 | All retrieval in-process (Kuzu embedded, Qdrant local) | < 10 projects, < 100K nodes |
-| Phase 3 | Qdrant cloud, Kuzu → Neo4j if query complexity demands | > 10 projects or complex multi-hop queries |
+| Phase 1–2 | All retrieval in-process (Neo4j local, Qdrant local) | < 10 projects, < 100K nodes |
+| Phase 3 | Qdrant cloud, Neo4j Community (current); Neo4j Enterprise if scale demands | > 10 projects or complex multi-hop queries |
 | Phase 4 | Caching layer for repeated queries; async pre-computation for common patterns | > 100 queries/day |
 
 ---

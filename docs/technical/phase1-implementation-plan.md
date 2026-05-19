@@ -10,7 +10,7 @@
 
 **In:**
 - GitHub as the sole ingestion source (PRs, Issues, commit messages, review comments)
-- Vector store + graph DB brain (Qdrant + Kuzu)
+- Vector store + graph DB brain (Qdrant + Neo4j)
 - Entity extraction: rule-based Pass 1 + LLM Pass 2 for decision candidates
 - Natural language query interface (minimal web chat UI)
 - Project-scoped queries only
@@ -35,8 +35,8 @@ Build in this sequence. Each milestone is a usable, testable increment — not a
 ```
 Week 1–2:  Milestone 1 — Ingestion pipeline (GitHub → canonical event → brain store)
 Week 2–3:  Milestone 2 — Entity extraction (rule-based + LLM decision extraction)
-Week 3–4:  Milestone 3 — Brain store (Qdrant + Kuzu, dual-write, graph linking)
-Week 4–5:  Milestone 4 — Query layer (RAG + 1-hop graph expansion, citation assembly)
+Week 3–4:  Milestone 3 — Brain store (Qdrant + Neo4j, dual-write, graph linking)
+Week 4–5:  Milestone 4 — Query layer (RAG + multi-hop graph expansion, citation assembly)
 Week 5–6:  Milestone 5 — Chat UI + citation validator
 Week 6–7:  Milestone 6 — Temporal diff query ("what changed")
 Week 7–8:  Milestone 7 — Eval + calibration (extraction quality, query accuracy)
@@ -139,7 +139,7 @@ Before moving to Milestone 3: run Pass 2 against 10 real GitHub PRs with manuall
 
 ## Milestone 3 — Brain Store
 
-**Goal:** Extracted entities → nodes and edges in Qdrant + Kuzu, dual-write with retry.
+**Goal:** Extracted entities → nodes and edges in Qdrant + Neo4j, dual-write with retry.
 
 ### Tasks
 
@@ -149,16 +149,16 @@ Before moving to Milestone 3: run Pass 2 against 10 real GitHub PRs with manuall
 - Vector dimension: 1536 (text-embedding-3-large) or 1024 (voyage-3) — evaluate both in M7
 - Payload fields: `chunk_id`, `graph_node_id`, `project_id`, `source`, `source_url`, `actor`, `timestamp`, `content`, `confidence`
 
-**3.2 — Kuzu setup**
-- Kuzu embedded (Python package, no separate server)
-- Node tables: Event, Decision, Ticket, PullRequest, Person, Concept, Codebase, AgentSession
-- Edge tables: implements, references, contradicts, supersedes, affects, authored_by, tagged_with
+**3.2 — Neo4j setup**
+- Neo4j 5 Community (Docker container)
+- Node labels: Event, Decision, Ticket, PullRequest, Person, Concept, Codebase, AgentSession
+- Relationship types: IMPLEMENTS, REFERENCES, CHALLENGES, SUPERSEDES, AFFECTS, AUTHORED_BY, TAGGED_WITH, EXTRACTED_FROM, MEMBER_OF
 - Temporal fields: `valid_from`, `valid_to` on Decision nodes (bi-temporal for decisions only; other nodes are append-only)
 
 **3.3 — Brain store writer**
 - Consumes from `events:extracted`
 - For each ExtractionResult:
-  1. Create graph nodes in Kuzu (graph write first — source of truth)
+  1. Create graph nodes in Neo4j (graph write first — source of truth)
   2. Chunk content by semantic boundaries (target: 400–600 tokens per chunk)
   3. Embed chunks via OpenAI/Voyage API (batch where possible)
   4. Write chunks + vectors to Qdrant with `graph_node_id` in payload
@@ -179,7 +179,7 @@ Before moving to Milestone 3: run Pass 2 against 10 real GitHub PRs with manuall
 - "Current" decision = Decision node with `valid_to IS NULL`
 
 ### Deliverable
-A GitHub PR event flows end-to-end: webhook → normalized → extracted → graph nodes created → vector chunks indexed in Qdrant. Verify with a Kuzu query returning the Decision node and a Qdrant nearest-neighbor search returning the relevant chunk.
+A GitHub PR event flows end-to-end: webhook → normalized → extracted → graph nodes created → vector chunks indexed in Qdrant. Verify with a Neo4j Cypher query returning the Decision node and a Qdrant nearest-neighbor search returning the relevant chunk.
 
 ---
 
@@ -201,14 +201,14 @@ A GitHub PR event flows end-to-end: webhook → normalized → extracted → gra
 
 **4.3 — Hybrid retrieval (project-scoped)**
 - Embed raw query → vector search in Qdrant (filter: `project_id`, top-K=10)
-- For each result: Kuzu lookup of graph node → fetch 1-hop neighbors
+- For each result: Neo4j multi-hop graph expansion → decision chain, author activity, ticket linkage (3 patterns in parallel)
 - Score neighbors: `parent_similarity × 0.7`
 - Merge, deduplicate, rank by score
 - Trim to 6,000-token budget (priority order: exact entity match > high similarity > graph neighbor)
 
 **4.4 — Temporal diff retrieval**
 - Separate code path for `question_type = "what-changed"`
-- Kuzu query: Decision/Ticket/PR nodes with `valid_from` in time range
+- Neo4j query: Decision/Ticket/PR nodes with `valid_from` in time range
 - Fetch prior versions via `supersedes` edges
 - Assemble delta struct: `{ created[], changed[], superseded[] }`
 
@@ -260,7 +260,7 @@ A browser-accessible chat UI where a user can type a question, see the answer st
 ### Tasks
 
 **6.1 — Delta assembly**
-- Given time range: query Kuzu for all nodes with `valid_from` in range
+- Given time range: query Neo4j for all nodes with `valid_from` in range
 - Group by type: decisions, tickets, PRs
 - For each changed Decision: fetch prior version via `supersedes` edge
 - Build delta: `{ created[], changed: [{before, after}], superseded[] }`
@@ -325,7 +325,7 @@ Query "what changed in the last week?" against a repo with multiple recent PRs a
 | API server | FastAPI (Python) | Async, good ML ecosystem |
 | Event queue | Redis Streams | Lightweight for POC |
 | Vector store | Qdrant (Docker) | Self-hosted, no account needed |
-| Graph DB | Kuzu (Python package) | Embedded, zero ops |
+| Graph DB | Neo4j 5 Community (Docker) | See ADR-001 |
 | Embedding model | `text-embedding-3-large` | Evaluate vs. voyage-3 in M7 |
 | LLM (extraction) | Claude Haiku | Fast, cheap for structured tasks |
 | LLM (query) | Claude Sonnet | Full quality for answer generation |
