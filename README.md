@@ -1,18 +1,39 @@
-# purpl_brain
+# purpl-brain
 
-Shared, auditable memory for AI coding agents and the teams working with them.
+Shared, auditable, cross-agent working memory for AI-assisted software teams.
 
-An agent finishes a session and logs its decisions to the brain. The next session — different IDE, different week, different agent — reads those decisions back with citations before doing anything. The developer does nothing between them.
+An agent finishes a session and logs its decisions to the brain. The next session — different IDE, different week, different agent — reads those decisions back with full citations before writing a line of code. The developer does nothing between them.
 
-## Quick start (5 minutes)
+**Eval results (real numbers, not marketing):**
+- 91% recall on Backstage (Spotify) public ADRs — cold ingestion, 11/12 ground-truth questions answered correctly
+- 33/33 integration eval PASS — full pipeline: ingestion → extraction → graph integrity → query → drift detection
+- ~7s average query latency with Anthropic Claude Haiku
+- 8/8 MCP tool eval PASS
 
-### 1. Prerequisites
+---
 
-- Docker Desktop running
-- Node.js 20+
-- An Anthropic API key (`sk-ant-...`)
+## Documentation
 
-### 2. Install and start
+| Audience | Document |
+|----------|----------|
+| Business / investors | [docs/pitch/business-brief.md](docs/pitch/business-brief.md) |
+| Senior engineers / architects | [docs/pitch/technical-deep-dive.md](docs/pitch/technical-deep-dive.md) |
+| Q&A / rebuttal prep | [docs/pitch/faq.md](docs/pitch/faq.md) |
+| Full product vision | [docs/product/vision.md](docs/product/vision.md) |
+| Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
+| Why Qdrant + Neo4j | [docs/technical/adrs/001-hybrid-brain-store.md](docs/technical/adrs/001-hybrid-brain-store.md) |
+| Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
+| Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
+| Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
+| Query layer spec | [docs/technical/query-layer.md](docs/technical/query-layer.md) |
+| LLM cost controls | [docs/technical/llm-cost-controls.md](docs/technical/llm-cost-controls.md) |
+| Risk register | [docs/risk/risk-register.md](docs/risk/risk-register.md) |
+
+---
+
+## Quick start (10 minutes, source build)
+
+**Prerequisites:** Docker Desktop, Node.js 20+, Anthropic API key + OpenAI API key (for embeddings)
 
 ```bash
 git clone https://github.com/skalrn/purpl_brain
@@ -20,21 +41,40 @@ cd purpl_brain
 bash setup.sh
 ```
 
-The setup script will:
-- Collect your Anthropic API key and a project name
-- Write `apps/api/.env` and generate a local API key
-- Build the MCP server
-- Start everything via `docker compose up -d --build`:
-  - Infrastructure: Redis, Neo4j, Qdrant
-  - API on `:3001`
-  - All four workers: normalizer, extractor, brain-writer, drift-detector
-- Print a ready-to-paste Claude Code / Cursor MCP config
+`setup.sh` collects your API keys, writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste Claude Code MCP config + CLAUDE.md snippet.
 
-Target: < 10 minutes from `git clone` to first query.
+### Quick start (beta tester, pre-built images)
 
-### 3. Add the MCP server to Claude Code
+No source code needed. Requires Docker and a GitHub account with access to the GHCR images.
 
-Paste into `~/.claude/settings.json` (create if it doesn't exist):
+```bash
+docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
+cp .env.example .env
+# Edit .env: fill in ANTHROPIC_API_KEY + OPENAI_API_KEY  (or set LLM_PROVIDER=ollama)
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Web UI: `http://localhost:3000` · API: `http://localhost:3001/health`
+
+---
+
+## LLM provider options
+
+| | Anthropic path | Ollama path |
+|---|---|---|
+| LLM | Claude Haiku (extraction + query) | gemma3n:e2b + gemma2:9b |
+| Embeddings | OpenAI text-embedding-3-small (768-dim) | nomic-embed-text:v1.5 (768-dim) |
+| Avg query latency | ~7s | ~60-90s (hardware dependent) |
+| External dependency | Anthropic API key + OpenAI API key | Ollama running on host |
+| Cost | ~$5-15/month active team | Free |
+
+Both paths produce 768-dim vectors — the Qdrant collection is compatible between providers.
+
+---
+
+## MCP tools (Claude Code / Cursor)
+
+Paste into `~/.claude/settings.json`:
 
 ```json
 {
@@ -44,7 +84,7 @@ Paste into `~/.claude/settings.json` (create if it doesn't exist):
       "args": ["/absolute/path/to/purpl_brain/apps/mcp/dist/index.js"],
       "env": {
         "BRAIN_API_URL": "http://localhost:3001",
-        "BRAIN_API_KEY": "<your-key-from-apps-api-env>",
+        "BRAIN_API_KEY": "<your-key-from-setup.sh>",
         "BRAIN_AGENT_ID": "claude-code"
       }
     }
@@ -52,147 +92,165 @@ Paste into `~/.claude/settings.json` (create if it doesn't exist):
 }
 ```
 
-See `apps/mcp/claude-code-config.example.json` for a ready-to-paste snippet. For Cursor, see `apps/mcp/cursor-config.example.json`.
+See `apps/mcp/claude-code-config.example.json` for a ready-to-paste template. For Cursor: `apps/mcp/cursor-config.example.json`.
 
-### 4. Verify the loop works
+| Tool | When to call |
+|------|-------------|
+| `brain_query` | Session start — recall prior decisions and open drift alerts |
+| `brain_log_decision` | Session end — log what you decided and why |
+| `brain_analyze_impact` | Before refactoring — check which decisions your change affects |
+| `brain_log_signal` | When you find something unexpected — report findings that may contradict past decisions |
 
-```bash
-cd apps/api
-BRAIN_API_KEY=<your-key> npm run demo:agent-memory
-```
+Also available: `/analyze-impact` slash command. Copy `.claude/commands/analyze-impact.md` into your project's `.claude/commands/` directory.
 
-This simulates two sessions — a write and a read — and prints a pass/fail verdict. If it passes, the agent memory loop is working end-to-end.
-
-### 5. Start a Claude Code session
-
-Open any repo you're working on. Claude Code now has `brain_query` and `brain_log_decision` in its tool chain. It will:
-- Call `brain_query` at session start to recall prior decisions
-- Call `brain_log_decision` when it makes an architectural choice
-
-No user prompt needed. The tool descriptions trigger the agent automatically.
-
----
-
-## Connect signal sources (optional)
-
-The brain works immediately from agent logs alone. You can enrich it with your team's existing signal history:
-
-### GitHub
-
-GitHub webhooks require a public URL to receive live events. For local dev, use the seed script instead — it backfills existing PRs and issues directly without needing a webhook:
-
-```bash
-# In apps/api/.env, uncomment and set:
-GITHUB_TOKEN=ghp_...
-
-# Seed a repo (fetches last 50 PRs/issues — no public URL needed):
-npm run seed:github -w apps/api -- --repo org/repo --limit 50
-```
-
-For live webhook ingestion (staging/production), configure your GitHub webhook to point to `https://your-domain/webhooks/github` and set `GITHUB_WEBHOOK_SECRET` in `.env`.
-
-### Slack
-
-```bash
-# In apps/api/.env, add:
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
-SLACK_CHANNEL_IDS=C01234,C05678
-
-# Start the Slack listener:
-npm run worker:slack -w apps/api
-```
-
-### Jira
-
-```bash
-# In apps/api/.env, add:
-JIRA_BASE_URL=https://myorg.atlassian.net
-JIRA_WEBHOOK_SECRET=...
-
-# Seed existing issues:
-npm run seed:jira -w apps/api -- --project MY_PROJECT
-```
-
-### Local docs folder
-
-If your project keeps decisions in a `docs/` folder (ADRs, architecture docs, PRDs), seed them directly from your local checkout. No GitHub token needed — attribution is resolved from git history:
-
-```bash
-# ADRs get first-commit author. Other docs get collective attribution (all git authors).
-npm run seed:local-docs -w apps/api -- \
-  --dir ./docs \
-  --project my_project \
-  --base-url https://github.com/org/repo/blob/main/docs
-```
-
-`--base-url` sets the citation link prefix (clickable in query results). Omit it to use `file://` paths.
-
-### Meeting transcripts
-
-```bash
-# Paste a VTT, SRT, or plain-text transcript via API:
-curl -X POST http://localhost:3001/brain/ingest/transcript \
-  -H "Authorization: Bearer <key>" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "title": "Auth design review", "project_id": "my_project"}'
-```
-
----
-
-## Web UI
-
-The query UI runs at `http://localhost:3000` and is started automatically by `setup.sh` / `docker compose up`.
-
-For local development outside Docker (faster iteration):
-
-```bash
-npm run dev -w apps/web
-```
+**Make Claude call these automatically** — add the snippet printed by `setup.sh` to your project's `CLAUDE.md`. Without it, tool calls depend on model judgment and will be inconsistent.
 
 ---
 
 ## Architecture
 
 ```
-Agent session
-  └─ brain_log_decision (MCP tool)
-       └─ POST /brain/agent-log
-            └─ Redis Streams → normalizer → extractor → brain-writer
-                 └─ Neo4j (graph) + Qdrant (vectors)
+Signal sources (GitHub / Slack / Jira / meetings / agent sessions)
+  │
+  ▼
+POST webhook or seed script
+  │
+  ▼
+Redis Streams: events:raw
+  │
+  ▼  normalizer worker (rule-based schema normalisation — no LLM)
+Redis Streams: events:normalized
+  │
+  ▼  extractor worker (LLM: extract decisions, people, tickets)
+Redis Streams: events:extracted
+  │
+  ├──▶  brain-writer worker ──▶  Neo4j (graph) + Qdrant (vectors)
+  └──▶  drift-detector worker ──▶  DriftAlert nodes in Neo4j
 
-New agent session
-  └─ brain_query (MCP tool)
-       └─ POST /brain/query
-            └─ embed → Qdrant search → Neo4j expand → LLM answer with citations
+Agent session (POST /brain/agent-log)
+  └──▶  bypass LLM extractor ──▶  directly to events:extracted
+        (agent output is pre-structured — no LLM re-extraction needed)
+
+Query (POST /brain/query or brain_query MCP tool)
+  └──▶  embed query (768-dim)
+         └──▶  Qdrant ANN search (has_decisions=true filter, project_id filter)
+                └──▶  Neo4j graph expand (Event + Decision + Person + Ticket)
+                       └──▶  LLM answer with citations (source_url, actor, timestamp)
 ```
 
-Signal sources (GitHub, Slack, Jira, meetings) flow through the same pipeline and are retrievable through the same query interface.
+**Why two databases:** Qdrant finds semantically related chunks (cosine similarity). Neo4j expands from those entry points to the full causal/relational context — who decided what, what tickets it affected, what drift alerts it triggered. Neither alone answers both types of query. See [ADR-001](docs/technical/adrs/001-hybrid-brain-store.md).
 
 ---
 
-## Running workers manually (local dev outside Docker)
+## Connect signal sources
 
-`setup.sh` starts everything via `docker compose`. To run on the host instead (faster iteration, easier debugging):
+### GitHub
 
 ```bash
-docker compose up -d redis neo4j qdrant    # infra only
-npm run dev -w apps/api                    # API on :3001
-npm run worker:normalizer -w apps/api      # pass 1: rule-based signal extraction
-npm run worker:extractor -w apps/api       # pass 2: LLM decision extraction
-npm run worker:brain-writer -w apps/api    # writes to Neo4j + Qdrant
-npm run worker:drift -w apps/api           # drift detection (optional)
-npm run dev -w apps/web                    # web UI on :3000
+# Backfill existing PRs (no webhook/public URL needed):
+GITHUB_TOKEN=ghp_... npm run seed:github -w apps/api -- --repo org/repo --limit 50
 ```
 
-Apply Neo4j schema constraints once after first start:
+For live ingestion: configure a GitHub webhook to `https://your-domain/webhooks/github` with the `GITHUB_WEBHOOK_SECRET` from `.env`.
+
+### Slack
+
+```bash
+# In .env: SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_IDS
+npm run worker:slack -w apps/api
+```
+
+### Jira
+
+```bash
+# In .env: JIRA_BASE_URL, JIRA_WEBHOOK_SECRET
+npm run seed:jira -w apps/api -- --project MY_PROJECT
+```
+
+### Local docs / ADRs
+
+```bash
+npm run seed:local-docs -w apps/api -- \
+  --dir ./docs \
+  --project my_project \
+  --base-url https://github.com/org/repo/blob/main/docs
+```
+
+Attribution is resolved from git history — first commit author for ADRs, collective for general docs.
+
+### Meeting transcripts
+
+```bash
+curl -X POST http://localhost:3001/brain/ingest/transcript \
+  -H "x-api-key: <key>" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "...", "title": "Auth design review", "project_id": "my_project"}'
+```
+
+---
+
+## Verify everything works
+
+```bash
+bash demo.sh verify    # checks all services + auth + query + CORS
+```
+
+End-to-end eval:
+
+```bash
+npm run eval:integration -w apps/api   # 33 checks, full pipeline
+npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
+```
+
+---
+
+## Snapshot and restore
+
+Export the full brain state (Neo4j graph + Qdrant vectors + metadata) to a portable archive:
+
+```bash
+bash brain-snapshot.sh my-project-v1.0          # creates brain_snapshot_my-project-v1.0.tar.gz
+bash brain-snapshot.sh my-project-v1.0 --push   # also creates a GitHub release
+```
+
+Restore on any machine:
+
+```bash
+bash brain-restore.sh brain_snapshot_my-project-v1.0.tar.gz   # from local file
+bash brain-restore.sh my-project-v1.0                          # from GitHub release
+```
+
+---
+
+## Running workers outside Docker (local dev)
+
+```bash
+docker compose up -d redis neo4j qdrant   # infra only
+npm run dev -w apps/api                   # API on :3001
+npm run worker:normalizer -w apps/api
+npm run worker:extractor -w apps/api
+npm run worker:brain-writer -w apps/api
+npm run worker:drift -w apps/api
+npm run dev -w apps/web                   # web UI on :3000
+```
+
+Apply Neo4j constraints once after first start:
 
 ```bash
 npm run migrate:constraints -w apps/api
 ```
 
-Tail Docker logs:
+---
+
+## Cutting a release
 
 ```bash
-docker compose logs -f api extractor brain-writer
+git checkout -b release-beta-0.1.0
+git push
 ```
+
+GitHub Actions builds obfuscated Docker images and pushes to GHCR:
+- `ghcr.io/skalrn/purpl-brain-api:beta-latest`
+- `ghcr.io/skalrn/purpl-brain-web:beta-latest`
+
+For stable releases: `release-0.1.0` → tags `0.1.0` and `latest`.
