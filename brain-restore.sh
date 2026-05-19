@@ -82,7 +82,7 @@ echo ""
 # Confirm before wiping
 echo -e "${RED}⚠️  This will WIPE the current Neo4j graph and Qdrant collection.${RESET}"
 read -rp "Continue? [y/N] " CONFIRM
-if [[ "${CONFIRM,,}" != "y" ]]; then
+if [[ "$(echo "$CONFIRM" | tr '[:upper:]' '[:lower:]')" != "y" ]]; then
   echo "Aborted."
   exit 0
 fi
@@ -106,9 +106,9 @@ if [[ -z "$CONTAINER" ]]; then
   exit 1
 fi
 
-docker cp "$WORK_DIR/brain_neo4j.cypher" "${CONTAINER}:/import/brain_restore.cypher"
+docker cp "$WORK_DIR/brain_neo4j.cypher" "${CONTAINER}:/var/lib/neo4j/import/brain_restore.cypher"
 docker exec "$CONTAINER" bash -c \
-  "cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -f /import/brain_restore.cypher --format plain" \
+  "cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} -f /var/lib/neo4j/import/brain_restore.cypher --format plain" \
   2>&1 | tail -5
 
 # Reapply constraints (idempotent)
@@ -133,9 +133,9 @@ SNAP_FILE="$WORK_DIR/brain_qdrant.snapshot"
 SNAP_SIZE=$(du -sh "$SNAP_FILE" | cut -f1)
 echo "      Uploading snapshot ($SNAP_SIZE)..."
 
+# Upload endpoint creates (or replaces) the collection from the snapshot in one call
 RECOVER_RESP=$(curl -sf -X POST \
-  "${QDRANT_URL}/collections/${COLLECTION}/snapshots/recover" \
-  -H "Content-Type: multipart/form-data" \
+  "${QDRANT_URL}/collections/${COLLECTION}/snapshots/upload" \
   -F "snapshot=@${SNAP_FILE}" 2>/dev/null)
 
 STATUS=$(echo "$RECOVER_RESP" | python3 -c "
