@@ -131,7 +131,7 @@ Natural language question
   → embed immediately (parallel with intent parse)
   → Haiku classifies intent → mode, filters, entity refs
   → Qdrant vector search (top-10 chunks)
-  → Neo4j graph expansion (1-hop neighbors)
+  → Neo4j graph expansion (decision chain, author activity, ticket linkage — parallel)
   → rank + trim to 6K token budget
   → Sonnet generates answer with inline citations
   → citation validator checks every [N] ref
@@ -173,7 +173,7 @@ The intent parser (`apps/api/src/lib/intent-parser.ts`) classifies every query i
 
 | Mode | What it does | When triggered |
 |---|---|---|
-| `project` | Vector search + 1-hop graph expansion, grounded answer | Default; most queries |
+| `project` | Vector search + multi-hop graph expansion (decision chain, author activity, ticket linkage), grounded answer | Default; most queries |
 | `temporal` | Graph-only: nodes with `valid_from` in the requested range, grouped into a changelog | "what changed this week", "last 5 days" |
 | `expertise` | Per-project brief summaries assembled across namespaces | Cross-project specialist queries |
 | `agent-resume` | Graph-only: prior agent session decisions + drift since session ended | Agent resuming a task |
