@@ -35,6 +35,7 @@ interface TimeRange {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
 const TEMPORAL_PATTERNS: Array<{ re: RegExp; rangeFn: () => TimeRange }> = [
   {
@@ -112,7 +113,7 @@ export default function Chat() {
       if (isTemporal) {
         const res = await fetch(`${API_URL}/brain/query`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-api-key": API_KEY },
           body: JSON.stringify({ query, project_id: projectId.trim(), mode: "temporal", time_range: range }),
         });
         const data = await res.json();
@@ -133,7 +134,7 @@ export default function Chat() {
       // Project mode — streaming
       const res = await fetch(`${API_URL}/brain/query/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-api-key": API_KEY },
         body: JSON.stringify({ query, project_id: projectId.trim() }),
       });
 

@@ -68,6 +68,9 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
       }
 
       reply.hijack();
+      const origin = request.headers.origin ?? process.env.UI_BASE_URL ?? "http://localhost:3000";
+      reply.raw.setHeader("Access-Control-Allow-Origin", origin);
+      reply.raw.setHeader("Access-Control-Allow-Credentials", "true");
       reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
       reply.raw.setHeader("Cache-Control", "no-cache");
       reply.raw.setHeader("Connection", "keep-alive");
