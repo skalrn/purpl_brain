@@ -13,6 +13,8 @@ import { brainRoutes } from "./routes/brain.js";
 import { authRoutes } from "./routes/auth.js";
 import { ingestRoutes } from "./routes/ingest.js";
 import { identityRoutes } from "./routes/identity.js";
+import { checkEmbeddingModel } from "./lib/qdrant.js";
+import { currentEmbeddingModel } from "./lib/embed.js";
 
 const app = Fastify({ logger: true });
 
@@ -47,6 +49,24 @@ await app.register(fastifySession, {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   },
 });
+
+// Fail fast if the configured embedding model doesn't match the one used to
+// build the existing Qdrant collection. Mismatched models produce silent garbage
+// retrieval — surfacing it here is far better than invisible quality regression.
+const embeddingModel = currentEmbeddingModel();
+const { ok: embeddingOk, stored: storedModel } = await checkEmbeddingModel(embeddingModel);
+if (!embeddingOk) {
+  console.error("");
+  console.error("FATAL: embedding model mismatch — cannot start query layer safely.");
+  console.error(`  Collection was built with: ${storedModel}`);
+  console.error(`  Currently configured:      ${embeddingModel}`);
+  console.error("");
+  console.error("  Existing vectors are incompatible with the new model.");
+  console.error("  Re-embed the collection before restarting:");
+  console.error("    npx tsx src/scripts/reset-pipeline.ts --project <project_id>");
+  console.error("");
+  process.exit(1);
+}
 
 await app.register(authRoutes);
 await app.register(webhookRoutes, { prefix: "/webhooks" });

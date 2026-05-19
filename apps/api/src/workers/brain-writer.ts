@@ -4,8 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { STREAMS } from "../lib/redis.js";
 import { StreamWorker } from "../lib/stream-worker.js";
 import { driver, getSession, resolveOrCreateActorPerson } from "../lib/neo4j.js";
-import { qdrant, COLLECTION, ensureCollection } from "../lib/qdrant.js";
-import { embed, embedBatch } from "../lib/embed.js";
+import { qdrant, COLLECTION, ensureCollection, stampEmbeddingModel } from "../lib/qdrant.js";
+import { embed, embedBatch, currentEmbeddingModel } from "../lib/embed.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { ExtractionResult, Decision } from "@purpl/types";
 
@@ -261,6 +261,7 @@ class BrainWriter extends StreamWorker {
 
   override async run(): Promise<void> {
     await ensureCollection();
+    await stampEmbeddingModel(currentEmbeddingModel());
     await drainQdrantRetries();
     await super.run();
   }

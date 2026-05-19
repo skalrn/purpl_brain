@@ -17,6 +17,11 @@ const VECTOR_SIZE = parseInt(process.env.QDRANT_VECTOR_SIZE ?? "768");
 const OPENAI_EMBED_MODEL = process.env.OPENAI_EMBED_MODEL ?? "text-embedding-3-small";
 const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text:v1.5";
 
+/** Returns the embedding model name that will be used for all embed() calls. */
+export function currentEmbeddingModel(): string {
+  return PROVIDER === "anthropic" ? OPENAI_EMBED_MODEL : OLLAMA_EMBED_MODEL;
+}
+
 export async function embed(text: string): Promise<number[]> {
   if (PROVIDER === "anthropic") {
     const response = await openaiClient.embeddings.create({

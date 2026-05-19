@@ -46,3 +46,42 @@ export async function ensureCollection() {
     });
   }
 }
+
+// Reserved point ID for the embedding-model sentinel.
+// Never returned in searches because all real queries filter by project_id.
+const SENTINEL_ID = "00000000-0000-0000-0000-000000000001";
+
+/**
+ * Write (or overwrite) the embedding model sentinel in the collection.
+ * Called by brain-writer after ensureCollection() so the model is stamped
+ * before any real points are written.
+ */
+export async function stampEmbeddingModel(embeddingModel: string): Promise<void> {
+  // Sentinel vector: unit vector in first dimension — valid for cosine distance,
+  // never matches real text embeddings.
+  const vector = new Array<number>(VECTOR_SIZE).fill(0);
+  vector[0] = 1;
+  await qdrant.upsert(COLLECTION, {
+    wait: true,
+    points: [{ id: SENTINEL_ID, vector, payload: { _sentinel: true, embedding_model: embeddingModel } }],
+  });
+}
+
+/**
+ * Check that the collection's stamped embedding model matches the currently
+ * configured model. Returns { ok: true, stored: null } when no sentinel exists
+ * yet (fresh collection — brain-writer will stamp it on first run).
+ */
+export async function checkEmbeddingModel(
+  currentModel: string
+): Promise<{ ok: boolean; stored: string | null }> {
+  try {
+    const result = await qdrant.retrieve(COLLECTION, { ids: [SENTINEL_ID], with_payload: true });
+    if (result.length === 0) return { ok: true, stored: null };
+    const stored = (result[0].payload as Record<string, unknown> | undefined)?.embedding_model as string | undefined;
+    if (!stored) return { ok: true, stored: null };
+    return { ok: stored === currentModel, stored };
+  } catch {
+    return { ok: true, stored: null }; // collection doesn't exist yet
+  }
+}
