@@ -7,6 +7,16 @@ export function hashApiKey(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
 }
 
+/** Convert a Neo4j Integer object (or plain number) to a JS number. */
+function toNum(val: unknown): number {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === "number") return val;
+  if (typeof val === "object" && "toNumber" in (val as object)) {
+    return (val as { toNumber(): number }).toNumber();
+  }
+  return Number(val) || 0;
+}
+
 const NEO4J_URI = process.env.NEO4J_URI ?? "bolt://localhost:7687";
 const NEO4J_USER = process.env.NEO4J_USER ?? "neo4j";
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD ?? process.env.NEO4J_PASS ?? "password";
@@ -351,10 +361,11 @@ export async function countActiveSeats(since: string): Promise<number> {
   }
 }
 
-export async function getDriftAlerts(projectId: string): Promise<Array<{
+export async function getDriftAlerts(projectId?: string): Promise<Array<{
   alert_id: string;
   decision_id: string;
   decision_summary: string;
+  project_id: string;
   source: string;
   content: string;
   actor: string;
@@ -365,26 +376,42 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
 }>> {
   const session = getSession();
   try {
-    const result = await session.run(
-      `MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: $project_id})
-       WHERE a.resolution = "pending"
-       RETURN a.alert_id AS alert_id,
-              d.decision_id AS decision_id,
-              d.summary AS decision_summary,
-              a.source AS source,
-              a.content AS content,
-              a.actor AS actor,
-              a.timestamp AS timestamp,
-              a.resolution AS resolution,
-              a.confirmed_by_llm AS confirmed_by_llm,
-              a.fingerprint AS fingerprint
-       ORDER BY a.timestamp DESC`,
-      { project_id: projectId }
-    );
+    const query = projectId
+      ? `MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: $project_id})
+         WHERE a.resolution = "pending"
+         RETURN a.alert_id AS alert_id,
+                d.decision_id AS decision_id,
+                d.summary AS decision_summary,
+                e.project_id AS project_id,
+                a.source AS source,
+                a.content AS content,
+                a.actor AS actor,
+                a.timestamp AS timestamp,
+                a.resolution AS resolution,
+                a.confirmed_by_llm AS confirmed_by_llm,
+                a.fingerprint AS fingerprint
+         ORDER BY a.timestamp DESC`
+      : `MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+         WHERE a.resolution = "pending"
+         RETURN a.alert_id AS alert_id,
+                d.decision_id AS decision_id,
+                d.summary AS decision_summary,
+                e.project_id AS project_id,
+                a.source AS source,
+                a.content AS content,
+                a.actor AS actor,
+                a.timestamp AS timestamp,
+                a.resolution AS resolution,
+                a.confirmed_by_llm AS confirmed_by_llm,
+                a.fingerprint AS fingerprint
+         ORDER BY a.timestamp DESC
+         LIMIT 200`;
+    const result = await session.run(query, { project_id: projectId ?? null });
     return result.records.map((r) => ({
       alert_id: r.get("alert_id") as string,
       decision_id: r.get("decision_id") as string,
       decision_summary: r.get("decision_summary") as string,
+      project_id: r.get("project_id") as string,
       source: r.get("source") as string,
       content: r.get("content") as string,
       actor: r.get("actor") as string,
@@ -393,6 +420,150 @@ export async function getDriftAlerts(projectId: string): Promise<Array<{
       confirmed_by_llm: r.get("confirmed_by_llm") as boolean,
       fingerprint: r.get("fingerprint") as string | null,
     }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * List all projects that have at least one Event, with health stats.
+ * Used by the multi-project overview (Profile B dashboard).
+ */
+export async function listProjects(): Promise<Array<{
+  project_id: string;
+  event_count: number;
+  decision_count: number;
+  pending_drift_count: number;
+  last_event_at: string | null;
+}>> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (e:Event)
+       WITH e.project_id AS pid, count(e) AS event_count, max(e.timestamp) AS last_event_at
+       OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e2:Event {project_id: pid})
+       WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count
+       OPTIONAL MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->
+                      (:Decision)-[:EXTRACTED_FROM]->(e3:Event {project_id: pid})
+       RETURN pid AS project_id,
+              event_count,
+              last_event_at,
+              decision_count,
+              count(DISTINCT a) AS pending_drift_count
+       ORDER BY last_event_at DESC`
+    );
+    return result.records.map((r) => ({
+      project_id:          r.get("project_id") as string,
+      event_count:         toNum(r.get("event_count")),
+      decision_count:      toNum(r.get("decision_count")),
+      pending_drift_count: toNum(r.get("pending_drift_count")),
+      last_event_at:       (r.get("last_event_at") as string | null) ?? null,
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * List agent sessions for a project — Events where source="agent", newest first.
+ * Each agent POST /brain/agent-log creates exactly one Event, so one row = one session.
+ */
+export async function listAgentSessions(projectId: string): Promise<Array<{
+  event_id: string;
+  agent_id: string;
+  timestamp: string;
+  decision_count: number;
+  work_summary: string;
+}>> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (e:Event {project_id: $project_id, source: "agent"})
+       MATCH (e)-[:AUTHORED_BY]->(p:Person)
+       OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
+       WITH e, p, count(d) AS decision_count
+       RETURN e.event_id AS event_id,
+              p.name AS agent_id,
+              e.timestamp AS timestamp,
+              decision_count,
+              e.raw_content AS raw_content
+       ORDER BY e.timestamp DESC
+       LIMIT 100`,
+      { project_id: projectId }
+    );
+    return result.records.map((r) => {
+      const raw: string = (r.get("raw_content") as string) ?? "";
+      // Extract "Work completed: ..." line from the raw_content summary
+      const workMatch = raw.match(/Work completed:\s*(.+?)(?:\n|$)/);
+      return {
+        event_id:      r.get("event_id") as string,
+        agent_id:      (r.get("agent_id") as string) ?? "unknown",
+        timestamp:     r.get("timestamp") as string,
+        decision_count: toNum(r.get("decision_count")),
+        work_summary:  workMatch ? workMatch[1].trim() : raw.slice(0, 120),
+      };
+    });
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Return full detail for a single agent session by event_id, including
+ * every decision extracted from it. Used for pre-merge audit.
+ */
+export async function getAgentSession(eventId: string): Promise<{
+  event_id: string;
+  agent_id: string;
+  project_id: string;
+  timestamp: string;
+  raw_content: string;
+  decisions: Array<{
+    decision_id: string;
+    summary: string;
+    rationale: string | null;
+    confidence: string;
+    status: string;
+  }>;
+} | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (e:Event {event_id: $event_id, source: "agent"})
+       MATCH (e)-[:AUTHORED_BY]->(p:Person)
+       OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
+       RETURN e.event_id AS event_id,
+              p.name AS agent_id,
+              e.project_id AS project_id,
+              e.timestamp AS timestamp,
+              e.raw_content AS raw_content,
+              collect(CASE WHEN d IS NOT NULL THEN {
+                decision_id: d.decision_id,
+                summary: d.summary,
+                rationale: d.rationale,
+                confidence: d.confidence,
+                status: d.status
+              } END) AS decisions`,
+      { event_id: eventId }
+    );
+    if (result.records.length === 0) return null;
+    const r = result.records[0];
+    return {
+      event_id:    r.get("event_id") as string,
+      agent_id:    (r.get("agent_id") as string) ?? "unknown",
+      project_id:  r.get("project_id") as string,
+      timestamp:   r.get("timestamp") as string,
+      raw_content: (r.get("raw_content") as string) ?? "",
+      decisions:   ((r.get("decisions") as Array<Record<string, unknown>>) ?? [])
+        .filter(Boolean)
+        .map((d) => ({
+          decision_id: d.decision_id as string,
+          summary:     d.summary as string,
+          rationale:   (d.rationale as string | null) ?? null,
+          confidence:  (d.confidence as string) ?? "medium",
+          status:      (d.status as string) ?? "confirmed",
+        })),
+    };
   } finally {
     await session.close();
   }

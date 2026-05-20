@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks } from "../lib/neo4j.js";
+import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
@@ -21,14 +21,16 @@ import type { CanonicalEvent, DriftResolution, EventSource, ExtractionResult, De
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /brain/drift-alerts ─────────────────────────────────────────────
+  // project_id is optional. When omitted, returns pending alerts across all
+  // projects — used by the multi-project dashboard (Profile B).
   fastify.get<{ Querystring: { project_id?: string } }>(
     "/brain/drift-alerts",
-    { preHandler: [requireApiKey, requireProjectMember] },
+    { preHandler: requireApiKey },
     async (req, reply) => {
-      const projectId = req.query.project_id ?? "default";
+      const projectId = req.query.project_id || undefined;
       try {
         const alerts = await getDriftAlerts(projectId);
-        return { alerts };
+        return { alerts, project_id: projectId ?? null };
       } catch (e) {
         fastify.log.error(e);
         return reply.status(500).send({ error: "Failed to fetch drift alerts" });
@@ -376,4 +378,47 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(500).send({ error: "Failed to count seats" });
     }
   });
+
+  // ── GET /brain/agent-sessions ────────────────────────────────────────────
+  // List all agent sessions for a project, newest first.
+  // Each row corresponds to one POST /brain/agent-log call.
+  fastify.get<{ Querystring: { project_id: string } }>(
+    "/brain/agent-sessions",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { project_id } = req.query;
+      if (!project_id) {
+        return reply.status(400).send({ error: "project_id is required" });
+      }
+      try {
+        const sessions = await listAgentSessions(project_id);
+        return { sessions, total: sessions.length, project_id };
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to fetch agent sessions" });
+      }
+    }
+  );
+
+  // ── GET /brain/agent-sessions/:event_id ──────────────────────────────────
+  // Full detail for one agent session — decisions, rationale, work summary.
+  // The event_id is the value returned by POST /brain/agent-log.
+  // Use this for pre-merge audits: "what did the agent decide in this session?"
+  fastify.get<{ Params: { event_id: string } }>(
+    "/brain/agent-sessions/:event_id",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { event_id } = req.params;
+      try {
+        const session = await getAgentSession(event_id);
+        if (!session) {
+          return reply.status(404).send({ error: "Agent session not found", event_id });
+        }
+        return session;
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to fetch agent session" });
+      }
+    }
+  );
 };
