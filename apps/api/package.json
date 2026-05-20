@@ -39,6 +39,7 @@
     "eval:graph-integrity": "tsx src/scripts/eval-graph-integrity.ts",
     "eval:integration": "tsx src/scripts/eval-integration.ts",
     "eval:security": "tsx src/scripts/eval-security.ts",
+    "seed:demo": "tsx src/scripts/seed-demo.ts",
     "demo:agent-memory": "tsx src/scripts/demo-agent-memory.ts",
     "pipeline:reset": "tsx src/scripts/reset-pipeline.ts",
     "build": "tsc",
