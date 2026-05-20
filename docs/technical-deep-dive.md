@@ -52,7 +52,7 @@ This section explains the AI building blocks used in this product without assumi
 
 ### 3.1 What is an embedding?
 
-An embedding is a way of converting text into a list of numbers — typically several hundred or several thousand numbers — such that texts with similar meaning end up with similar numbers.
+An embedding is a way of converting text into a list of numbers — typically several hundred numbers — such that texts with similar meaning end up with similar numbers.
 
 Concretely: if you embed the sentence "we decided to use short-lived JWTs for authentication" and the sentence "the team agreed on 15-minute JWT expiry for security", the resulting number lists will be close to each other in mathematical space. If you embed "the quarterly revenue report", the resulting numbers will be far away from both.
 
@@ -60,7 +60,64 @@ This is not keyword matching. The similarity is semantic — it captures meaning
 
 **Why this matters for this product:** when a user asks "what decisions were made about auth?", we embed the question, then find all stored content whose embedding is close to the question's embedding. This finds relevant content even when the stored content uses different words than the question.
 
-**What model generates the embeddings?** In this product: OpenAI's `text-embedding-3-small` model. It converts any piece of text (up to around 8,000 tokens) into a list of 1,536 numbers. These numbers are stored in a database called Qdrant (explained below).
+### 3.1.1 What are dimensions and why does the number matter?
+
+The list of numbers produced by an embedding model is called a **vector**. Each number in the list represents one "dimension" of meaning. This product uses 768-dimensional vectors — meaning every piece of stored text becomes a list of 768 numbers.
+
+A helpful analogy: imagine rating a movie on 768 different scales simultaneously (how much action, how much romance, how dark the tone is, how much it deals with family, and so on). Two movies with similar ratings across most of those 768 scales would end up "close" to each other. That is exactly what an embedding model does with text — it scores every piece of text on 768 abstract learned dimensions of meaning.
+
+**Why the number 768 is fixed and non-negotiable for this system:** the Qdrant collection (the database that stores embeddings) is created with a fixed vector size at setup time. Once created with 768 dimensions, every vector stored in it must have exactly 768 numbers. Storing a 512-dimensional or 1536-dimensional vector fails immediately. This is not a limitation of the design — it is the correct behaviour, because vectors of different sizes are mathematically incomparable.
+
+### 3.1.2 What model generates the embeddings?
+
+This product uses two embedding models depending on the deployment configuration:
+
+**Local development (default):** `nomic-embed-text:v1.5`, run locally via Ollama — a tool that runs AI models on your own machine. nomic-embed-text is an open-source embedding model that produces 768-dimensional vectors natively. It requires no API key, costs nothing per call, and runs on a developer's laptop in under 50ms per embedding. It performs competitively on standard embedding benchmarks (MTEB) for general and technical English text.
+
+**Cloud / production (when `PROVIDER=anthropic`):** OpenAI's `text-embedding-3-small`. This model natively produces 1536-dimensional vectors, but the code requests 768 dimensions explicitly using OpenAI's dimension reduction feature. This keeps the vector size identical to the local model so the same Qdrant collection works in both environments. OpenAI's model has slightly higher benchmark scores for some domains, and the cost is $0.02 per million tokens — negligible for the query volume of a small team.
+
+**Why two models?** Developers running the system locally should not need an OpenAI API key or pay per embedding call during development. nomic-embed-text via Ollama is free, fast, and good enough. In production, where reliability and benchmark quality matter more than cost of development setup, OpenAI's model is the more defensible choice.
+
+### 3.1.3 What is cosine similarity?
+
+To measure how "close" two vectors are — and therefore how similar two pieces of text are — this system uses **cosine similarity**. It is a score between -1 and 1:
+
+- **1.0** means the two vectors point in exactly the same direction — the texts have essentially the same meaning.
+- **0.0** means the vectors are perpendicular — the texts are unrelated.
+- **-1.0** means the vectors point in opposite directions — theoretically opposite meaning (rare in practice for natural language).
+
+In this product, a cosine similarity above **0.85** between a new decision and an existing one triggers the drift detection pipeline (meaning: these two decisions are about the same topic and may contradict each other).
+
+The name "cosine" comes from the fact that it measures the cosine of the angle between the two vectors in 768-dimensional space. The intuition is: if you were standing at the origin and pointing at two different directions, how similar are those directions? Length does not matter — only direction. This makes cosine similarity robust to text length: a long paragraph and a short summary of the same idea can have cosine similarity close to 1.0.
+
+### 3.1.4 Why switching embedding models breaks the system — and why this is a safety feature, not a bug
+
+This is one of the most important things to understand about how the system is built.
+
+**The fundamental problem:** vectors from different embedding models are incomparable. Two models do not share a common notion of "similar direction." If you stored 10,000 vectors using nomic-embed-text and then switched to OpenAI's model, a new query's embedding (from OpenAI's model) would produce cosine similarity scores against stored embeddings (from nomic) that are effectively random — not high, not low, just meaningless. The system would return the wrong results with no error, silently. This is the worst possible failure mode: wrong answers that look right.
+
+**The analogy:** imagine two people both claim to measure temperature, but one uses Celsius and the other uses Fahrenheit. A measurement of "37" from one and "37" from the other are not the same temperature. If you compare them without knowing the scale mismatch, you will draw wrong conclusions — and there is no obvious signal that anything is wrong.
+
+**The protection built into this system:** at startup, the API reads the name of the embedding model that was used to populate the current Qdrant collection (stored in collection metadata). It compares this to the model currently configured in the environment. If they do not match, the API refuses to start:
+
+```
+FATAL: embedding model mismatch — cannot start query layer safely.
+  Stored in Qdrant collection: nomic-embed-text:v1.5
+  Currently configured:        text-embedding-3-small
+  Re-embed the collection before restarting.
+```
+
+This crash-on-mismatch is intentional. A silent mismatch would be far more damaging than a refused startup.
+
+**What "re-embedding" means:** if you legitimately want to switch models (for example, upgrading nomic-embed-text to a newer version, or migrating from local to cloud), you must:
+1. Delete the existing Qdrant collection (erasing all stored vectors).
+2. Re-create the collection with the new vector size (if the new model has different dimensions).
+3. Re-run the full ingestion pipeline against all historical events to re-embed everything with the new model.
+4. Update the stored model name in collection metadata.
+
+This process can take hours for large datasets. It is the correct cost of switching models — the alternative (silently serving wrong results) is not acceptable for a system whose purpose is reliable, citable answers.
+
+**Why you also cannot switch to an Anthropic embedding model even though the LLM is Anthropic:** Anthropic does not currently offer a standalone embedding model API. The LLM (for extraction and answer generation) is Anthropic's Claude. The embedding model is either nomic-embed-text (locally) or OpenAI's text-embedding-3-small (cloud). These are separate concerns: the LLM generates text, the embedding model converts text to numbers. They do not have to be from the same provider.
 
 ### 3.2 What is a vector database?
 
@@ -332,7 +389,10 @@ The implementation discipline required: the stable prefix must be byte-for-byte 
 | Decision | What was built | What was rejected | Why |
 |---|---|---|---|
 | **Brain store** | Qdrant (vector) + Neo4j (graph) | Pure vector store (Pinecone only); Pure graph with vector plugin | Vector alone cannot traverse causal chains. Graph plugin search degrades quality at scale. Two dedicated stores, one responsibility each. |
-| **Agent interface** | MCP server | Custom SDK per agent framework; LangChain/LlamaIndex tool wrappers | Custom SDK requires re-integration per agent runtime. Framework wrappers lock to one ecosystem. MCP is agent-framework-agnostic and ecosystem momentum is strong. |
+| **Embedding model (local)** | `nomic-embed-text:v1.5` via Ollama (768 dims) | `text-embedding-3-small` for all environments; no local model | nomic-embed-text runs free on a developer's laptop with no API key. Using a remote API for local dev adds cost, latency, and an internet dependency. Both models produce 768-dim vectors, keeping the Qdrant collection schema identical across environments. |
+| **Embedding model (cloud)** | OpenAI `text-embedding-3-small` with dimension reduction to 768 | Anthropic embedding model; Cohere; nomic-embed-text cloud API | Anthropic has no standalone embedding API. OpenAI's model has strong MTEB benchmark scores and $0.02/M token cost. Dimension reduction to 768 keeps collection schema identical to local model. |
+| **Vector size** | 768 dimensions across all environments | Different sizes per model (e.g. 1536 for cloud, 768 for local) | Qdrant collection schema is fixed at creation. Different sizes per environment would require maintaining two separate collections with different retrieval paths. 768 is supported natively by nomic-embed-text and via reduction by text-embedding-3-small. |
+| **Agent interface** | MCP server + Python SDK (LangGraph/ADK) | Custom SDK per agent framework only | MCP is agent-framework-agnostic for IDE agents (Claude Code, Cursor). Python SDK covers orchestration-framework agents (LangGraph, ADK) that cannot use MCP. REST API available for any HTTP-capable agent. |
 | **Ingestion** | Webhook-first, event-driven | Batch polling; Third-party integration platforms (Zapier, Make) | Polling cannot meet the 5-minute anomaly detection SLA without expensive high-frequency polling. Third-party platforms add latency, cost, and a critical-path dependency. |
 | **Agent write-back** | Structured JSON schema | Read-only agents; Natural language summaries | Read-only misses the most valuable missing context (agent decisions). Unstructured summaries cannot be reliably parsed for graph linking and contradiction detection. |
 | **Event queue** | Redis Streams | Kafka; Direct API calls (no queue) | Kafka adds significant operational overhead unjustified at POC scale. No queue = brittle, no backpressure, retries impossible. |
@@ -350,7 +410,17 @@ These are the questions most likely to come from a senior engineering or ML audi
 
 **Q: Embedding models have a knowledge cutoff. How do you handle terminology that postdates the training data?**
 
-The embedding model (`text-embedding-3-small`) is trained on a large general corpus and produces good embeddings for most technical terminology. For highly domain-specific or newly coined terms, embeddings may be less discriminative. The practical mitigation is two-fold: (1) the graph traversal layer supplements vector search, so if two nodes share a ticket reference or a PR link, they are connected regardless of whether their embeddings are close; (2) the system stores `raw_content` on every Event node, so as embedding models improve, historical data can be re-embedded without re-ingestion.
+Both embedding models used (nomic-embed-text locally, text-embedding-3-small in cloud) are trained on large general corpora and handle most software-engineering terminology well. For highly domain-specific or newly coined terms, embeddings may be less discriminative — the model has never seen the term, so it cannot place it precisely in semantic space. The practical mitigation is two-fold: (1) the graph traversal layer supplements vector search, so if two nodes share a ticket reference or a PR link, they are connected regardless of whether their embeddings are close; (2) the system stores `raw_content` on every Event node in Neo4j, so if a better embedding model is adopted in the future, historical data can be re-embedded by replaying from raw without re-fetching anything from source systems.
+
+**Q: Why can't you just swap in an Anthropic or a better embedding model without consequences?**
+
+You can — but it is a deliberate migration, not a configuration change. Swapping the embedding model invalidates every vector stored in Qdrant, because vectors from different models are mathematically incomparable (see section 3.1.4). The system detects the mismatch at startup and refuses to start rather than silently returning wrong results. To migrate: delete and recreate the Qdrant collection with the new vector size, re-run ingestion for all historical events, update the stored model name in collection metadata. This is the correct cost of a model upgrade. The `raw_content` field on every Event node in Neo4j is the re-embedding safety net — no data is lost, only the derived vectors need to be regenerated.
+
+A common misconception: because the LLM is Anthropic's Claude, people assume the embedding model should also be from Anthropic. These are separate components with separate providers. The LLM produces text. The embedding model produces numbers. Anthropic does not currently offer a standalone embedding API, so the embedding model is necessarily from a different provider.
+
+**Q: How do you know the embedding model is actually finding the right content — what is the recall?**
+
+Formally, this is not benchmarked for the specific dataset of software team knowledge. The eval suite tests end-to-end query quality (does the answer correctly cite a known decision?) but does not isolate vector search recall as a separate metric. This is a known gap. The practical substitute is graph expansion: after vector search returns top-K chunks, the graph traversal layer adds causally related content (decisions sharing a ticket reference, events by the same author, linked PRs). This means even if a relevant chunk is ranked 11th by cosine similarity and falls outside the top-K, it may still be retrieved if it is graph-adjacent to something that was retrieved. The combined system has higher recall than pure vector search alone. A rigorous recall benchmark (constructing a gold-standard test set from known team decisions, then measuring how often the relevant chunk appears in the retrieved context) would be the right next engineering investment before moving beyond beta.
 
 **Q: How do you prevent the LLM from hallucinating decisions that weren't made?**
 
@@ -464,4 +534,4 @@ Honesty matters in technical demos. The following known limitations are worth be
 
 ---
 
-*Document written to be self-contained. Code references are accurate as of `pivot/agent-memory` branch, 2026-05-19.*
+*Document written to be self-contained. Code references are accurate as of `pivot/agent-memory` branch, 2026-05-20. Last updated: embedding model section rewritten to reflect dual-provider architecture (nomic-embed-text locally, text-embedding-3-small in cloud) and model-lock safety mechanism.*

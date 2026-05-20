@@ -61,7 +61,39 @@ Sam installs the Purpl Brain MCP server into Cursor and Claude Code in five minu
 
 ---
 
-## Persona 3: The Context Switcher (Secondary Beneficiary)
+## Persona 3: The Concurrent Project Developer (Primary Human Persona — Profile B)
+
+**Name:** Maya, Solo Developer / Micro-Founder
+**Team size:** 1 (herself), 5–10 simultaneous AI-assisted projects
+**Environment:** Overnight and weekend autonomous agent runs. Cursor or Claude Code open all day. Bounces between a SaaS product, two client projects, an open-source library, and several experimental repos. Each project has its own agent history.
+
+### Situation
+Maya runs agents on multiple projects in parallel — often kicking off an overnight run on two or three repos and reviewing the diff in the morning. Her problem is not context within one project; it is oversight *across* projects after agents have been running without her.
+
+The risk Maya is managing: an agent working on Project B absorbed context it shouldn't have — a constraint from Project A leaked in through a shared prompt, a library decision from one repo was mirrored to another without reason, or two agents in different projects made incompatible infrastructure choices that will collide when she eventually integrates them.
+
+She has no dashboard for this. She checks each repo's git log manually, re-reads agent transcripts that may no longer exist, and has no way to surface cross-project contradictions without doing the analysis herself.
+
+### Goals
+- Wake up to a summary of what every agent decided overnight, not a pile of diffs to review
+- Catch cross-project contamination before it's merged — did the agent bring in assumptions from another project?
+- See all pending drift alerts across all projects in a single inbox, not one-per-project navigation
+- Confirm that each project's agent is working from that project's decisions, not contaminated by another's
+
+### Frustrations
+- Every tool (Cursor, Claude Code) is single-project scoped in its UI
+- No way to see "decisions made across all my projects in the last 24 hours" without clicking through each repo
+- Agent transcripts expire; the decisions they contain are lost unless explicitly persisted
+- No contradiction detection across projects — only within one repo at a time
+
+### How Purpl Brain Helps
+The `/` root view is Maya's command center: all projects listed with health state, pending drift count, last agent session time, and last event time. She scans it in thirty seconds each morning. Clicking a red drift badge opens the specific contradictions waiting for triage. The `GET /brain/agent-sessions?project_id=X` endpoint surfaces every decision the overnight agent made for each project. She approves or flags before pushing.
+
+The Profile B use case is served entirely by the multi-project dashboard endpoints and the drift inbox UI that are part of the Profile B build (Phase 3). Nothing in the agent write-back or MCP layer changes; the new surface is purely observability-facing.
+
+---
+
+## Persona 4: The Context Switcher (Secondary Beneficiary — Profile A)
 
 **Name:** Alex, Senior Software Engineer
 **Status:** Secondary persona. Gets value from the brain because the agent decision history is also human-queryable, not because Purpl Brain was built primarily for them.
@@ -74,7 +106,7 @@ Same agent-log query path the next agent session would use. Alex queries: "what 
 
 ---
 
-## Persona 4: The Tech Lead / PM (Secondary Beneficiary)
+## Persona 5: The Tech Lead / PM (Secondary Beneficiary)
 
 **Name:** Jordan, Engineering Manager / Technical PM
 **Status:** Secondary persona. Benefits from agent decision auditability for oversight, not the target buyer.

@@ -66,9 +66,13 @@ The system runs end-to-end from a single `docker compose up` command in approxim
 
 **Primary target: small AI-forward software teams (3–15 engineers)**
 
-The acute pain is in teams where AI tools are already heavily adopted but no knowledge management infrastructure exists. Specifically:
+The acute pain is in teams where AI tools are already heavily adopted but no knowledge management infrastructure exists. Two distinct profiles:
 
-- Solo developers and micro-founders managing two to three parallel AI-assisted codebases
+**Profile A — The Agent Operator:** Individual developers and small teams who use Cursor, Claude Code, or Copilot as a daily driver and run 5–20 agent sessions per day. Pain: re-pasting context, agents contradicting prior decisions, no audit trail. They already pay $20–100/month for AI coding tools.
+
+**Profile B — The Concurrent Project Developer:** Solo developers and micro-founders running 5–10 simultaneous AI-assisted projects, often with overnight or background autonomous agent runs. Pain: no oversight across projects — what did each agent decide while I was away, did any contradict each other across projects, what needs review before I push? This persona does not need a team collaboration story; they need a cross-project oversight dashboard for their own agent swarm. The multi-project dashboard is built for them.
+
+Also included:
 - Consultancies and agencies shipping multiple client projects simultaneously
 - Startups where every engineer uses multiple AI tools and no one has time to maintain documentation
 
@@ -84,14 +88,18 @@ Finance and healthcare organizations are beginning to require auditable trails f
 
 ## Competitive Position
 
-| Capability | Purpl Brain | Glean | Notion AI | GitHub Copilot |
-|---|---|---|---|---|
-| Cross-tool agent memory | Yes | No | No | No |
-| Agent write-back (AI logs its own decisions) | Yes | No | No | No |
-| Auditable citations (URL, timestamp, actor) | Yes | Partial | No | No |
-| Drift and contradiction detection | Yes | No | No | No |
-| BYOC (data stays in your cloud) | Yes | No | No | No |
-| Estimated cost — 10 engineers | $50–150/month | $1,000+/month | $160/month (limited) | $190/month |
+| Capability | Purpl Brain | Glean | Notion AI | GitHub Copilot | Google A2A |
+|---|---|---|---|---|---|
+| Cross-tool agent memory | Yes | No | No | No | No |
+| Agent write-back (AI logs its own decisions) | Yes | No | No | No | No |
+| Auditable citations (URL, timestamp, actor) | Yes | Partial | No | No | No |
+| Drift and contradiction detection | Yes | No | No | No | No |
+| Cross-session persistence | Yes | No | No | No | No |
+| Real-time agent-to-agent messaging | No (future) | No | No | No | Yes |
+| BYOC (data stays in your cloud) | Yes | No | No | No | N/A |
+| Estimated cost — 10 engineers | $50–150/month | $1,000+/month | $160/month (limited) | $190/month | Open protocol |
+
+**Note on Google A2A:** The Agent2Agent protocol is a synchronous transport layer for live agent-to-agent communication — real-time task delegation and capability discovery between agents that are both running. It is orthogonal to Purpl Brain: A2A solves "how do two running agents talk right now?"; Purpl Brain solves "how does an agent know what prior agents decided?". A2A has no persistence, no semantic conflict detection, no session continuity. A future integration (Purpl Brain as an A2A service endpoint delivering drift alert notifications to live agent sessions) is on the roadmap.
 
 The fundamental difference: **AI agents are first-class write-back actors in Purpl Brain.** Every competitor treats AI as a query interface — something you ask questions of. Purpl Brain treats AI as a participant that both reads from and writes to shared team memory. That architectural distinction is not a feature; it is the category.
 

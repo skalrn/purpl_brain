@@ -44,7 +44,7 @@ const OWNER        = "honojs";
 const NAME         = "hono";
 const PROJECT_ID   = "honojs_hono";
 const GITHUB_API   = "https://api.github.com";
-const DELAY_MS     = 150; // stay inside rate limits
+const DELAY_MS     = 1500; // conservative — no token = 60 req/hr
 
 // Bot accounts whose content adds no decision signal
 const BOT_LOGINS = new Set([

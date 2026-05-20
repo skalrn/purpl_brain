@@ -1,17 +1,19 @@
+import { v4 as uuidv4 } from "uuid";
 import type { FastifyPluginAsync } from "fastify";
 import type { QueryRequest } from "@purpl/types";
 import { runQuery, runQueryStream } from "../services/query-engine.js";
 import { runTemporalQuery } from "../services/temporal-engine.js";
 import { analyzeImpact } from "../services/impact-engine.js";
 import { parseQueryIntent } from "../lib/intent-parser.js";
+import { persistPreflightCheck } from "../lib/neo4j.js";
 import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
 
 export const queryRoutes: FastifyPluginAsync = async (app) => {
-  app.post<{ Body: QueryRequest & { change_description?: string } }>(
+  app.post<{ Body: QueryRequest & { change_description?: string; session_event_id?: string } }>(
     "/query",
     { preHandler: [requireApiKey, requireProjectMember] },
     async (request, reply) => {
-      const { query, project_id, mode, time_range, change_description } = request.body;
+      const { query, project_id, mode, time_range, change_description, session_event_id } = request.body;
 
       if (!project_id) {
         return reply.code(400).send({ error: "project_id is required" } as never);
@@ -35,6 +37,22 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
           return reply.code(400).send({ error: "query or change_description is required for impact mode" } as never);
         }
         const result = await analyzeImpact(changeDesc, project_id);
+
+        // Persist the check and link it to the agent session when session_event_id is provided.
+        // Non-fatal — a failed persist does not fail the impact analysis response.
+        if (session_event_id) {
+          persistPreflightCheck({
+            check_id: uuidv4(),
+            event_id: session_event_id,
+            change_description: changeDesc,
+            overall_risk: result.overall_risk,
+            summary: result.summary,
+            affected_decision_count: result.affected_decisions.length,
+            project_id,
+            checked_at: new Date().toISOString(),
+          }).catch((err) => app.log.warn({ err, session_event_id }, "preflight check persist failed"));
+        }
+
         return reply.code(200).send(result);
       }
 

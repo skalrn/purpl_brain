@@ -111,6 +111,7 @@ export interface ExtractionResult {
   source_url: string;
   raw_content: string;
   actor: Actor;
+  operator?: Actor; // human who triggered the agent session (agent logs only)
   timestamp: string;
   decisions: Decision[];
   ticket_refs: string[];

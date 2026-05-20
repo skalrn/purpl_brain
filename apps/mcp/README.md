@@ -39,6 +39,41 @@ Both tools are described in a way that triggers the agent automatically — the 
 
 The loop closes when Session N+1 retrieves what Session N logged — with no human in the middle.
 
+## LangGraph and ADK agents (Python SDK)
+
+Agents built with LangGraph, Google ADK, or any Python orchestration framework cannot use the MCP server. Use the Python SDK instead — it wraps the same four REST endpoints.
+
+```bash
+# from repo root
+pip install -e "packages/python[langgraph]"   # LangGraph / LangChain
+pip install -e "packages/python[adk]"          # Google ADK
+```
+
+**LangGraph:**
+```python
+from purpl_brain import BrainClient, langgraph_tools
+from langgraph.prebuilt import create_react_agent
+
+client = BrainClient()  # reads BRAIN_API_URL + BRAIN_API_KEY from env
+agent = create_react_agent(model, langgraph_tools(client))
+```
+
+**Google ADK:**
+```python
+from purpl_brain import BrainClient, adk_tools
+from google.adk.tools import FunctionTool
+from google.adk import Agent
+
+client = BrainClient()
+agent = Agent(
+    name="my_agent",
+    model="gemini-2.0-flash",
+    tools=[FunctionTool(fn) for fn in adk_tools(client)],
+)
+```
+
+See `packages/python/examples/` for full session lifecycle examples (query at start → impact check mid-session → log decisions at end).
+
 ## Verify it works
 
 From `apps/api`, with the full stack running and `BRAIN_API_KEY` set:

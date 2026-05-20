@@ -63,7 +63,10 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
            e.timestamp = $timestamp,
            e.url = $url,
            e.raw_content = $raw_content,
-           e.actor_person_id = $person_id
+           e.source_id = $source_id,
+           e.actor_person_id = $person_id,
+           e.operator_id = $operator_id,
+           e.operator_name = $operator_name
        WITH e
        MATCH (p:Person {person_id: $person_id})
        MERGE (e)-[:AUTHORED_BY]->(p)`,
@@ -75,7 +78,10 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
         timestamp: result.timestamp,
         url: result.source_url,
         raw_content: result.raw_content,
+        source_id: result.source_id ?? null,
         person_id: personId,
+        operator_id: result.operator?.id ?? null,
+        operator_name: result.operator?.name ?? null,
       }
     );
 

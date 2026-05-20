@@ -16,6 +16,13 @@ import { identityRoutes } from "./routes/identity.js";
 import { checkEmbeddingModel } from "./lib/qdrant.js";
 import { currentEmbeddingModel } from "./lib/embed.js";
 
+// DEV_API_KEY bypasses all project membership checks — must never be set in
+// production. Fail fast rather than silently running without tenant isolation.
+if (process.env.DEV_API_KEY && process.env.NODE_ENV === "production") {
+  console.error("FATAL: DEV_API_KEY must not be set in production — it bypasses all project access controls.");
+  process.exit(1);
+}
+
 const app = Fastify({ logger: true });
 
 await app.register(cors, {

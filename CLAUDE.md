@@ -28,7 +28,7 @@ docs/
     llm-cost-controls.md          # Prompt caching patterns, breakpoint placement, anti-patterns
     adrs/
       001-hybrid-brain-store.md        # Vector DB + Graph DB rationale
-      002-mcp-server-interface.md      # Why MCP over bespoke agent SDK
+      002-mcp-server-interface.md      # Why MCP over bespoke agent SDK; Python SDK for LangGraph/ADK
       003-event-driven-ingestion.md    # Webhook-first with Redis Streams queue
       004-agent-decision-trails.md     # Agent log schema and write-back design
   risk/
@@ -39,7 +39,7 @@ docs/
 
 - **Brain store:** Hybrid — Qdrant (vector) for semantic retrieval + Neo4j (graph) for causal/relational reasoning. See ADR-001.
 - **Ingestion:** Webhook-first, event-driven. Redis Streams pipeline: RAW → NORMALIZED → EXTRACTED. See ADR-003.
-- **Agent interface:** Agents write structured decision logs to `POST /brain/agent-log`. Brain exposes 4 MCP tools. See ADR-002, ADR-004.
+- **Agent interface:** Three paths — (1) MCP server for Claude Code and Cursor; (2) Python SDK (`packages/python`) with LangGraph `@tool` wrappers and Google ADK callables; (3) REST API directly for any HTTP-capable agent. All four operations (query, log-decision, analyze-impact, log-signal) are available on every path. See ADR-002, ADR-004.
 - **Query:** RAG + graph traversal combined. Every answer is grounded with citations to source (URL, timestamp, actor).
 - **Drift detection:** Two-stage — Qdrant semantic similarity (Stage A) + LLM confirmation (Stage C). Writes `DriftAlert` nodes.
 
@@ -97,6 +97,31 @@ MCP_TRANSPORT=http MCP_PORT=3002 node apps/mcp/dist/index.js
 Set `BRAIN_API_URL` to your deployed brain URL. Required for AWS-hosted deployments (M6).
 
 **Cursor setup:** see `apps/mcp/cursor-config.example.json`.
+
+## Python SDK Setup (LangGraph / ADK)
+
+For agents built with LangGraph, Google ADK, or any Python orchestration framework, use `packages/python` instead of the MCP server.
+
+```bash
+pip install -e "packages/python[langgraph]"   # LangGraph / LangChain agents
+pip install -e "packages/python[adk]"          # Google ADK agents
+pip install -e "packages/python[all]"          # both
+```
+
+```python
+from purpl_brain import BrainClient, langgraph_tools, adk_tools
+
+client = BrainClient()  # reads BRAIN_API_URL + BRAIN_API_KEY from env
+
+# LangGraph
+tools = langgraph_tools(client)  # returns list of @tool instances
+
+# ADK
+from google.adk.tools import FunctionTool
+tools = [FunctionTool(fn) for fn in adk_tools(client)]
+```
+
+All four operations are available: `brain_query`, `brain_log_decision`, `brain_analyze_impact`, `brain_log_signal`. See `packages/python/examples/` for full session lifecycle examples.
 
 ## Session Handoff Protocol
 
