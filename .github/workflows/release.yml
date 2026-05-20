@@ -81,6 +81,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # ── Security checks (C3, H3) ────────────────────────────────────────────
+
+      - name: "C3 — verify no API key baked into web bundle"
+        run: |
+          docker build -t brain-web-ci apps/web/ --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001
+          result=$(docker run --rm brain-web-ci sh -c \
+            'grep -r "NEXT_PUBLIC_API_KEY" /app/.next 2>/dev/null && echo FOUND || echo CLEAN')
+          echo "Result: $result"
+          if [ "$result" = "FOUND" ]; then
+            echo "FAIL: NEXT_PUBLIC_API_KEY found in web bundle"
+            exit 1
+          fi
+
+      - name: "H3 — verify Neo4j ports not exposed in prod compose"
+        run: |
+          if docker compose -f docker-compose.prod.yml config 2>/dev/null \
+            | awk '/^  neo4j:/{found=1} found && /ports:/{inports=1} inports && /published:/{print; inports=0} /^  [a-z]/{if(found && !/neo4j/)exit}' \
+            | grep -qE '7474|7687'; then
+            echo "FAIL: Neo4j is exposing ports 7474 or 7687 to host"
+            exit 1
+          fi
+          echo "PASS: Neo4j ports not bound to host"
+
       - name: Summary
         run: |
           echo "## Release built ✓" >> "$GITHUB_STEP_SUMMARY"

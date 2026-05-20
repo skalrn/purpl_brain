@@ -26,11 +26,12 @@ export function validateEnv(): void {
     "NEO4J_USER",
   ];
 
-  // Must not be default value — always enforced
-  const mustNotBeDefault = [
-    "SESSION_SECRET",
-    "NEO4J_PASSWORD",
-  ];
+  // SESSION_SECRET must not be default — always enforced regardless of NODE_ENV.
+  // NEO4J_PASSWORD is warned in dev but hard-fails in prod (covered below).
+  const alwaysMustNotBeDefault = ["SESSION_SECRET"];
+
+  // Must not be default — warning in dev, error in prod
+  const mustNotBeDefault = ["NEO4J_PASSWORD"];
 
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -47,10 +48,17 @@ export function validateEnv(): void {
     }
   }
 
+  for (const key of alwaysMustNotBeDefault) {
+    const val = process.env[key];
+    if (val && DEV_DEFAULTS[key] && val === DEV_DEFAULTS[key]) {
+      errors.push(`${key} is using the insecure dev default — run setup.sh to generate real credentials`);
+    }
+  }
+
   for (const key of mustNotBeDefault) {
     const val = process.env[key] ?? process.env[key.replace("PASSWORD", "PASS")];
     if (val && DEV_DEFAULTS[key] && val === DEV_DEFAULTS[key]) {
-      errors.push(`${key} is using the insecure dev default — run setup.sh to generate real credentials`);
+      (isProd ? errors : warnings).push(`${key} is using the insecure dev default`);
     }
   }
 
