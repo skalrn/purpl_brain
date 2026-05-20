@@ -10,7 +10,7 @@ import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { chunkText, detectDocumentType } from "../lib/document-chunker.js";
 import { crawlRepoDocs } from "../lib/github-doc-crawler.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
-import { requireApiKey } from "../lib/auth-middleware.js";
+import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
 import type { CanonicalEvent } from "@purpl/types";
 
 export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
@@ -30,7 +30,7 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/document",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { text, title, path, document_type, project_id, source_url } = req.body;
 
@@ -117,7 +117,7 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/crawl-docs",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { repo, project_id, path_prefix } = req.body;
 

@@ -20,6 +20,7 @@ import "dotenv/config";
 import { Redis } from "ioredis";
 
 const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API_KEY = process.env.BRAIN_API_KEY ?? "";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const PROJECT = "eval_link_following";
 const LINKED_PR_SET = "brain:linked_pr_processed";
@@ -58,10 +59,16 @@ const RECALL_KEYWORDS = ["gzip", "zstd", "zstandard", "compression"];
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  if (API_KEY) h["X-API-Key"] = API_KEY;
+  return h;
+}
+
 async function post(path: string, body: unknown) {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);

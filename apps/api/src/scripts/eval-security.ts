@@ -174,6 +174,7 @@ if (!apiReachable) {
   // ── Section C: Task approval gate (H1) ─────────────────────────────────────
   console.log("\n── Section C: Task approval gate (H1) ──\n");
 
+
   // Auth required
   const noKeyTasksRes = await get(`/brain/tasks?project_id=${PROJECT}`);
   check("GET /brain/tasks without key → 401",
@@ -211,6 +212,54 @@ if (!apiReachable) {
       );
     }
   }
+}
+
+// ── Section E: Tenant isolation holes A–E (new auth middleware) ──────────────
+console.log("\n── Section E: Tenant isolation boundary checks ──\n");
+
+if (!apiReachable) {
+  skip("GET /brain/people without key → 401",          "API not reachable");
+  skip("POST /brain/identity/link without key → 401",  "API not reachable");
+  skip("GET /projects without key → 401",              "API not reachable");
+  skip("POST /brain/ingest/document without key → 401","API not reachable");
+  skip("GET /brain/agent-sessions/:id without key → 401","API not reachable");
+  skip("POST /brain/drift-alerts/:id/resolve — 404 not 403 for non-member", "API not reachable");
+} else {
+  // HOLE B fix: GET /brain/people now behind [requireApiKey, requireProjectMember]
+  const peopleRes = await get("/brain/people?project_id=x");
+  check("GET /brain/people without key → 401",
+    peopleRes.status === 401, `got ${peopleRes.status}`);
+
+  // HOLE C fix: POST /brain/identity/link now behind [requireApiKey, requireProjectMember]
+  const linkRes = await post("/brain/identity/link",
+    { project_id: PROJECT, github_login: "test-user" });
+  check("POST /brain/identity/link without key → 401",
+    linkRes.status === 401, `got ${linkRes.status}`);
+
+  // HOLE A fix: GET /projects already had requireApiKey; still does
+  const projRes = await get("/projects");
+  check("GET /projects without key → 401",
+    projRes.status === 401, `got ${projRes.status}`);
+
+  // HOLE D fix: ingest routes now also check project membership
+  const ingestRes = await post("/brain/ingest/document",
+    { text: "x".repeat(25), project_id: PROJECT });
+  check("POST /brain/ingest/document without key → 401",
+    ingestRes.status === 401, `got ${ingestRes.status}`);
+
+  // assertProjectMember unification: ownership failures return 404, not 403
+  // This prevents disclosure that the resource exists to non-members.
+  // Manually verify: POST /brain/drift-alerts/:unknown-id/resolve with valid key
+  // and a project_id the actor is NOT a member of → should return 404, not 403.
+  skip(
+    "POST /brain/drift-alerts/:id/resolve — 404 not 403 for non-member",
+    "requires two distinct authenticated actors — verify manually"
+  );
+
+  // GET /brain/agent-sessions/:event_id auth check
+  const sessRes = await get("/brain/agent-sessions/non-existent-id");
+  check("GET /brain/agent-sessions/:event_id without key → 401",
+    sessRes.status === 401, `got ${sessRes.status}`);
 }
 
 // ── Section D: Manual verification reminders ─────────────────────────────────

@@ -9,6 +9,7 @@
 import "dotenv/config";
 
 const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API_KEY = process.env.BRAIN_API_KEY ?? "";
 const PROJECT = "eval_docs_project";
 
 const SYNTHETIC_ADR = `# ADR-099: Use MessagePack over JSON for internal service communication
@@ -34,10 +35,16 @@ MessagePack provides ~30% smaller payloads and ~2x faster serialization than JSO
 All internal SDKs must be updated to support MessagePack encoding. The API gateway encodes/decodes at the boundary. No external API changes.
 `;
 
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  if (API_KEY) h["X-API-Key"] = API_KEY;
+  return h;
+}
+
 async function post(path: string, body: unknown) {
   const res = await fetch(`${API}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
@@ -124,20 +131,18 @@ await check("brain_query returns alternatives from ADR", async () => {
   }
 });
 
-// 5. Dedup check
-await check("POST /brain/ingest/document — rejects duplicate", async () => {
-  try {
-    await post("/brain/ingest/document", {
-      text: SYNTHETIC_ADR,
-      title: "ADR-099 MessagePack vs JSON",
-      path: "docs/adrs/099-messagepack-vs-json.md",
-      project_id: PROJECT,
-      source_url: "brain://eval/adr-099",
-    });
-    throw new Error("Expected 409, got 200");
-  } catch (e) {
-    if (!(e as Error).message.includes("409")) throw e;
-  }
+// 5. Re-ingest check — document ingest is idempotent REPLACE (not 409 reject).
+// Sending the same source_url a second time deletes prior Qdrant chunks and
+// re-queues, returning 200. This prevents stale content from surviving updates.
+await check("POST /brain/ingest/document — re-ingest same source_url returns 200", async () => {
+  const result = await post("/brain/ingest/document", {
+    text: SYNTHETIC_ADR,
+    title: "ADR-099 MessagePack vs JSON",
+    path: "docs/adrs/099-messagepack-vs-json.md",
+    project_id: PROJECT,
+    source_url: "brain://eval/adr-099",
+  }) as { ok: boolean; chunks_queued: number };
+  if (!result.ok) throw new Error(`Expected ok=true, got ${JSON.stringify(result)}`);
 });
 
 console.log(`\n── Results: ${passed} passed, ${failed} failed ──\n`);

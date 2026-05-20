@@ -6,7 +6,7 @@
  * GET  /brain/people         — list all persons active in a project
  */
 import type { FastifyPluginAsync } from "fastify";
-import { requireApiKey } from "../lib/auth-middleware.js";
+import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
 import { linkPersonIdentities, listPeopleInProject } from "../lib/neo4j.js";
 
 export const identityRoutes: FastifyPluginAsync = async (fastify) => {
@@ -14,6 +14,8 @@ export const identityRoutes: FastifyPluginAsync = async (fastify) => {
   // ── POST /brain/identity/link ────────────────────────────────────────────
   // At least one identifier is required. All fields are optional individually,
   // but together they must resolve to at least one existing node or create one.
+  // project_id is required to scope the membership check — callers can only
+  // link identities within projects they are members of.
   //
   // Example — Alice has three source identities that the brain sees separately:
   //   github_login: "alice-chen"
@@ -23,6 +25,7 @@ export const identityRoutes: FastifyPluginAsync = async (fastify) => {
   // One call merges all three into a single canonical Person node.
   fastify.post<{
     Body: {
+      project_id: string;
       github_login?: string;
       slack_user_id?: string;
       jira_user_id?: string;
@@ -31,9 +34,13 @@ export const identityRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/identity/link",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
-      const { github_login, slack_user_id, jira_user_id, email, name } = req.body;
+      const { project_id, github_login, slack_user_id, jira_user_id, email, name } = req.body;
+
+      if (!project_id) {
+        return reply.status(400).send({ error: "project_id is required" });
+      }
 
       const identifiers = [github_login, slack_user_id, jira_user_id, email].filter(Boolean);
       if (identifiers.length === 0) {
@@ -66,7 +73,7 @@ export const identityRoutes: FastifyPluginAsync = async (fastify) => {
   // flagged — these are candidates for identity linking.
   fastify.get<{ Querystring: { project_id: string } }>(
     "/brain/people",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { project_id } = req.query;
 

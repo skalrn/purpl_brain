@@ -426,17 +426,195 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
 }
 
 /**
- * List all projects that have at least one Event, with health stats.
- * Used by the multi-project overview (Profile B dashboard).
+ * Cross-project drift alerts scoped to the projects the actor is a member of.
+ * Used by the multi-project dashboard when no project_id is specified — ensures
+ * a user only sees alerts for their own projects, never other tenants'.
  */
-export async function listProjects(): Promise<Array<{
+export async function getDriftAlertsForActor(personId: string): Promise<Array<{
+  alert_id: string;
+  decision_id: string;
+  decision_summary: string;
+  project_id: string;
+  source: string;
+  content: string;
+  actor: string;
+  timestamp: string;
+  resolution: string;
+  confirmed_by_llm: boolean;
+  fingerprint: string | null;
+}>> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (:Person {person_id: $person_id})-[:MEMBER_OF]->(proj:Project)
+       MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: proj.project_id})
+       WHERE a.resolution = "pending"
+       RETURN a.alert_id AS alert_id,
+              d.decision_id AS decision_id,
+              d.summary AS decision_summary,
+              e.project_id AS project_id,
+              a.source AS source,
+              a.content AS content,
+              a.actor AS actor,
+              a.timestamp AS timestamp,
+              a.resolution AS resolution,
+              a.confirmed_by_llm AS confirmed_by_llm,
+              a.fingerprint AS fingerprint
+       ORDER BY a.timestamp DESC
+       LIMIT 200`,
+      { person_id: personId }
+    );
+    return result.records.map((r) => ({
+      alert_id: r.get("alert_id") as string,
+      decision_id: r.get("decision_id") as string,
+      decision_summary: r.get("decision_summary") as string,
+      project_id: r.get("project_id") as string,
+      source: r.get("source") as string,
+      content: r.get("content") as string,
+      actor: r.get("actor") as string,
+      timestamp: r.get("timestamp") as string,
+      resolution: r.get("resolution") as string,
+      confirmed_by_llm: r.get("confirmed_by_llm") as boolean,
+      fingerprint: r.get("fingerprint") as string | null,
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Return the project_id for a given DriftAlert, or null if not found.
+ * Used for ownership checks on alert resolution.
+ */
+export async function getAlertProjectId(alertId: string): Promise<string | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (a:DriftAlert {alert_id: $alert_id})-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+       RETURN e.project_id AS project_id LIMIT 1`,
+      { alert_id: alertId }
+    );
+    return result.records[0]?.get("project_id") as string ?? null;
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Return the project_id for a given agent session event_id, or null if not found.
+ * Used for ownership checks on session reads.
+ */
+export async function getSessionProjectId(eventId: string): Promise<string | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (e:Event {event_id: $event_id}) RETURN e.project_id AS project_id LIMIT 1`,
+      { event_id: eventId }
+    );
+    return result.records[0]?.get("project_id") as string ?? null;
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * List projects the actor is a member of, with health stats.
+ * Scoped via MEMBER_OF edges — never leaks cross-tenant project data.
+ */
+export async function listProjectsForActor(personId: string, since?: string): Promise<Array<{
   project_id: string;
   event_count: number;
   decision_count: number;
   pending_drift_count: number;
+  pending_tasks_count: number;
+  sessions_since: number;
+  decisions_since: number;
   last_event_at: string | null;
 }>> {
   const session = getSession();
+  const sinceTs = since ?? "1970-01-01T00:00:00.000Z";
+  try {
+    const result = await session.run(
+      `MATCH (:Person {person_id: $person_id})-[:MEMBER_OF]->(proj:Project)
+       MATCH (e:Event {project_id: proj.project_id})
+       WITH proj.project_id AS pid, count(e) AS event_count, max(e.timestamp) AS last_event_at
+       OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e2:Event {project_id: pid})
+       WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count
+       OPTIONAL MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->
+                      (:Decision)-[:EXTRACTED_FROM]->(e3:Event {project_id: pid})
+       WITH pid, event_count, last_event_at, decision_count, count(DISTINCT a) AS pending_drift_count
+       OPTIONAL MATCH (t:FollowUpTask {project_id: pid, status: "open"})
+       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
+            count(t) AS pending_tasks_count
+       OPTIONAL MATCH (es:Event {project_id: pid, source: "agent"})
+       WHERE es.timestamp >= $since
+       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
+            pending_tasks_count, count(es) AS sessions_since
+       OPTIONAL MATCH (ds:Decision)-[:EXTRACTED_FROM]->(esc:Event {project_id: pid, source: "agent"})
+       WHERE esc.timestamp >= $since
+       RETURN pid AS project_id,
+              event_count,
+              last_event_at,
+              decision_count,
+              pending_drift_count,
+              pending_tasks_count,
+              sessions_since,
+              count(DISTINCT ds) AS decisions_since
+       ORDER BY last_event_at DESC`,
+      { person_id: personId, since: sinceTs }
+    );
+    return result.records.map((r) => ({
+      project_id:          r.get("project_id") as string,
+      event_count:         toNum(r.get("event_count")),
+      decision_count:      toNum(r.get("decision_count")),
+      pending_drift_count: toNum(r.get("pending_drift_count")),
+      pending_tasks_count: toNum(r.get("pending_tasks_count")),
+      sessions_since:      toNum(r.get("sessions_since")),
+      decisions_since:     toNum(r.get("decisions_since")),
+      last_event_at:       (r.get("last_event_at") as string | null) ?? null,
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Count active seats scoped to projects the actor is a member of.
+ * Prevents cross-tenant seat count leakage on the billing endpoint.
+ */
+export async function countActiveSeatsForActor(personId: string, since: string): Promise<number> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (:Person {person_id: $person_id})-[:MEMBER_OF]->(proj:Project)
+       MATCH (p:Person)-[:MEMBER_OF]->(proj)
+       WHERE p.last_active_at >= $since AND p.email IS NOT NULL
+       RETURN count(DISTINCT p) AS seats`,
+      { person_id: personId, since }
+    );
+    return toNum(result.records[0]?.get("seats"));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * List all projects that have at least one Event, with health stats.
+ * Used by the multi-project overview (Profile B dashboard).
+ */
+export async function listProjects(since?: string): Promise<Array<{
+  project_id: string;
+  event_count: number;
+  decision_count: number;
+  pending_drift_count: number;
+  pending_tasks_count: number;
+  sessions_since: number;
+  decisions_since: number;
+  last_event_at: string | null;
+}>> {
+  const session = getSession();
+  // Use epoch as sentinel when no since is provided — avoids conditional Cypher
+  const sinceTs = since ?? "1970-01-01T00:00:00.000Z";
   try {
     const result = await session.run(
       `MATCH (e:Event)
@@ -445,18 +623,35 @@ export async function listProjects(): Promise<Array<{
        WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count
        OPTIONAL MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->
                       (:Decision)-[:EXTRACTED_FROM]->(e3:Event {project_id: pid})
+       WITH pid, event_count, last_event_at, decision_count, count(DISTINCT a) AS pending_drift_count
+       OPTIONAL MATCH (t:FollowUpTask {project_id: pid, status: "open"})
+       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
+            count(t) AS pending_tasks_count
+       OPTIONAL MATCH (es:Event {project_id: pid, source: "agent"})
+       WHERE es.timestamp >= $since
+       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
+            pending_tasks_count, count(es) AS sessions_since
+       OPTIONAL MATCH (ds:Decision)-[:EXTRACTED_FROM]->(esc:Event {project_id: pid, source: "agent"})
+       WHERE esc.timestamp >= $since
        RETURN pid AS project_id,
               event_count,
               last_event_at,
               decision_count,
-              count(DISTINCT a) AS pending_drift_count
-       ORDER BY last_event_at DESC`
+              pending_drift_count,
+              pending_tasks_count,
+              sessions_since,
+              count(DISTINCT ds) AS decisions_since
+       ORDER BY last_event_at DESC`,
+      { since: sinceTs }
     );
     return result.records.map((r) => ({
       project_id:          r.get("project_id") as string,
       event_count:         toNum(r.get("event_count")),
       decision_count:      toNum(r.get("decision_count")),
       pending_drift_count: toNum(r.get("pending_drift_count")),
+      pending_tasks_count: toNum(r.get("pending_tasks_count")),
+      sessions_since:      toNum(r.get("sessions_since")),
+      decisions_since:     toNum(r.get("decisions_since")),
       last_event_at:       (r.get("last_event_at") as string | null) ?? null,
     }));
   } finally {
@@ -468,9 +663,23 @@ export async function listProjects(): Promise<Array<{
  * List agent sessions for a project — Events where source="agent", newest first.
  * Each agent POST /brain/agent-log creates exactly one Event, so one row = one session.
  */
+function deriveAgentType(agentId: string): "coding" | "infra" | "other" {
+  const id = agentId.toLowerCase();
+  if (/migration|postgres|cassandra|kafka|redis|mysql|mongo|dynamo|database|db-|schema|infra/.test(id)) {
+    return "infra";
+  }
+  if (/claude|cursor|copilot|codex|aider|devin|cody/.test(id)) {
+    return "coding";
+  }
+  return "other";
+}
+
 export async function listAgentSessions(projectId: string): Promise<Array<{
   event_id: string;
   agent_id: string;
+  agent_type: "coding" | "infra" | "other";
+  operator_id: string | null;
+  operator_name: string | null;
   timestamp: string;
   decision_count: number;
   work_summary: string;
@@ -484,6 +693,8 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
        WITH e, p, count(d) AS decision_count
        RETURN e.event_id AS event_id,
               p.name AS agent_id,
+              e.operator_id AS operator_id,
+              e.operator_name AS operator_name,
               e.timestamp AS timestamp,
               decision_count,
               e.raw_content AS raw_content
@@ -493,14 +704,17 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
     );
     return result.records.map((r) => {
       const raw: string = (r.get("raw_content") as string) ?? "";
-      // Extract "Work completed: ..." line from the raw_content summary
       const workMatch = raw.match(/Work completed:\s*(.+?)(?:\n|$)/);
+      const agentId = (r.get("agent_id") as string) ?? "unknown";
       return {
-        event_id:      r.get("event_id") as string,
-        agent_id:      (r.get("agent_id") as string) ?? "unknown",
-        timestamp:     r.get("timestamp") as string,
+        event_id:       r.get("event_id") as string,
+        agent_id:       agentId,
+        agent_type:     deriveAgentType(agentId),
+        operator_id:    (r.get("operator_id") as string | null) ?? null,
+        operator_name:  (r.get("operator_name") as string | null) ?? null,
+        timestamp:      r.get("timestamp") as string,
         decision_count: toNum(r.get("decision_count")),
-        work_summary:  workMatch ? workMatch[1].trim() : raw.slice(0, 120),
+        work_summary:   workMatch ? workMatch[1].trim() : raw.slice(0, 120),
       };
     });
   } finally {
@@ -515,6 +729,9 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
 export async function getAgentSession(eventId: string): Promise<{
   event_id: string;
   agent_id: string;
+  agent_type: "coding" | "infra" | "other";
+  operator_id: string | null;
+  operator_name: string | null;
   project_id: string;
   timestamp: string;
   raw_content: string;
@@ -525,6 +742,14 @@ export async function getAgentSession(eventId: string): Promise<{
     confidence: string;
     status: string;
   }>;
+  preflight_checks: Array<{
+    check_id: string;
+    change_description: string;
+    overall_risk: string;
+    summary: string;
+    affected_decision_count: number;
+    checked_at: string;
+  }>;
 } | null> {
   const session = getSession();
   try {
@@ -532,29 +757,44 @@ export async function getAgentSession(eventId: string): Promise<{
       `MATCH (e:Event {event_id: $event_id, source: "agent"})
        MATCH (e)-[:AUTHORED_BY]->(p:Person)
        OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
+       OPTIONAL MATCH (c:PreflightCheck)-[:FOR_SESSION]->(e)
        RETURN e.event_id AS event_id,
               p.name AS agent_id,
+              e.operator_id AS operator_id,
+              e.operator_name AS operator_name,
               e.project_id AS project_id,
               e.timestamp AS timestamp,
               e.raw_content AS raw_content,
-              collect(CASE WHEN d IS NOT NULL THEN {
+              collect(DISTINCT CASE WHEN d IS NOT NULL THEN {
                 decision_id: d.decision_id,
                 summary: d.summary,
                 rationale: d.rationale,
                 confidence: d.confidence,
                 status: d.status
-              } END) AS decisions`,
+              } END) AS decisions,
+              collect(DISTINCT CASE WHEN c IS NOT NULL THEN {
+                check_id: c.check_id,
+                change_description: c.change_description,
+                overall_risk: c.overall_risk,
+                summary: c.summary,
+                affected_decision_count: c.affected_decision_count,
+                checked_at: c.checked_at
+              } END) AS preflight_checks`,
       { event_id: eventId }
     );
     if (result.records.length === 0) return null;
     const r = result.records[0];
+    const agentId = (r.get("agent_id") as string) ?? "unknown";
     return {
-      event_id:    r.get("event_id") as string,
-      agent_id:    (r.get("agent_id") as string) ?? "unknown",
-      project_id:  r.get("project_id") as string,
-      timestamp:   r.get("timestamp") as string,
-      raw_content: (r.get("raw_content") as string) ?? "",
-      decisions:   ((r.get("decisions") as Array<Record<string, unknown>>) ?? [])
+      event_id:         r.get("event_id") as string,
+      agent_id:         agentId,
+      agent_type:       deriveAgentType(agentId),
+      operator_id:      (r.get("operator_id") as string | null) ?? null,
+      operator_name:    (r.get("operator_name") as string | null) ?? null,
+      project_id:       r.get("project_id") as string,
+      timestamp:        r.get("timestamp") as string,
+      raw_content:      (r.get("raw_content") as string) ?? "",
+      decisions:        ((r.get("decisions") as Array<Record<string, unknown>>) ?? [])
         .filter(Boolean)
         .map((d) => ({
           decision_id: d.decision_id as string,
@@ -563,7 +803,53 @@ export async function getAgentSession(eventId: string): Promise<{
           confidence:  (d.confidence as string) ?? "medium",
           status:      (d.status as string) ?? "confirmed",
         })),
+      preflight_checks: ((r.get("preflight_checks") as Array<Record<string, unknown>>) ?? [])
+        .filter(Boolean)
+        .map((c) => ({
+          check_id:               c.check_id as string,
+          change_description:     c.change_description as string,
+          overall_risk:           c.overall_risk as string,
+          summary:                c.summary as string,
+          affected_decision_count: toNum(c.affected_decision_count),
+          checked_at:             c.checked_at as string,
+        })),
     };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Persist a preflight impact check and link it to the agent session Event node.
+ * Called when brain_analyze_impact is invoked with a session_id.
+ * The check is linked via [:FOR_SESSION] so getAgentSession can retrieve it.
+ */
+export async function persistPreflightCheck(params: {
+  check_id: string;
+  event_id: string;
+  change_description: string;
+  overall_risk: string;
+  summary: string;
+  affected_decision_count: number;
+  project_id: string;
+  checked_at: string;
+}): Promise<void> {
+  const session = getSession();
+  try {
+    await session.run(
+      `MATCH (e:Event {event_id: $event_id, source: "agent"})
+       CREATE (c:PreflightCheck {
+         check_id: $check_id,
+         change_description: $change_description,
+         overall_risk: $overall_risk,
+         summary: $summary,
+         affected_decision_count: $affected_decision_count,
+         project_id: $project_id,
+         checked_at: $checked_at
+       })
+       CREATE (c)-[:FOR_SESSION]->(e)`,
+      params
+    );
   } finally {
     await session.close();
   }

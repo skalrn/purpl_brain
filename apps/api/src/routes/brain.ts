@@ -10,26 +10,39 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, resolveDriftAlert, countActiveSeats, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession } from "../lib/neo4j.js";
+import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
-import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
+import { requireApiKey, requireProjectMember, assertProjectMember } from "../lib/auth-middleware.js";
 import { processSignal } from "../services/signal-engine.js";
 import type { CanonicalEvent, DriftResolution, EventSource, ExtractionResult, Decision } from "@purpl/types";
 
 export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── GET /brain/drift-alerts ─────────────────────────────────────────────
-  // project_id is optional. When omitted, returns pending alerts across all
-  // projects — used by the multi-project dashboard (Profile B).
+  // project_id is optional. When omitted, returns pending alerts scoped to
+  // the actor's own projects only (multi-project dashboard, Profile B).
+  // requireProjectMember handles the project_id case; actor-scoped query
+  // handles the no-project_id case — neither leaks cross-tenant data.
   fastify.get<{ Querystring: { project_id?: string } }>(
     "/brain/drift-alerts",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const projectId = req.query.project_id || undefined;
       try {
-        const alerts = await getDriftAlerts(projectId);
+        let alerts;
+        if (projectId) {
+          alerts = await getDriftAlerts(projectId);
+        } else {
+          const personId = req.actor?.person_id;
+          if (!personId) {
+            // DEV_API_KEY path — no actor, fall back to unscoped (local dev only)
+            alerts = await getDriftAlerts(undefined);
+          } else {
+            alerts = await getDriftAlertsForActor(personId);
+          }
+        }
         return { alerts, project_id: projectId ?? null };
       } catch (e) {
         fastify.log.error(e);
@@ -48,6 +61,12 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const { id } = req.params;
       const { resolution } = req.body;
+
+      // project_id is not in the URL so requireProjectMember cannot check it —
+      // look it up and verify membership. Returns 404 for both not-found and
+      // not-authorized to avoid disclosing resource existence to non-members.
+      const alertProjectId = await getAlertProjectId(id);
+      if (!await assertProjectMember(req, reply, alertProjectId, "Alert")) return;
 
       if (!["keep", "under_review", "reopen"].includes(resolution)) {
         return reply.status(400).send({ error: "resolution must be keep | under_review | reopen" });
@@ -92,7 +111,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/transcript",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { text, title, occurred_at, project_id, source_url } = req.body;
 
@@ -207,10 +226,11 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       unresolved?: string[];
       next_steps?: string[];
       files_modified?: string[];
+      operator?: { id: string; name: string };
     };
   }>(
     "/brain/agent-log",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const log = req.body;
 
@@ -244,6 +264,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
 
       const rawContent = [
         `Agent session: ${log.agent_id} on ${log.project_id}`,
+        log.operator ? `Operator: ${log.operator.name} (${log.operator.id})` : "",
         `Work completed: ${log.work_completed}`,
         "",
         decisionText,
@@ -272,6 +293,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         source_url: `brain://agent/${eventId}`,
         raw_content: rawContent,
         actor: { type: "agent", id: log.agent_id, name: log.agent_id },
+        operator: log.operator ? { type: "human", id: log.operator.id, name: log.operator.name } : undefined,
         timestamp: log.timestamp_end ?? new Date().toISOString(),
         decisions,
         ticket_refs: [],
@@ -303,7 +325,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   // always true. Agents should surface these to humans, not auto-execute.
   fastify.get<{ Querystring: { project_id: string; status?: string } }>(
     "/brain/tasks",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { project_id, status } = req.query;
       if (!project_id) {
@@ -335,7 +357,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/signals",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { text, project_id, source, actor_id, actor_name, url, occurred_at } = req.body;
 
@@ -368,10 +390,15 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // ── GET /brain/seats (M5) ────────────────────────────────────────────────
-  fastify.get("/brain/seats", { preHandler: requireApiKey }, async (_req, reply) => {
+  // Scoped to projects the actor is a member of — never returns global count.
+  // dev_bypass falls back to the unscoped count (local dev only).
+  fastify.get("/brain/seats", { preHandler: requireApiKey }, async (req, reply) => {
     try {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const seats = await countActiveSeats(since);
+      const personId = req.actor?.person_id;
+      const seats = personId
+        ? await countActiveSeatsForActor(personId, since)
+        : await countActiveSeats(since); // dev_bypass path only
       return { seats, since };
     } catch (e) {
       fastify.log.error(e);
@@ -384,7 +411,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   // Each row corresponds to one POST /brain/agent-log call.
   fastify.get<{ Querystring: { project_id: string } }>(
     "/brain/agent-sessions",
-    { preHandler: requireApiKey },
+    { preHandler: [requireApiKey, requireProjectMember] },
     async (req, reply) => {
       const { project_id } = req.query;
       if (!project_id) {
@@ -410,6 +437,12 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
     async (req, reply) => {
       const { event_id } = req.params;
       try {
+        // project_id is not in the URL, so requireProjectMember cannot check it.
+        // Look it up and verify membership — returns 404 for both not-found and
+        // not-authorized to avoid disclosing session existence to non-members.
+        const sessionProjectId = await getSessionProjectId(event_id);
+        if (!await assertProjectMember(req, reply, sessionProjectId, "Agent session")) return;
+
         const session = await getAgentSession(event_id);
         if (!session) {
           return reply.status(404).send({ error: "Agent session not found", event_id });
