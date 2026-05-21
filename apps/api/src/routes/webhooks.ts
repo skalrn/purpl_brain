@@ -118,7 +118,11 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
     (_req, body, done) => done(null, body)
   );
 
-  app.post<{ Body: Buffer }>("/github", async (request, reply) => {
+  app.post<{ Body: Buffer }>("/github", {
+    // GitHub webhook deliveries burst legitimately on active repos. Key by IP
+    // (GitHub IPs) with a generous limit; HMAC verification is the real auth gate.
+    config: { rateLimit: { max: 300, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     const signature = request.headers["x-hub-signature-256"] as string | undefined;
     const deliveryId = request.headers["x-github-delivery"] as string | undefined;
     const githubEvent = request.headers["x-github-event"] as string | undefined;
@@ -191,7 +195,9 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
   // ── Jira webhook (M4) ──────────────────────────────────────────────────────
   // Jira sends all events to one endpoint; we discriminate by webhookEvent field.
   // Supported: jira:issue_created, jira:issue_updated, comment_created, comment_updated
-  app.post<{ Body: Buffer }>("/jira", async (request, reply) => {
+  app.post<{ Body: Buffer }>("/jira", {
+    config: { rateLimit: { max: 200, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     // Optional HMAC verification (Jira doesn't sign by default — use secret in query param)
     const secret = process.env.JIRA_WEBHOOK_SECRET;
     if (secret) {
@@ -279,7 +285,9 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
   //   meetingId, title, date, participants[], transcript.sentences[]
   // Each sentence: { speaker_name, text, start_time (seconds) }
   // We flatten sentences into speaker-tagged lines, chunk them, and enqueue.
-  app.post<{ Body: Buffer }>("/fireflies", async (request, reply) => {
+  app.post<{ Body: Buffer }>("/fireflies", {
+    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     // Optional shared secret verification
     const secret = process.env.FIREFLIES_WEBHOOK_SECRET;
     if (secret) {

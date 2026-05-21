@@ -168,6 +168,30 @@ If you discover something that contradicts or challenges a past decision — a l
 
 When spawning a subagent via the Agent tool, include the relevant `brain_query` output in the subagent prompt. Do not rely on the subagent to rediscover context independently unless the task requires fresh lookups. Pass what you already know.
 
+### Tool parameter schemas
+
+These tools are deferred — their schemas are not loaded by default. Use `ToolSearch` to load them before the first call **only if you are unsure of the parameters**. The canonical schemas are reproduced here to avoid that round-trip.
+
+**`brain_query`** — required: `query` (string), `project_id` (string); optional: `mode` (`"project"` | `"expertise"` | `"agent_resume"`, default `"project"`)
+
+**`brain_analyze_impact`** — required: `change_description` (string), `project_id` (string)
+
+**`brain_log_signal`** — required: `text` (string), `project_id` (string); optional: `source` (`"github"` | `"slack"` | `"jira"` | `"meeting"` | `"agent"` | `"document"`, default `"agent"`)
+
+**`brain_log_decision`** — required:
+```
+session_id:     string   — timestamp-slug or UUID, unique per agent session
+project_id:     string
+work_completed: string   — short summary of what was built or changed
+decisions:      array of:
+  id:                     string   — short kebab-case slug
+  description:            string   — what was decided
+  rationale:              string   — why this choice was made
+  alternatives_considered?: string[]
+  confidence?:            "high" | "medium" | "low"
+```
+optional top-level: `files_modified` (string[]), `next_steps` (string[]), `unresolved` (string[])
+
 ---
 
 ## Session Handoff Protocol
