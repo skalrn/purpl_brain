@@ -31,8 +31,10 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/brain/ingest/document",
     {
-      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
-      preHandler: [requireApiKey, requireProjectMember],
+      // Disable global rate limit for this route so the tighter per-route
+      // preHandler limit can apply without the global rateLimitRan flag blocking it.
+      config: { rateLimit: false },
+      preHandler: [fastify.rateLimit({ max: 20, timeWindow: "1 minute" }), requireApiKey, requireProjectMember],
     },
     async (req, reply) => {
       const { text, title, path, document_type, project_id, source_url } = req.body;
@@ -97,13 +99,14 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         "Document ingested"
       );
 
-      return reply.status(202).send({
+      reply.code(202);
+      return {
         ok: true,
         chunks_queued: chunks.length,
         event_ids: eventIds,
         document_type: resolvedType,
         message: `${chunks.length} chunk(s) queued for processing`,
-      });
+      };
     }
   );
 
@@ -123,8 +126,9 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     {
       // Tight limit — each call spawns a background GitHub crawl that fans out
       // into many Redis stream writes. 5/min prevents Redis flood on a hot loop.
-      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
-      preHandler: [requireApiKey, requireProjectMember],
+      // Disable global rate limit so the tighter preHandler limit applies.
+      config: { rateLimit: false },
+      preHandler: [fastify.rateLimit({ max: 5, timeWindow: "1 minute" }), requireApiKey, requireProjectMember],
     },
     async (req, reply) => {
       const { repo, project_id, path_prefix } = req.body;
@@ -181,10 +185,11 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         );
       })();
 
-      return reply.status(202).send({
+      reply.code(202);
+      return {
         ok: true,
         message: `Crawl started for ${repo}. Events will be available once background processing completes.`,
-      });
+      };
     }
   );
 };
