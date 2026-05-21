@@ -343,6 +343,33 @@ export async function getPersonByApiKey(api_key: string): Promise<PersonRecord |
 }
 
 /**
+ * Ensure an API key is registered as a Bot Person in Neo4j.
+ * Called at startup for BRAIN_API_KEY so MCP deployments work without DEV_API_KEY.
+ * No-ops if a Person with this key already exists.
+ */
+export async function ensureBotPerson(apiKey: string, agentId: string): Promise<void> {
+  const session = getSession();
+  try {
+    const now = new Date().toISOString();
+    const hashedKey = hashApiKey(apiKey);
+    await session.run(
+      `MERGE (p:Person {api_key: $api_key})
+       ON CREATE SET
+         p.person_id    = randomUUID(),
+         p.name         = $name,
+         p.aliases      = [$name],
+         p.provisional  = false,
+         p.actor_type   = 'bot',
+         p.created_at   = $now,
+         p.last_active_at = $now`,
+      { api_key: hashedKey, name: agentId, now }
+    );
+  } finally {
+    await session.close();
+  }
+}
+
+/**
  * Count distinct active Person nodes (last_active_at within cutoff) — used
  * for per-seat billing.
  */

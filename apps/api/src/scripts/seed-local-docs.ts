@@ -23,7 +23,7 @@
 import "dotenv/config";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { resolve, relative, join, dirname } from "path";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
 import type { CanonicalEvent } from "@purpl/types";
@@ -51,7 +51,7 @@ if (!dirArg || !projectId) {
 const rootDir = resolve(dirArg);
 const gitRoot = gitRootArg ? resolve(gitRootArg) : (() => {
   try {
-    return execSync("git rev-parse --show-toplevel", { cwd: rootDir, encoding: "utf-8" }).trim();
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: rootDir, encoding: "utf-8" }).trim();
   } catch {
     return process.cwd();
   }
@@ -61,9 +61,8 @@ const gitRoot = gitRootArg ? resolve(gitRootArg) : (() => {
 
 function gitFirstAuthor(filePath: string): string | null {
   try {
-    // --diff-filter=A: only the commit that Added the file
-    const out = execSync(
-      `git log --diff-filter=A --follow --format="%aN" -- "${filePath}"`,
+    const out = execFileSync(
+      "git", ["log", "--diff-filter=A", "--follow", "--format=%aN", "--", filePath],
       { cwd: gitRoot, encoding: "utf-8" }
     ).trim();
     return out.split("\n")[0] || null;
@@ -74,8 +73,8 @@ function gitFirstAuthor(filePath: string): string | null {
 
 function gitAllAuthors(filePath: string): string[] {
   try {
-    const out = execSync(
-      `git log --follow --format="%aN" -- "${filePath}"`,
+    const out = execFileSync(
+      "git", ["log", "--follow", "--format=%aN", "--", filePath],
       { cwd: gitRoot, encoding: "utf-8" }
     ).trim();
     if (!out) return [];
@@ -90,8 +89,8 @@ function gitAllAuthors(filePath: string): string[] {
 // ingestion timestamp, making "what was decided before X" queries unreliable.
 function gitFirstCommitDate(filePath: string): string | null {
   try {
-    const out = execSync(
-      `git log --diff-filter=A --follow --format="%aI" -- "${filePath}"`,
+    const out = execFileSync(
+      "git", ["log", "--diff-filter=A", "--follow", "--format=%aI", "--", filePath],
       { cwd: gitRoot, encoding: "utf-8" }
     ).trim();
     return out.split("\n")[0] || null;
@@ -104,8 +103,8 @@ function gitFirstCommitDate(filePath: string): string | null {
 // trigger automatically when a file's content changes.
 function gitFileSHA(filePath: string): string | null {
   try {
-    const out = execSync(
-      `git log -1 --format="%H" -- "${filePath}"`,
+    const out = execFileSync(
+      "git", ["log", "-1", "--format=%H", "--", filePath],
       { cwd: gitRoot, encoding: "utf-8" }
     ).trim();
     return out || null;

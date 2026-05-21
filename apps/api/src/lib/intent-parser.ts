@@ -67,7 +67,7 @@ export async function parseQueryIntent(query: string): Promise<ParsedIntent> {
       MODELS.EXTRACTION,
       [
         { role: "system", content: INTENT_SYSTEM_PROMPT },
-        { role: "user", content: `Classify this query: "${query.trim()}"` },
+        { role: "user", content: `Classify this query:\n<query>${query.trim()}</query>` },
       ],
       { maxTokens: 128, temperature: 0 }
     );
