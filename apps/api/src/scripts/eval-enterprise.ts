@@ -30,6 +30,14 @@
  *   - Meeting decision that later contradicts a Jira ticket → DriftAlert fires
  *   - Human-overrides-agent: agent decides X, human PR contradicts it 30s later;
  *     agent re-query surfaces the contradiction
+ *   - Document retrieval: ingested ADR is queryable after pipeline propagation
+ *   - Impact analysis mode: /brain/query?mode=impact surfaces affected decisions
+ *   - Post-drift answer quality: re-query after contradiction reflects reversal
+ *   - Jira content retrieval: webhook content is semantically searchable
+ *   - Tasks endpoint: GET /brain/tasks functional
+ *   - Agent sessions endpoint: GET /brain/agent-sessions lists sessions
+ *   - Graceful empty query: zero matching content returns 200 not 500
+ *   - Actor tracking: AUTHORED_BY Person nodes created for all event actors
  *
  * Usage:
  *   npm run eval:enterprise -w apps/api
@@ -1316,6 +1324,218 @@ async function main() {
       );
     } catch (e) {
       check("A43..A46: graph integrity queries executed without error", false, String(e));
+    }
+  }
+
+  // ── Phase 18: Document retrieval — the ADR must be queryable ─────────────
+  phase(18, "A47..A48 — Ingested ADR document is retrievable via semantic query");
+
+  if (!API_KEY || !platformOk) {
+    skip("A47..A48 document retrieval", "no API key or platform seed failed");
+  } else {
+    const adrQuery = await post<{
+      answer: string;
+      citations: Array<{ source_url?: string; content?: string }>;
+    }>(
+      "/brain/query",
+      {
+        query: "What are the token lifetimes set by the Helix platform team?",
+        project_id: TENANT_PLATFORM,
+        mode: "project",
+      },
+      true,
+    );
+    check(
+      "A47: ADR document query returns 200",
+      adrQuery.status === 200,
+      `status=${adrQuery.status}`,
+    );
+    check(
+      "A48: answer mentions token lifetimes (15 minutes, access token, or refresh)",
+      /15.?min|access.?token|refresh.?token|token.?lifetime/i.test(adrQuery.body.answer ?? ""),
+      `answer=${(adrQuery.body.answer ?? "").slice(0, 200)}`,
+    );
+  }
+
+  // ── Phase 19: Impact analysis mode ─────────────────────────────────────────
+  phase(19, "A49..A51 — Impact analysis mode surfaces affected decisions");
+
+  if (!API_KEY || !ghostOk) {
+    skip("A49..A51 impact analysis", "no API key or ghost seed failed");
+  } else {
+    const impactRes = await post<{
+      overall_risk: string;
+      summary: string;
+      affected_decisions: Array<{ decision_id: string; risk_tier: string; summary?: string; reason?: string }>;
+    }>(
+      "/brain/query",
+      {
+        change_description:
+          "Migrate Helix platform services from JWT to Paseto tokens. All existing JWT-based session validation logic must be replaced and token lifetimes re-evaluated.",
+        project_id: TENANT_PLATFORM,
+        mode: "impact",
+      },
+      true,
+    );
+    check(
+      "A49: impact analysis returns 200",
+      impactRes.status === 200,
+      `status=${impactRes.status}`,
+    );
+    check(
+      "A50: impact response includes overall_risk and summary fields",
+      typeof impactRes.body.overall_risk === "string" && typeof impactRes.body.summary === "string",
+      `overall_risk=${impactRes.body.overall_risk} summary_len=${(impactRes.body.summary ?? "").length}`,
+    );
+    check(
+      "A51: ≥1 affected decision found (JWT ghost decision should be surfaced)",
+      (impactRes.body.affected_decisions ?? []).length >= 1,
+      `affected=${impactRes.body.affected_decisions?.length} risk=${impactRes.body.overall_risk}`,
+    );
+  }
+
+  // ── Phase 20: Re-query after contradiction — answer reflects reversal ──────
+  phase(20, "A52..A53 — Re-query after drift: brain answer mentions the route-cache reversal");
+
+  if (!API_KEY || !lastmileAgentLogOk) {
+    skip("A52..A53 post-drift re-query", "no API key or lastmile agent log failed");
+  } else {
+    const requery = await post<{ answer: string; citations: Array<Record<string, unknown>> }>(
+      "/brain/query",
+      {
+        query: "Should we cache delivery route calculations in Redis? What is the current decision?",
+        project_id: TENANT_LASTMILE,
+        mode: "project",
+      },
+      true,
+    );
+    check(
+      "A52: re-query after contradiction returns 200",
+      requery.status === 200,
+      `status=${requery.status}`,
+    );
+    check(
+      "A53: answer mentions reversal, PR, or stale ETA (not just the original decision)",
+      /PR|pull.?request|revert|remov|stale|ETA|no longer|contradict|instead|changed/i.test(requery.body.answer ?? ""),
+      `answer=${(requery.body.answer ?? "").slice(0, 300)}`,
+    );
+  }
+
+  // ── Phase 21: Jira webhook content is retrievable ─────────────────────────
+  phase(21, "A54..A55 — Jira webhook content is retrievable via semantic query");
+
+  if (!API_KEY || !warehouseOk) {
+    skip("A54..A55 Jira content retrieval", "no API key or warehouse seed failed");
+  } else {
+    const jiraQuery = await post<{ answer: string; citations: Array<Record<string, unknown>> }>(
+      "/brain/query",
+      {
+        query: "What is the request to change the warehouse inventory sync polling frequency?",
+        project_id: TENANT_WAREHOUSE,
+        mode: "project",
+      },
+      true,
+    );
+    check(
+      "A54: Jira content query returns 200",
+      jiraQuery.status === 200,
+      `status=${jiraQuery.status}`,
+    );
+    check(
+      "A55: answer mentions the polling frequency change (1 minute or realtime)",
+      /1.?min|realtime|real.?time|polling|dashboard/i.test(jiraQuery.body.answer ?? ""),
+      `answer=${(jiraQuery.body.answer ?? "").slice(0, 200)}`,
+    );
+  }
+
+  // ── Phase 22: Tasks endpoint — functional even when no tasks created ───────
+  phase(22, "A56 — Tasks endpoint returns 200 with expected shape");
+
+  if (!API_KEY) {
+    skip("A56 tasks endpoint", "no API key");
+  } else {
+    const tasksRes = await get<{ tasks: unknown[]; total: number }>(
+      `/brain/tasks?project_id=${encodeURIComponent(TENANT_LASTMILE)}`,
+    );
+    check(
+      "A56: GET /brain/tasks returns 200 with tasks array",
+      tasksRes.status === 200 && Array.isArray(tasksRes.body.tasks),
+      `status=${tasksRes.status} tasks=${tasksRes.body.total}`,
+    );
+  }
+
+  // ── Phase 23: Agent sessions endpoint ──────────────────────────────────────
+  phase(23, "A57..A58 — Agent sessions endpoint lists sessions including ghost founder");
+
+  if (!API_KEY || !ghostOk) {
+    skip("A57..A58 agent sessions endpoint", "no API key or ghost seed failed");
+  } else {
+    const sessionsRes = await get<{
+      sessions: Array<{ agent_id?: string; session_id?: string; source_id?: string }>;
+      total: number;
+    }>(
+      `/brain/agent-sessions?project_id=${encodeURIComponent(TENANT_PLATFORM)}`,
+    );
+    check(
+      "A57: GET /brain/agent-sessions returns 200 with sessions array",
+      sessionsRes.status === 200 && Array.isArray(sessionsRes.body.sessions),
+      `status=${sessionsRes.status} total=${sessionsRes.body.total}`,
+    );
+    const hasGhostSession = (sessionsRes.body.sessions ?? []).some(
+      (s) =>
+        s.agent_id === "founding-arch-agent" ||
+        String(s.source_id ?? "").includes(SESSION_GHOST) ||
+        String(s.session_id ?? "").includes(SESSION_GHOST),
+    );
+    check(
+      "A58: ghost founding-arch-agent session is visible in platform agent sessions",
+      hasGhostSession,
+      `sessions=${JSON.stringify((sessionsRes.body.sessions ?? []).slice(0, 3)).slice(0, 200)}`,
+    );
+  }
+
+  // ── Phase 24: Graceful empty query ─────────────────────────────────────────
+  phase(24, "A59 — Query with zero matching content returns 200, not 500");
+
+  if (!API_KEY) {
+    skip("A59 graceful empty query", "no API key");
+  } else {
+    const emptyQuery = await post<{ answer: string }>(
+      "/brain/query",
+      {
+        // A string that cannot possibly match anything in a real project brain
+        query: "xkcd-1337-gobbledygook-zzzquux-helix-does-not-have-this",
+        project_id: TENANT_PLATFORM,
+        mode: "project",
+      },
+      true,
+    );
+    check(
+      "A59: graceful empty query returns 200 (not 500)",
+      emptyQuery.status === 200,
+      `status=${emptyQuery.status} answer=${(emptyQuery.body.answer ?? "").slice(0, 80)}`,
+    );
+  }
+
+  // ── Phase 25: Actor/Person node tracking ────────────────────────────────────
+  phase(25, "A60 — Actor tracking: Person nodes created for agents in platform tenant");
+
+  if (!neo4jOk || !ghostOk) {
+    skip("A60 actor tracking", "Neo4j not reachable or ghost seed failed");
+  } else {
+    try {
+      const persons = await neoQuery<{ count: number }>(
+        `MATCH (e:Event {project_id: $pid})-[:AUTHORED_BY]->(p:Person)
+         RETURN count(DISTINCT p) AS count`,
+        { pid: TENANT_PLATFORM },
+      );
+      check(
+        "A60: ≥1 Person node created via AUTHORED_BY for platform events",
+        Number(persons[0]?.count ?? 0) >= 1,
+        `person_count=${persons[0]?.count}`,
+      );
+    } catch (e) {
+      check("A60: actor tracking Neo4j query succeeded", false, String(e));
     }
   }
 
