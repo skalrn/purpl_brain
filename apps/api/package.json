@@ -38,6 +38,7 @@
     "eval:drift-fp": "tsx src/scripts/eval-drift-fp.ts",
     "eval:graph-integrity": "tsx src/scripts/eval-graph-integrity.ts",
     "eval:integration": "tsx src/scripts/eval-integration.ts",
+    "eval:multi-agent": "tsx src/scripts/eval-multi-agent.ts",
     "eval:security": "tsx src/scripts/eval-security.ts",
     "seed:demo": "tsx src/scripts/seed-demo.ts",
     "seed:hono": "tsx src/scripts/seed-hono.ts",
