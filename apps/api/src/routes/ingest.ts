@@ -30,7 +30,10 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/document",
-    { preHandler: [requireApiKey, requireProjectMember] },
+    {
+      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+      preHandler: [requireApiKey, requireProjectMember],
+    },
     async (req, reply) => {
       const { text, title, path, document_type, project_id, source_url } = req.body;
 
@@ -117,7 +120,12 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
     };
   }>(
     "/brain/ingest/crawl-docs",
-    { preHandler: [requireApiKey, requireProjectMember] },
+    {
+      // Tight limit — each call spawns a background GitHub crawl that fans out
+      // into many Redis stream writes. 5/min prevents Redis flood on a hot loop.
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      preHandler: [requireApiKey, requireProjectMember],
+    },
     async (req, reply) => {
       const { repo, project_id, path_prefix } = req.body;
 

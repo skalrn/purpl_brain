@@ -123,6 +123,78 @@ tools = [FunctionTool(fn) for fn in adk_tools(client)]
 
 All four operations are available: `brain_query`, `brain_log_decision`, `brain_analyze_impact`, `brain_log_signal`. See `packages/python/examples/` for full session lifecycle examples.
 
+## Brain Tool Usage Protocol
+
+When `brain_query`, `brain_log_decision`, `brain_analyze_impact`, or `brain_log_signal` are available as MCP tools, follow this protocol. These are first-class actions in this repo, not optional helpers.
+
+### Session start — required before writing any code
+
+Call `brain_query` before touching any file or making any recommendation:
+
+```
+query: "What are the most recent decisions and open questions for <area of work>?"
+project_id: skalrn_purpl_brain
+```
+
+If the task is scoped to a specific layer (ingestion, query, auth, workers), include that in the query. Do not proceed without loading context — the brain may have a constraint you don't know about.
+
+### Before significant implementation — required
+
+Before starting any change that touches ingestion workers, the brain store, query layer, API routes, or data schemas, call `brain_analyze_impact`:
+
+```
+change_description: plain-English description of what you are about to change
+project_id: skalrn_purpl_brain
+```
+
+Do not skip this even if the change looks small. The brain may surface a downstream dependency or prior decision that changes the approach entirely.
+
+### When a decision is made — call immediately, not at session end
+
+Call `brain_log_decision` the moment a significant choice is made. Do not batch decisions for the end of the session. Significant decisions include:
+
+- Choosing a library, pattern, or approach over alternatives
+- Deciding NOT to do something (rejection decisions are decisions)
+- Discovering a constraint, invariant, or edge case that will affect future work
+- Any choice that, if unknown to the next session, would cause re-derivation or rework
+
+**One decision made = one `brain_log_decision` call.** A decision logged mid-session is always recoverable. A decision lost when context is compacted or the session ends is not.
+
+### When something unexpected surfaces — call immediately
+
+If you discover something that contradicts or challenges a past decision — a library limitation, API constraint, performance finding, or behavior that conflicts with an ADR — call `brain_log_signal` before continuing. Do not defer this.
+
+### Subagents
+
+When spawning a subagent via the Agent tool, include the relevant `brain_query` output in the subagent prompt. Do not rely on the subagent to rediscover context independently unless the task requires fresh lookups. Pass what you already know.
+
+### Tool parameter schemas
+
+These tools are deferred — their schemas are not loaded by default. Use `ToolSearch` to load them before the first call **only if you are unsure of the parameters**. The canonical schemas are reproduced here to avoid that round-trip.
+
+**`brain_query`** — required: `query` (string), `project_id` (string); optional: `mode` (`"project"` | `"expertise"` | `"agent_resume"`, default `"project"`)
+
+**`brain_analyze_impact`** — required: `change_description` (string), `project_id` (string)
+
+**`brain_log_signal`** — required: `text` (string), `project_id` (string); optional: `source` (`"github"` | `"slack"` | `"jira"` | `"meeting"` | `"agent"` | `"document"`, default `"agent"`)
+
+**`brain_log_decision`** — required:
+```
+session_id:     string   — timestamp-slug or UUID, unique per agent session
+project_id:     string
+work_completed: string   — short summary of what was built or changed
+decisions:      array of:
+  id:                     string   — short kebab-case slug
+  description:            string   — what was decided
+  rationale:              string   — why this choice was made
+  alternatives_considered?: string[]
+  confidence?:            "high" | "medium" | "low"
+```
+optional top-level: `files_modified` (string[]), `next_steps` (string[]), `unresolved` (string[])
+
+---
+
+
 ## Session Handoff Protocol
 
 When the user says anything like "new session", "switching sessions", "let's start a new session", or "I'll continue this later":
