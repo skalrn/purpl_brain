@@ -9,3 +9,4 @@ dist/
 .next/
 .claude/scheduled_tasks.lock
 brain_snapshot_*.tar.gz
+.mcp.json
