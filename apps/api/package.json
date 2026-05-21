@@ -42,6 +42,7 @@
     "eval:enterprise": "tsx src/scripts/eval-enterprise.ts",
     "eval:security": "tsx src/scripts/eval-security.ts",
     "eval:e2e": "tsx src/scripts/eval-e2e.ts",
+    "eval:comparison": "tsx src/scripts/eval-comparison.ts",
     "seed:demo": "tsx src/scripts/seed-demo.ts",
     "seed:hono": "tsx src/scripts/seed-hono.ts",
     "demo:agent-memory": "tsx src/scripts/demo-agent-memory.ts",
