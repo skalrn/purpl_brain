@@ -138,6 +138,14 @@ project_id: skalrn_purpl_brain
 
 If the task is scoped to a specific layer (ingestion, query, auth, workers), include that in the query. Do not proceed without loading context — the brain may have a constraint you don't know about.
 
+### Before answering design-intent questions — required
+
+Any question that asks whether, why, when, or how to change the system — regardless of phrasing — should be preceded by a `brain_query` if the topic touches ingestion, workers, the brain store, query layer, API routes, or data schemas. This includes questions like "should we add X", "why don't we have X yet", "do we have a plan for X", "did we discuss X", or "let's talk about the idea of X".
+
+The intent class that triggers this is: *the user is forming an opinion or seeking context about a design choice.* Exact phrasing does not matter — intent does.
+
+**Skip this call if** the brain was already queried on the same topic earlier in the current conversation. Do not re-query what is already in context.
+
 ### Before significant implementation — required
 
 Before starting any change that touches ingestion workers, the brain store, query layer, API routes, or data schemas, call `brain_analyze_impact`:
