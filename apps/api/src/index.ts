@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { validateEnv } from "./lib/config.js";
 validateEnv();
+import { createHash } from "crypto";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -15,6 +16,7 @@ import { ingestRoutes } from "./routes/ingest.js";
 import { identityRoutes } from "./routes/identity.js";
 import { checkEmbeddingModel } from "./lib/qdrant.js";
 import { currentEmbeddingModel } from "./lib/embed.js";
+import { ensureBotPerson } from "./lib/neo4j.js";
 
 // DEV_API_KEY bypasses all project membership checks — must never be set in
 // production. Fail fast rather than silently running without tenant isolation.
@@ -37,11 +39,12 @@ await app.register(rateLimit, {
   max: parseInt(process.env.RATE_LIMIT_MAX ?? "60"),
   timeWindow: "1 minute",
   keyGenerator: (req) => {
-    // Prefer API key headers for per-key quotas; fall back to IP for unauthenticated paths.
+    // Hash the raw key so the plaintext never lands in Redis — a Redis dump
+    // or logs can't be used to replay API requests with a leaked key.
     const apiKey = req.headers["x-api-key"] as string | undefined;
-    if (apiKey) return `key:${apiKey}`;
+    if (apiKey) return `key:${createHash("sha256").update(apiKey).digest("hex").slice(0, 32)}`;
     const auth = req.headers["authorization"] as string | undefined;
-    if (auth?.startsWith("Bearer ")) return `key:${auth.slice(7)}`;
+    if (auth?.startsWith("Bearer ")) return `key:${createHash("sha256").update(auth.slice(7)).digest("hex").slice(0, 32)}`;
     return req.ip;
   },
   errorResponseBuilder: (_req, context) => {
@@ -90,6 +93,19 @@ await app.register(ingestRoutes);
 await app.register(identityRoutes);
 
 app.get("/health", async () => ({ status: "ok", ts: new Date().toISOString() }));
+
+// SEC-M7: Auto-register BRAIN_API_KEY as a Bot Person on first boot so MCP
+// deployments work without DEV_API_KEY. MERGE is idempotent — safe to run every
+// restart. agentId from MCP_AGENT_ID env, falling back to a generic label.
+if (process.env.BRAIN_API_KEY) {
+  const agentId = process.env.MCP_AGENT_ID ?? "brain-api-bot";
+  try {
+    await ensureBotPerson(process.env.BRAIN_API_KEY, agentId);
+    app.log.info({ agentId }, "Bot Person ensured for BRAIN_API_KEY");
+  } catch (e) {
+    app.log.warn({ err: (e as Error).message }, "Failed to register BRAIN_API_KEY as Bot Person — check Neo4j connectivity");
+  }
+}
 
 const port = Number(process.env.PORT ?? 3001);
 await app.listen({ port, host: "0.0.0.0" });

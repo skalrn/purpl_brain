@@ -198,9 +198,15 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
   app.post<{ Body: Buffer }>("/jira", {
     config: { rateLimit: { max: 200, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    // Optional HMAC verification (Jira doesn't sign by default — use secret in query param)
+    // Reject unauthenticated payloads in production. Without JIRA_WEBHOOK_SECRET
+    // anyone can inject arbitrary events. In dev, log a warning and proceed.
     const secret = process.env.JIRA_WEBHOOK_SECRET;
-    if (secret) {
+    if (!secret) {
+      if (process.env.NODE_ENV === "production") {
+        return reply.code(401).send({ error: "Webhook secret not configured" });
+      }
+      app.log.warn("JIRA_WEBHOOK_SECRET not set — accepting unauthenticated webhook (dev only)");
+    } else {
       const token = (request.query as Record<string, string>).token;
       if (token !== secret) {
         return reply.code(401).send({ error: "Invalid token" });
@@ -288,9 +294,15 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
   app.post<{ Body: Buffer }>("/fireflies", {
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    // Optional shared secret verification
+    // Reject unauthenticated payloads in production. Without FIREFLIES_WEBHOOK_SECRET
+    // anyone can inject meeting transcripts. In dev, log a warning and proceed.
     const secret = process.env.FIREFLIES_WEBHOOK_SECRET;
-    if (secret) {
+    if (!secret) {
+      if (process.env.NODE_ENV === "production") {
+        return reply.code(401).send({ error: "Webhook secret not configured" });
+      }
+      app.log.warn("FIREFLIES_WEBHOOK_SECRET not set — accepting unauthenticated webhook (dev only)");
+    } else {
       const sig = request.headers["x-fireflies-signature"] as string | undefined;
       if (!sig || sig !== secret) {
         return reply.code(401).send({ error: "Invalid signature" });
