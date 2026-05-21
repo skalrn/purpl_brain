@@ -103,9 +103,36 @@ function slugify(s: string): string {
   return s.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 }
 
-function isAdr(relPath: string): boolean {
-  return relPath.includes("/adrs/") || relPath.includes("\\adrs\\");
+type DocumentType = "adr" | "architecture" | "prd" | "runbook" | "demo" | "pitch" | "review" | "unknown";
+
+function classifyDocumentType(relPath: string): DocumentType {
+  const p = relPath.replace(/\\/g, "/").toLowerCase();
+  if (p.includes("/adrs/") || p.includes("/adr/")) return "adr";
+  if (p.includes("/demo/") || p.includes("/demos/")) return "demo";
+  if (p.includes("/pitch/") || p.includes("/sales/") || p.includes("/interview/")) return "pitch";
+  if (p.includes("/review/") || p.includes("/retrospective/") || p.includes("/retro/")) return "review";
+  if (p.includes("/runbook") || p.includes("/setup") || p.includes("/onboarding") || p.includes("/ops/")) return "runbook";
+  if (
+    p.includes("/technical/") ||
+    p.includes("/architecture") ||
+    p.includes("implementation-plan") ||
+    p.includes("/design/")
+  ) return "architecture";
+  if (
+    p.includes("/product/") ||
+    p.includes("prd") ||
+    p.includes("roadmap") ||
+    p.includes("vision") ||
+    p.includes("personas") ||
+    p.includes("requirements")
+  ) return "prd";
+  return "unknown";
 }
+
+// Authoritative doc types produce decisions that belong to this project.
+// Non-authoritative types (demo, pitch, review, unknown) reference other
+// projects or hypothetical scenarios and must not feed decision extraction.
+const AUTHORITATIVE_DOC_TYPES: Set<DocumentType> = new Set(["adr", "architecture", "prd", "runbook"]);
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -147,18 +174,21 @@ for (const filePath of files) {
     ? `${baseUrl.replace(/\/$/, "")}/${relPath}`
     : `file://${filePath}`;
 
-  // Attribution: ADRs get first-commit author; other docs get collective
+  const docType = classifyDocumentType(relPath);
+  const isAuthoritative = AUTHORITATIVE_DOC_TYPES.has(docType);
+
+  // Attribution: authoritative docs with a single clear author (ADRs, runbooks)
+  // get first-commit author; collaborative/non-authoritative docs get collective.
   let actor: CanonicalEvent["actor"];
   let contributors: string[] | undefined;
 
-  if (isAdr(relPath)) {
+  if (docType === "adr" || docType === "runbook") {
     const firstAuthor = gitFirstAuthor(filePath);
     actor = {
       type: firstAuthor ? "human" : "collective",
       id: firstAuthor ?? "team",
       name: firstAuthor ?? "team",
     };
-    // Also record all contributors for completeness
     const allAuthors = gitAllAuthors(filePath);
     if (allAuthors.length > 1) contributors = allAuthors;
   } else {
@@ -183,7 +213,7 @@ for (const filePath of files) {
     url,
     document_title: title,
     document_path: relPath,
-    document_type: isAdr(relPath) ? "adr" : "unknown",
+    document_type: docType,
     ...(contributors ? { document_contributors: contributors } : {}),
   };
 
@@ -191,9 +221,10 @@ for (const filePath of files) {
   await redis.sadd(PROCESSED_SET, sourceId);
   queued++;
 
-  const attribution = isAdr(relPath)
-    ? `adr → ${actor.name}${contributors && contributors.length > 1 ? ` (+${contributors.length - 1} contributors)` : ""}`
-    : `collective → ${contributors?.slice(0, 3).join(", ") ?? "team"}${contributors && contributors.length > 3 ? ` +${contributors.length - 3} more` : ""}`;
+  const authLabel = isAuthoritative ? docType : `${docType} [skip extraction]`;
+  const attribution = (docType === "adr" || docType === "runbook")
+    ? `${authLabel} → ${actor.name}${contributors && contributors.length > 1 ? ` (+${contributors.length - 1} contributors)` : ""}`
+    : `${authLabel} → ${contributors?.slice(0, 3).join(", ") ?? "team"}${contributors && contributors.length > 3 ? ` +${contributors.length - 3} more` : ""}`;
   console.log(`  ✓ ${relPath}  [${attribution}]`);
 }
 

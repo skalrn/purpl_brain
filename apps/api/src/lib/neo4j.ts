@@ -157,7 +157,7 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
  * For each event_id, return the confirmed decisions extracted from it along with
  * the ticket refs those decisions INFORMS (used for impact analysis traversal).
  */
-export async function getDecisionsWithTicketsByEventIds(eventIds: string[]): Promise<Array<{
+export async function getDecisionsWithTicketsByEventIds(eventIds: string[], projectId: string): Promise<Array<{
   decision_id: string;
   event_id: string;
   summary: string;
@@ -170,7 +170,7 @@ export async function getDecisionsWithTicketsByEventIds(eventIds: string[]): Pro
   try {
     const result = await session.run(
       `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event)
-       WHERE e.event_id IN $event_ids
+       WHERE e.event_id IN $event_ids AND e.project_id = $project_id
        OPTIONAL MATCH (d)-[:INFORMS]->(t:Ticket)
        RETURN d.decision_id AS decision_id,
               e.event_id AS event_id,
@@ -178,7 +178,7 @@ export async function getDecisionsWithTicketsByEventIds(eventIds: string[]): Pro
               d.rationale AS rationale,
               d.status AS status,
               collect(DISTINCT t.ref) AS ticket_refs`,
-      { event_ids: eventIds }
+      { event_ids: eventIds, project_id: projectId }
     );
     return result.records.map((r) => ({
       decision_id: r.get("decision_id") as string,

@@ -75,9 +75,20 @@ class Normalizer extends StreamWorker {
       ...(event.raw_content.match(/#\d+/g) ?? []),
     ];
     const personMentions = event.raw_content.match(/@[\w-]+/g) ?? [];
-    const isCandidate = event.source === "slack"
-      ? slackDecisionCandidate(event.raw_content)
-      : decisionCandidate(event.raw_content);
+    // Non-authoritative doc types (demo, pitch, review, unknown) reference other
+    // projects or hypothetical scenarios. Marking them as non-candidates prevents
+    // the extractor from storing foreign decisions under this project.
+    const NON_AUTHORITATIVE_DOC_TYPES = new Set(["demo", "pitch", "review", "unknown"]);
+    const isNonAuthoritativeDoc =
+      event.source === "document" &&
+      event.document_type != null &&
+      NON_AUTHORITATIVE_DOC_TYPES.has(event.document_type);
+
+    const isCandidate = isNonAuthoritativeDoc
+      ? false
+      : event.source === "slack"
+        ? slackDecisionCandidate(event.raw_content)
+        : decisionCandidate(event.raw_content);
 
     const normalized = {
       ...event,

@@ -50,7 +50,7 @@ export interface CanonicalEvent {
   // Document-specific (optional)
   document_title?: string;
   document_path?: string;
-  document_type?: "adr" | "prd" | "runbook" | "unknown";
+  document_type?: "adr" | "architecture" | "prd" | "runbook" | "demo" | "pitch" | "review" | "unknown";
   document_contributors?: string[]; // all git authors — populated for collective-authored docs
   chunk_index?: number;
   total_chunks?: number;

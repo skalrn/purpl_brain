@@ -154,7 +154,7 @@ export async function analyzeImpact(
   ];
 
   // 2. Fetch decisions + ticket refs from graph
-  const decisionsWithTickets = await getDecisionsWithTicketsByEventIds(relevantEventIds);
+  const decisionsWithTickets = await getDecisionsWithTicketsByEventIds(relevantEventIds, projectId);
 
   if (decisionsWithTickets.length === 0) {
     return {
