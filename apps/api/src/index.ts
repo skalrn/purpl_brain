@@ -37,15 +37,19 @@ await app.register(rateLimit, {
   max: parseInt(process.env.RATE_LIMIT_MAX ?? "60"),
   timeWindow: "1 minute",
   keyGenerator: (req) => {
-    const auth = req.headers["authorization"];
+    // Prefer API key headers for per-key quotas; fall back to IP for unauthenticated paths.
+    const apiKey = req.headers["x-api-key"] as string | undefined;
+    if (apiKey) return `key:${apiKey}`;
+    const auth = req.headers["authorization"] as string | undefined;
     if (auth?.startsWith("Bearer ")) return `key:${auth.slice(7)}`;
     return req.ip;
   },
-  errorResponseBuilder: (_req, context) => ({
-    error: "Too many requests",
-    message: `Rate limit exceeded — max ${context.max} requests per minute`,
-    retry_after_ms: context.ttl,
-  }),
+  errorResponseBuilder: (_req, context) => {
+    const err = new Error(`Rate limit exceeded — max ${context.max} requests per minute`) as Error & { statusCode: number; retry_after_ms?: number };
+    err.statusCode = context.ban ? 403 : 429;
+    err.retry_after_ms = context.ttl;
+    return err;
+  },
 });
 await app.register(fastifyCookie);
 await app.register(fastifySession, {
