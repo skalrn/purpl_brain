@@ -25,6 +25,7 @@ import { readFileSync, readdirSync, statSync } from "fs";
 import { resolve, relative, join, dirname } from "path";
 import { execSync } from "child_process";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
+import { deletePointsBySourceId } from "../lib/qdrant.js";
 import type { CanonicalEvent } from "@purpl/types";
 
 const args = process.argv.slice(2);
@@ -81,6 +82,35 @@ function gitAllAuthors(filePath: string): string[] {
     return [...new Set(out.split("\n").filter(Boolean))];
   } catch {
     return [];
+  }
+}
+
+// DOC-1: use the file's first-commit date as the event timestamp so temporal
+// reasoning works correctly. Without this, all docs land with the same
+// ingestion timestamp, making "what was decided before X" queries unreliable.
+function gitFirstCommitDate(filePath: string): string | null {
+  try {
+    const out = execSync(
+      `git log --diff-filter=A --follow --format="%aI" -- "${filePath}"`,
+      { cwd: gitRoot, encoding: "utf-8" }
+    ).trim();
+    return out.split("\n")[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+// DOC-3: stable content hash for change detection — lets --force-free re-ingest
+// trigger automatically when a file's content changes.
+function gitFileSHA(filePath: string): string | null {
+  try {
+    const out = execSync(
+      `git log -1 --format="%H" -- "${filePath}"`,
+      { cwd: gitRoot, encoding: "utf-8" }
+    ).trim();
+    return out || null;
+  } catch {
+    return null;
   }
 }
 
@@ -152,11 +182,20 @@ for (const filePath of files) {
   const relPath = relative(rootDir, filePath);
   const sourceId = `local_doc:${projectId}:${relPath}`;
 
-  const alreadyProcessed = !force && await redis.sismember(PROCESSED_SET, sourceId);
+  // DOC-3: key seen-set on sourceId:gitSHA so a content change causes automatic
+  // re-ingest on the next run without requiring --force.
+  const fileSHA = gitFileSHA(filePath);
+  const seenKey = fileSHA ? `${sourceId}:${fileSHA}` : sourceId;
+
+  const alreadyProcessed = !force && await redis.sismember(PROCESSED_SET, seenKey);
   if (alreadyProcessed) {
     skipped++;
     continue;
   }
+
+  // If a previous version of this file was ingested, remove its stale Qdrant chunks
+  // before enqueueing the new version so retrieval stays clean.
+  await deletePointsBySourceId(sourceId).catch(() => undefined);
 
   const content = readFileSync(filePath, "utf-8").trim();
   if (!content) {
@@ -205,7 +244,7 @@ for (const filePath of files) {
     source_id: sourceId,
     project_id: projectId,
     actor,
-    timestamp: new Date().toISOString(),
+    timestamp: gitFirstCommitDate(filePath) ?? new Date().toISOString(),
     event_type: "document_chunk",
     raw_content: content,
     url,
@@ -216,7 +255,7 @@ for (const filePath of files) {
   };
 
   await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
-  await redis.sadd(PROCESSED_SET, sourceId);
+  await redis.sadd(PROCESSED_SET, seenKey);
   queued++;
 
   const authLabel = isAuthoritative ? docType : `${docType} [skip extraction]`;

@@ -166,8 +166,10 @@ class DriftDetector extends StreamWorker {
 
     // Run drift detection on Slack, meeting, Jira, and agent events.
     // Skip GitHub — intra-PR debate is expected, not drift.
+    // Skip document — docs define the baseline; bulk ingest causes non-deterministic
+    // race conditions where doc chunks drift-check against each other mid-ingest.
     const source = inferSourceFromEventId(result.event_id);
-    if (source === "github") {
+    if (source === "github" || source === "document") {
       await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
       return;
     }

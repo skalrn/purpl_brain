@@ -190,14 +190,14 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         "Transcript ingested"
       );
 
-      return {
+      return reply.status(202).send({
         ok: true,
         chunks_queued: chunks.length,
         event_ids: eventIds,
         format: parsed.format,
         speakers: parsed.speakers,
         message: `${chunks.length} chunk(s) queued for processing`,
-      };
+      });
     }
   );
 
@@ -310,12 +310,12 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         "Agent log ingested"
       );
 
-      return {
+      return reply.status(202).send({
         ok: true,
         event_id: eventId,
         decisions_logged: log.decisions.length,
         message: "Agent log queued for processing",
-      };
+      });
     }
   );
 

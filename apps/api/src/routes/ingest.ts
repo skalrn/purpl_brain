@@ -94,13 +94,13 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         "Document ingested"
       );
 
-      return {
+      return reply.status(202).send({
         ok: true,
         chunks_queued: chunks.length,
         event_ids: eventIds,
         document_type: resolvedType,
         message: `${chunks.length} chunk(s) queued for processing`,
-      };
+      });
     }
   );
 
@@ -134,49 +134,49 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "GitHub token required — set GITHUB_TOKEN env or send X-Github-Token header" });
       }
 
-      let events: CanonicalEvent[];
-      try {
-        events = await crawlRepoDocs(token, repo, project_id, path_prefix ?? "docs");
-      } catch (e) {
-        fastify.log.error(e);
-        return reply.status(502).send({ error: `GitHub crawl failed: ${(e as Error).message}` });
-      }
-
-      if (events.length === 0) {
-        return { ok: true, chunks_queued: 0, message: "No .md files found under docs/" };
-      }
-
-      // For each source_id: if already processed, delete prior Qdrant chunks
-      // and clear dedup marker so the recrawl REPLACES rather than DEDUPES.
-      const uniqueSourceIds = [...new Set(events.map((e) => e.source_id))];
-      for (const sid of uniqueSourceIds) {
-        const already = await redis.sismember(PROCESSED_SET, sid);
-        if (already) {
-          await deletePointsBySourceId(sid);
-          await redis.srem(PROCESSED_SET, sid);
+      // Fire-and-forget: GitHub crawl can take 10-30s which causes MCP tool
+      // timeouts. Return 202 immediately and queue events in the background.
+      void (async () => {
+        let events: CanonicalEvent[];
+        try {
+          events = await crawlRepoDocs(token, repo, project_id, path_prefix ?? "docs");
+        } catch (e) {
+          fastify.log.error({ repo, project_id, err: (e as Error).message }, "Background crawl failed");
+          return;
         }
-      }
 
-      for (const event of events) {
-        await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
-      }
+        if (events.length === 0) {
+          fastify.log.info({ repo, project_id }, "Background crawl: no .md files found");
+          return;
+        }
 
-      // Mark each unique source file as processed (by source_id = repo/path)
-      for (const sid of uniqueSourceIds) {
-        await redis.sadd(PROCESSED_SET, sid);
-      }
+        const uniqueSourceIds = [...new Set(events.map((e) => e.source_id))];
+        for (const sid of uniqueSourceIds) {
+          const already = await redis.sismember(PROCESSED_SET, sid);
+          if (already) {
+            await deletePointsBySourceId(sid);
+            await redis.srem(PROCESSED_SET, sid);
+          }
+        }
 
-      fastify.log.info(
-        { repo, project_id, files: uniqueSourceIds.length, chunks: events.length },
-        "Repo docs crawled"
-      );
+        for (const event of events) {
+          await redis.xadd(STREAMS.RAW, "*", "event", JSON.stringify(event));
+        }
 
-      return {
+        for (const sid of uniqueSourceIds) {
+          await redis.sadd(PROCESSED_SET, sid);
+        }
+
+        fastify.log.info(
+          { repo, project_id, files: uniqueSourceIds.length, chunks: events.length },
+          "Background crawl completed"
+        );
+      })();
+
+      return reply.status(202).send({
         ok: true,
-        files_crawled: uniqueSourceIds.length,
-        chunks_queued: events.length,
-        message: `${uniqueSourceIds.length} file(s), ${events.length} chunk(s) queued`,
-      };
+        message: `Crawl started for ${repo}. Events will be available once background processing completes.`,
+      });
     }
   );
 };
