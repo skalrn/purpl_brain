@@ -107,19 +107,19 @@ type DocumentType = "adr" | "architecture" | "prd" | "runbook" | "demo" | "pitch
 
 function classifyDocumentType(relPath: string): DocumentType {
   const p = relPath.replace(/\\/g, "/").toLowerCase();
-  if (p.includes("/adrs/") || p.includes("/adr/")) return "adr";
-  if (p.includes("/demo/") || p.includes("/demos/")) return "demo";
-  if (p.includes("/pitch/") || p.includes("/sales/") || p.includes("/interview/")) return "pitch";
-  if (p.includes("/review/") || p.includes("/retrospective/") || p.includes("/retro/")) return "review";
-  if (p.includes("/runbook") || p.includes("/setup") || p.includes("/onboarding") || p.includes("/ops/")) return "runbook";
+  if (/(?:^|\/)adrs?\//.test(p)) return "adr";
+  if (/(?:^|\/)demos?\//.test(p)) return "demo";
+  if (/(?:^|\/)(?:pitch|sales|interview)\//.test(p)) return "pitch";
+  if (/(?:^|\/)(?:review|retrospective|retro)\//.test(p) || p.includes("risk-register")) return "review";
+  if (/(?:^|\/)(?:runbook|ops)\//.test(p) || p.includes("setup") || p.includes("onboarding")) return "runbook";
   if (
-    p.includes("/technical/") ||
+    /(?:^|\/)technical\//.test(p) ||
     p.includes("/architecture") ||
     p.includes("implementation-plan") ||
-    p.includes("/design/")
+    /(?:^|\/)design\//.test(p)
   ) return "architecture";
   if (
-    p.includes("/product/") ||
+    /(?:^|\/)product\//.test(p) ||
     p.includes("prd") ||
     p.includes("roadmap") ||
     p.includes("vision") ||
