@@ -105,28 +105,26 @@ function slugify(s: string): string {
 
 type DocumentType = "adr" | "architecture" | "prd" | "runbook" | "demo" | "pitch" | "review" | "unknown";
 
+// Ordered rule table — first match wins. Each entry is [pattern, type].
+// Pattern is tested against the lowercased, forward-slash-normalized relative path.
+//
+// These are the shipped defaults. The long-term design is for projects to store
+// their own rule table in Neo4j (overriding these defaults), so teams with
+// non-standard folder conventions can configure once via API rather than
+// touching every doc. See open todo #DOC-5.
+const PATH_RULES: Array<[RegExp, DocumentType]> = [
+  [/(?:^|\/)adrs?\//, "adr"],
+  [/(?:^|\/)demos?\//, "demo"],
+  [/(?:^|\/)(?:pitch|sales|interview)\//, "pitch"],
+  [/(?:^|\/)(?:review|retro(?:spective)?)\/|risk-register/, "review"],
+  [/(?:^|\/)(?:runbook|ops)\/|onboarding|setup/, "runbook"],
+  [/(?:^|\/)(?:technical|design)\/|implementation-plan/, "architecture"],
+  [/(?:^|\/)product\/|\/prd\b|roadmap|vision|personas|requirements/, "prd"],
+];
+
 function classifyDocumentType(relPath: string): DocumentType {
   const p = relPath.replace(/\\/g, "/").toLowerCase();
-  if (/(?:^|\/)adrs?\//.test(p)) return "adr";
-  if (/(?:^|\/)demos?\//.test(p)) return "demo";
-  if (/(?:^|\/)(?:pitch|sales|interview)\//.test(p)) return "pitch";
-  if (/(?:^|\/)(?:review|retrospective|retro)\//.test(p) || p.includes("risk-register")) return "review";
-  if (/(?:^|\/)(?:runbook|ops)\//.test(p) || p.includes("setup") || p.includes("onboarding")) return "runbook";
-  if (
-    /(?:^|\/)technical\//.test(p) ||
-    p.includes("/architecture") ||
-    p.includes("implementation-plan") ||
-    /(?:^|\/)design\//.test(p)
-  ) return "architecture";
-  if (
-    /(?:^|\/)product\//.test(p) ||
-    p.includes("prd") ||
-    p.includes("roadmap") ||
-    p.includes("vision") ||
-    p.includes("personas") ||
-    p.includes("requirements")
-  ) return "prd";
-  return "unknown";
+  return PATH_RULES.find(([re]) => re.test(p))?.[1] ?? "unknown";
 }
 
 // Authoritative doc types produce decisions that belong to this project.
