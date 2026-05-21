@@ -53,19 +53,37 @@ The average brain query returned ~151 tokens of targeted, relevant citations. Th
 
 ---
 
-## The Cost Math
+## The Cost Math — Full Accounting
 
-Token savings translate directly to API cost. Using Anthropic Sonnet pricing ($3 per 1M input tokens) and a modest estimate of 50 agent questions per day:
+A fair comparison has to include brain-side costs, not just the context loading savings. There are three buckets:
 
-| | Daily cost | Monthly cost |
+1. **Downstream agent context** — tokens the calling agent processes per question
+2. **Brain synthesis** — the LLM call inside `brain_query` that composes the answer from retrieved chunks
+3. **Ingestion** — one-time Haiku extraction cost when seeding the brain (amortised over 30 days)
+
+Using Anthropic Sonnet pricing ($3/1M input, $15/1M output) and 50 agent questions per day:
+
+**Document mode:**
+
+| Cost bucket | Tokens/question | Daily cost |
 |---|---|---|
-| Document mode | $0.51 | $15.27 |
-| Brain mode | $0.02 | $0.68 |
-| **Savings** | **$0.49** | **$14.68** |
+| Agent loads docs into context | ~3,412 | $0.51 |
+| Brain synthesis | none | $0.00 |
+| Ingestion | none | $0.00 |
+| **Total** | | **$0.51/day** |
 
-These are *downstream agent context costs only* — what the agent spends processing the context it loads before answering. Brain mode has its own retrieval cost (the query synthesis call). The net saving materialises quickly when agents make multiple queries per session and the brain's system prompt is cached across turns.
+**Brain mode:**
 
-At 200 questions per day (a small team with several active agent sessions), the differential becomes meaningful.
+| Cost bucket | Tokens/question | Daily cost |
+|---|---|---|
+| Agent reads brain answer (~300 tok) | ~300 | $0.05 |
+| Brain synthesis (cache-warm: 170t in + 300t out) | 470 | $0.25 |
+| Ingestion, amortised ($0.08 one-time ÷ 30 days) | — | $0.003 |
+| **Total** | | **$0.30/day** |
+
+**Net: brain mode saves $0.21/day → $6.41/month** at 50 questions/day, including all costs.
+
+The synthesis cost is real and worth accounting for. It's also where caching compounds: with multiple agent sessions reusing the same brain system prompt, the cache-warm assumption holds and the synthesis cost per call drops further. At 200 questions per day (a small team with several active sessions), the differential widens.
 
 ---
 
@@ -142,7 +160,8 @@ The eval uses the real brain API — not a mock — so the numbers reflect actua
 ## Numbers Worth Keeping
 
 - **96% fewer context tokens** per question when using brain mode vs loading committed docs
-- **$14.68/month savings** per 50-question-per-day team at Sonnet pricing (downstream context cost only)
+- **$6.41/month net savings** per 50-question-per-day team at Sonnet pricing — including brain synthesis and ingestion costs, not just context loading
+- **$0.51/day doc mode vs $0.30/day brain mode** — full all-in cost comparison at 50 questions/day
 - **6/7 questions answered** by brain from PR discussions vs 7/7 from docs (docs win on committed content; brain wins on rationale and team activity)
 - **7 structural capabilities** that committed docs cannot replicate regardless of how well they're maintained
 

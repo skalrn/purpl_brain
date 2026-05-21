@@ -527,31 +527,79 @@ async function main() {
     console.log(`    Brain    : ${a.brain}`);
   }
 
-  // ── Step 6: Cost estimate ─────────────────────────────────────────────────
+  // ── Step 6: Full cost accounting (including brain-side costs) ───────────────
+  //
+  // Three cost buckets:
+  //   1. Downstream agent context — tokens the calling agent processes per question
+  //   2. Brain query synthesis    — LLM call inside brain_query to compose the answer
+  //   3. Brain ingestion          — one-time extraction cost when seeding the brain
+  //
+  // Pricing (Anthropic Sonnet input: $3/1M, output: $15/1M; Haiku: $0.25/$1.25)
   console.log("\n" + hr("═"));
-  console.log("  COST PROJECTION (Anthropic Sonnet pricing, 50 questions/day)");
+  console.log("  FULL COST ACCOUNTING (Anthropic Sonnet pricing, 50 questions/day)");
   console.log(hr("═"));
 
   const avgDocTokens   = totalDocTokens / QUESTIONS.length;
-  const avgBrainTokens = totalBrainTokens / QUESTIONS.length;
-  const PRICE_PER_1M   = 3.0; // Sonnet input: $3 per 1M tokens
+  const avgBrainCtxTokens = totalBrainTokens / QUESTIONS.length;
 
-  const dailyDocCost   = (avgDocTokens * 50 / 1_000_000) * PRICE_PER_1M;
-  const dailyBrainCost = (avgBrainTokens * 50 / 1_000_000) * PRICE_PER_1M;
-  const dailySavings   = dailyDocCost - dailyBrainCost;
+  // Estimated brain query synthesis cost per call:
+  //   Input  = system prompt (~600 tok, cached after first) + ctx (~151 tok) + question (~20 tok)
+  //   Output = answer (~300 tok based on observed ~1200 char avg)
+  //   Using cache-warm estimate: ~170 fresh input + 300 output per call
+  const SONNET_INPUT_PER_1M  = 3.0;
+  const SONNET_OUTPUT_PER_1M = 15.0;
+  const HAIKU_INPUT_PER_1M   = 0.25;
+  const HAIKU_OUTPUT_PER_1M  = 1.25;
+
+  const brainSynthInputTokens  = 170;  // fresh (system prompt cached)
+  const brainSynthOutputTokens = 300;
+  const brainSynthCostPerCall  =
+    (brainSynthInputTokens  / 1_000_000) * SONNET_INPUT_PER_1M +
+    (brainSynthOutputTokens / 1_000_000) * SONNET_OUTPUT_PER_1M;
+
+  // Ingestion cost: 50 PRs × ~5 chunks × Haiku extraction (~500 in + 150 out per chunk)
+  // One-time cost, amortised over 30 days of questions
+  const ingestCalls = 250;  // 50 PRs × 5 chunks each
+  const ingestCostOneTime =
+    (ingestCalls * 500 / 1_000_000) * HAIKU_INPUT_PER_1M +
+    (ingestCalls * 150 / 1_000_000) * HAIKU_OUTPUT_PER_1M;
+  const ingestCostPerDay = ingestCostOneTime / 30;  // amortised
+
+  const DAILY_QUESTIONS = 50;
+
+  // Doc mode: agent loads full docs per question (no synthesis call needed — docs go directly into agent context)
+  const dailyDocContextCost = (avgDocTokens * DAILY_QUESTIONS / 1_000_000) * SONNET_INPUT_PER_1M;
+  const dailyDocTotalCost   = dailyDocContextCost;  // no brain infra
+
+  // Brain mode: agent context (tiny — it reads the brain answer) + brain synthesis + ingestion amortised
+  const avgBrainAnswerTokens  = 300;  // tokens the calling agent reads from the brain answer
+  const dailyBrainAgentCost   = (avgBrainAnswerTokens * DAILY_QUESTIONS / 1_000_000) * SONNET_INPUT_PER_1M;
+  const dailyBrainSynthCost   = brainSynthCostPerCall * DAILY_QUESTIONS;
+  const dailyBrainTotalCost   = dailyBrainAgentCost + dailyBrainSynthCost + ingestCostPerDay;
+
+  const dailySavings   = dailyDocTotalCost - dailyBrainTotalCost;
   const monthlySavings = dailySavings * 30;
 
-  console.log(`\n  Avg tokens per question — doc mode  : ${Math.round(avgDocTokens).toLocaleString()}`);
-  console.log(`  Avg tokens per question — brain mode: ${Math.round(avgBrainTokens).toLocaleString()}`);
-  console.log(`  Token reduction per question        : ${pct(totalReduction)}`);
-  console.log(`\n  Daily cost at 50 questions — doc mode  : $${dailyDocCost.toFixed(4)}`);
-  console.log(`  Daily cost at 50 questions — brain mode: $${dailyBrainCost.toFixed(4)}`);
-  console.log(`  Daily savings                          : $${dailySavings.toFixed(4)}`);
-  console.log(`  Monthly savings (30 days)              : $${monthlySavings.toFixed(2)}`);
-  console.log("\n  Note: brain_query itself has an LLM cost for answer synthesis.");
-  console.log("  The saving above reflects the downstream agent context cost only.");
-  console.log("  Net benefit materialises when the agent makes multiple tool calls");
-  console.log("  per session reusing the cached brain system prompt.");
+  console.log(`\n  ── Doc mode (${DAILY_QUESTIONS} questions/day) ──`);
+  console.log(`  Context loaded per question     : ~${Math.round(avgDocTokens).toLocaleString()} tokens`);
+  console.log(`  Agent context cost              : $${dailyDocContextCost.toFixed(4)}/day`);
+  console.log(`  Brain infra cost                : $0.0000  (none)`);
+  console.log(`  Total daily cost                : $${dailyDocTotalCost.toFixed(4)}/day`);
+
+  console.log(`\n  ── Brain mode (${DAILY_QUESTIONS} questions/day) ──`);
+  console.log(`  Agent reads brain answer        : ~${avgBrainAnswerTokens} tokens (not full docs)`);
+  console.log(`  Agent context cost              : $${dailyBrainAgentCost.toFixed(4)}/day`);
+  console.log(`  Brain synthesis per query       : ~${brainSynthInputTokens}t in + ${brainSynthOutputTokens}t out (cache-warm)`);
+  console.log(`  Brain synthesis cost            : $${dailyBrainSynthCost.toFixed(4)}/day`);
+  console.log(`  Ingestion cost (amortised/day)  : $${ingestCostPerDay.toFixed(4)}  [one-time: $${ingestCostOneTime.toFixed(4)} over 30 days]`);
+  console.log(`  Total daily cost                : $${dailyBrainTotalCost.toFixed(4)}/day`);
+
+  console.log(`\n  ── Net comparison ──`);
+  console.log(`  Daily savings (brain vs doc)    : $${dailySavings.toFixed(4)}`);
+  console.log(`  Monthly savings (30 days)       : $${monthlySavings.toFixed(2)}`);
+  console.log(`  Break-even (if brain costs more): ${dailySavings < 0 ? "brain is more expensive" : "brain is cheaper per day"}`);
+  console.log(`\n  Note: at larger scale (200 questions/day, active team), ingestion is`);
+  console.log(`  amortised further and brain synthesis caching benefits compound.`);
 
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log("\n" + hr("═"));
