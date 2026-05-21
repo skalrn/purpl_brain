@@ -138,6 +138,24 @@ Do not skip this even if the session was short. The cost of asking is low; the c
 
 Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met. See `docs/product/roadmap.md` for exit criteria per phase.
 
+## Feature Design Review
+
+Before implementing any new feature that touches ingestion, workers, the brain store, or the query layer — pause and raise failure modes before writing code, not after.
+
+Ask: **what does this design assume about the real world that the dev/test environment hides?**
+
+Apply these lenses to the feature description:
+
+- **Real-world inputs:** what does this assume about the shape, completeness, or ordering of inputs that real users won't guarantee?
+- **Temporal correctness:** does this preserve when things actually happened, or does it stamp "now"? What does time mean in this context?
+- **Idempotency:** what happens if this runs twice, or fails halfway and retries?
+- **System interactions:** which existing workers, streams, or stores are downstream of this? Do their assumptions still hold?
+- **Tenant isolation:** is every read and write scoped to `project_id`, or can data bleed across projects?
+- **Failure recovery:** what is the blast radius if this fails? Can it be retried without side effects?
+- **Scale:** what is the bottleneck? What breaks at 10× the current data volume?
+
+These lenses apply to any feature — the specific failure modes they surface will differ each time. If `brain_analyze_impact` is available, run it against the proposed change before starting implementation.
+
 ## LLM Cost Controls
 
 Every Anthropic SDK call in this codebase must apply prompt caching. See `docs/technical/llm-cost-controls.md` for full patterns and anti-patterns.
