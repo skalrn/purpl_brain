@@ -138,6 +138,17 @@ Do not skip this even if the session was short. The cost of asking is low; the c
 
 Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met. See `docs/product/roadmap.md` for exit criteria per phase.
 
+## Skill Management
+
+When creating a new Claude Code skill (a `.md` file intended as a slash command):
+
+1. **Project-specific skills** (depend on this repo's MCP tools, file paths, or tooling) → save to `.claude/commands/` in this repo and commit here.
+2. **Reusable skills** (pure prompting, no project dependency) → save to `~/.claude/commands/` AND commit to `~/aiplayground/skalrn-claude-skills/commands/`, then push to `github.com/skalrn/skalrn-claude-skills`.
+
+For reusable skills, always do both steps — the local symlink makes it available immediately, the repo commit makes it available on any machine and preserves it across reinstalls.
+
+The `skalrn-claude-skills` repo is symlinked to `~/.claude/commands/` via `install.sh`. Any file added to `skalrn-claude-skills/commands/` is automatically picked up by Claude Code on the next restart.
+
 ## Feature Design Review
 
 Before implementing any new feature that touches ingestion, workers, the brain store, or the query layer — pause and raise failure modes before writing code, not after.
