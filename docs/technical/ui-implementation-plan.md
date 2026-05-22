@@ -100,6 +100,18 @@ Add `<ReactQueryDevtools />` in development only.
 
 ---
 
+## R1-Driven Additions (May 2026 market analysis)
+
+The three components below — `BrainHealthBadge`, the write-back quality signal on sessions, and the session handoff indicator on `SessionDetailView` — were added after the May 2026 market analysis and product review. They close specific gaps from R1 in `docs/product/prd.md` Section 8:
+
+- **`BrainHealthBadge`** addresses R1 failure mode A (trigger discipline): when no decisions have been logged for several days, the UI surfaces the empty-brain state explicitly rather than letting the user discover it by running a query that returns nothing.
+- **Write-back quality signal on sessions** addresses R1 failure mode B (content quality): a session full of decisions missing rationale or alternatives is nearly as useless as an empty brain, and harder to diagnose. The amber/red indicator surfaces this without requiring the developer to open each session.
+- **Session handoff indicator** is the visual proof of the core value proposition — "the next agent session knows what the last one decided." Showing how many prior decisions were inherited at `brain_query` time makes the write-read loop visible.
+
+These additions extend the existing plan — they do not restructure it. Specs below are folded into the relevant component, route, and build-order sections.
+
+---
+
 ## Component Tree
 
 ```
@@ -142,6 +154,8 @@ app/
     AgentTypeBadge.tsx          — icon + label for coding/infra/other
     OperatorTag.tsx             — "Scheduled" tag when operator_name is null
     RiskBadge.tsx               — low/medium/high/critical colour chip
+    BrainHealthBadge.tsx        — amber/red badge surfacing R1-A (no decisions logged recently)
+    WriteBackQualityBadge.tsx   — green/amber/red badge surfacing R1-B (rationale/alternatives populated)
 ```
 
 ---
@@ -157,7 +171,7 @@ Body: `ProjectGrid` — responsive card grid, sorted by `sessions_since + pendin
 
 ```
 ┌─────────────────────────────────────────┐
-│ project_id                    [2 drift] │  ← DriftBadge (red if > 0)
+│ project_id        [health]    [2 drift] │  ← BrainHealthBadge + DriftBadge
 │                                         │
 │ Last session: Deepak via claude-code    │  ← operator_name + agent_id
 │ "migrated auth to OAuth" · 4 decisions │  ← work_summary + decision_count
@@ -167,6 +181,8 @@ Body: `ProjectGrid` — responsive card grid, sorted by `sessions_since + pendin
 │                                  12m ago│  ← last_event_at relative time
 └─────────────────────────────────────────┘
 ```
+
+`BrainHealthBadge` placement: top row, left of `DriftBadge`. Renders nothing when the brain is healthy (decisions logged within 3 days). Amber when `last_decision_logged_at` is more than 3 days ago, red when more than 7 days ago. Hover/tap hint: `no agent decisions logged this week — check MCP setup`. Sourced from `last_decision_logged_at` (ISO string) on the project response — add this field to `GET /brain/projects` if not already returned.
 
 - Clicking the card navigates to `/p/[project_id]`
 - Clicking the drift badge navigates to `/p/[project_id]` with `#drift` anchor
@@ -187,6 +203,10 @@ On page load, compute `since` as midnight of the current day (local time, ISO st
 ### Layout
 Two-column on desktop (lg+). Left 2/3: main panels stacked vertically. Right 1/3: Chat panel (existing `Chat.tsx`).
 
+### Header
+
+`project_id` heading left. Right side, in order: `BrainHealthBadge` (same thresholds as on `ProjectCard` — amber > 3 days, red > 7 days since last decision), `DriftBadge`, `UserMenu`. The badge in the header is the persistent in-page reminder of write-back health while the user is inside the project — the overview badge tells them which project is silent, the header badge keeps that signal visible while they work in it.
+
 #### Left column panels (top to bottom)
 
 **1. Drift Inbox (`DriftInbox`)**  
@@ -202,8 +222,17 @@ When count = 0: "No pending drift. Brain is consistent." green state.
 Header: "Sessions" + filter chips: `All` / `Coding` / `Infra` / `Other` + operator filter (dropdown of distinct operator_names from session list). Each `SessionRow`:
 - Left: `AgentTypeBadge` icon (`Code2` / `Database` / `Radio` / `Bot`)
 - Middle: `{operator_name} via {agent_id}` (bold operator, muted monospace agent). If `operator_name` is null: `OperatorTag` showing "Scheduled" chip instead.
-- Right: decision count + relative timestamp
+- Right: `WriteBackQualityBadge` (small dot — green/amber/red) + decision count + relative timestamp
 - Click: navigates to `/p/[project_id]/sessions/[event_id]`
+
+`WriteBackQualityBadge` rules (applied identically here and on `SessionDetailView`):
+- **Green:** every decision in the session has a non-empty `rationale` and a non-empty `alternatives_considered` array.
+- **Amber:** at least one decision is missing `rationale` or `alternatives_considered`, but fewer than half are missing.
+- **Red:** the majority of decisions are missing `rationale` or `alternatives_considered`.
+- Sessions with zero decisions render no badge (use `decision_count` only).
+- Hover hint shows the breakdown: `3 of 4 decisions missing rationale`.
+
+This badge surfaces R1 failure mode B (content quality) to the developer at scan time, without requiring them to open each session. It also gives them visible feedback that the server-side schema validation gate (PRD R1) is doing its job — green dots across the board means the gate is working.
 
 **3. Brain Changelog (`Changelog`)**  
 Existing component. Kept as-is. Feed of graph-mutating events — decision created, drift detected, session logged. 🤖/👤 icons. Operator field: update the agent-event line from "🤖 claude-code" to "🤖 Deepak via claude-code" when `operator_name` is present.
@@ -227,11 +256,27 @@ Simple list below Changelog. `GET /brain/tasks?project_id=X&status=open`. Each t
 Single session full-page detail. Used for pre-merge audit.
 
 ### Header metadata bar
-`agent_id` (with `AgentTypeBadge`) · `operator_name` (with `OperatorTag` if null) · `project_id` · `timestamp`
+`agent_id` (with `AgentTypeBadge`) · `operator_name` (with `OperatorTag` if null) · `project_id` · `timestamp` · `WriteBackQualityBadge` (same green/amber/red rules as on `SessionRow`, with the breakdown text rendered inline next to the badge instead of on hover, e.g. "Quality: 3 of 4 decisions missing rationale").
+
+### Inherited context
+
+Shown directly under the header metadata bar, above the Decisions section:
+
+```
+This session queried the brain at start. Found 14 prior decisions from 3 sessions.
+```
+
+- Renders only if the session actually called `brain_query` at start (i.e. the field is not null).
+- If the session did not call `brain_query`: render a muted line `This session did not query the brain at start.` — this is a soft signal that the agent skipped its session-start protocol, useful for diagnosing R1-A.
+- If the session queried the brain but found nothing: render `This session queried the brain at start. No prior decisions found.` — distinct from "did not query" and from "found N decisions".
+
+Backed by one new field on the agent session detail response: `brain_query_results_count` (nullable integer — `null` = did not query, `0` = queried with no hits, `>0` = queried with hits). The "from N sessions" count comes from `brain_query_distinct_sessions_count` (or can be derived server-side from the same query). Add both fields to `GET /brain/agent-sessions/:event_id` if not present.
+
+This section is the visual proof of the core value proposition — "the next session knows what the last one decided." Without it, the write-read loop is invisible to the developer: they see decisions get logged but never see them get read. Surfacing the inherited-context count makes the loop legible.
 
 ### Sections
 
-**Decisions** — list of decision cards. Each card: `summary`, `rationale`, `confidence` chip, `status` badge, `decision_id` (monospace, copyable).
+**Decisions** — list of decision cards. Each card: `summary`, `rationale`, `confidence` chip, `status` badge, `decision_id` (monospace, copyable). Cards with missing `rationale` or empty `alternatives_considered` get a small amber outline and an inline `incomplete` chip, mirroring the session-level `WriteBackQualityBadge` at the per-decision grain.
 
 **Preflight Checks** — shown only if `preflight_checks.length > 0`. Each check:
 - `change_description` (what the agent was about to do)
@@ -299,16 +344,16 @@ This requires the Changelog to consume the new `operator_name` field from the ch
 2. `app/lib/api.ts` + typed response interfaces
 3. `app/providers.tsx` — TanStack Query setup
 4. Update `app/layout.tsx` — wrap in providers, add `<Toaster />`
-5. `AgentTypeBadge`, `OperatorTag`, `RiskBadge`, `DriftBadge` — shared primitives first
-6. `ProjectCard` + `ProjectGrid` + `EmptyBrainState` → wire `/` page
+5. `AgentTypeBadge`, `OperatorTag`, `RiskBadge`, `DriftBadge`, `BrainHealthBadge`, `WriteBackQualityBadge` — shared primitives first
+6. `ProjectCard` + `ProjectGrid` + `EmptyBrainState` → wire `/` page (include `BrainHealthBadge` on each card)
 7. `DriftAlertRow` + `DriftInbox` → wire into `/p/[project_id]`
-8. `SessionRow` + `SessionList` → wire into `/p/[project_id]`
+8. `SessionRow` + `SessionList` → wire into `/p/[project_id]` (include `WriteBackQualityBadge` on each row)
 9. Update `Changelog.tsx` for operator attribution
 10. `DriftGraph` (React Flow) → add as collapsible panel
-11. `/p/[project_id]/sessions/[event_id]` — `SessionDetailView` with preflight checks
+11. `/p/[project_id]/sessions/[event_id]` — `SessionDetailView` with preflight checks, inherited-context section, and `WriteBackQualityBadge` in header
 12. `GET /brain/drift-alerts` cross-project count link on overview header
 13. `since` date-window toggle on overview
-14. Test golden path: overview → click project card → session row → session detail → preflight check
+14. Test golden path: overview → click project card (health badge visible) → session row (quality badge visible) → session detail (inherited-context line + per-decision quality) → preflight check
 
 ---
 
