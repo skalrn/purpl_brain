@@ -1,0 +1,26 @@
+{
+  "id": "roadmap/phases",
+  "title": "Phases",
+  "description": "Each phase proves a discrete thesis before the next begins. A phase is complete when its exit criterion is met with real data from a real (or realistic) project.",
+  "source": "@site/docs/roadmap/phases.md",
+  "sourceDirName": "roadmap",
+  "slug": "/roadmap/phases",
+  "permalink": "/roadmap/phases",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "Temporal Correctness",
+    "permalink": "/pitfalls/temporal-correctness"
+  },
+  "next": {
+    "title": "Beta Requirements",
+    "permalink": "/roadmap/beta-setup"
+  }
+}

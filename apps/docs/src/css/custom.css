@@ -1,0 +1,37 @@
+/**
+ * Custom CSS for purpl_brain docs
+ */
+
+:root {
+  --ifm-color-primary: #7c6af7;
+  --ifm-color-primary-dark: #6456f5;
+  --ifm-color-primary-darker: #5848f4;
+  --ifm-color-primary-darkest: #3629f1;
+  --ifm-color-primary-light: #947ef9;
+  --ifm-color-primary-lighter: #a08cfb;
+  --ifm-color-primary-lightest: #c4b8fd;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #9d8ffa;
+  --ifm-color-primary-dark: #856ef8;
+  --ifm-color-primary-darker: #7960f7;
+  --ifm-color-primary-darkest: #5539f4;
+  --ifm-color-primary-light: #b5b0fc;
+  --ifm-color-primary-lighter: #c1bdfd;
+  --ifm-color-primary-lightest: #e3e0fe;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-background-color: #0f0f14;
+  --ifm-background-surface-color: #16161e;
+}
+
+.hero--primary {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+
+article table {
+  display: block;
+  overflow-x: auto;
+}

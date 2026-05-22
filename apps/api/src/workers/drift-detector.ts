@@ -209,6 +209,7 @@ class DriftDetector extends StreamWorker {
         event_id: result.event_id,
         source: inferSourceFromEventId(result.event_id),
         content: result.raw_content.slice(0, 500),
+        reason: drift.reason,
         actor: result.actor.name,
         timestamp: result.timestamp,
         confirmed_by_llm: true,

@@ -1,0 +1,26 @@
+{
+  "id": "decisions/mcp-server-interface",
+  "title": "ADR-002: MCP Server as the Agent Interface",
+  "description": "Status 2026-05-15 | Implementation: Phase 3 M1 complete",
+  "source": "@site/docs/decisions/mcp-server-interface.md",
+  "sourceDirName": "decisions",
+  "slug": "/decisions/mcp-server-interface",
+  "permalink": "/decisions/mcp-server-interface",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "ADR-001: Hybrid Brain Store",
+    "permalink": "/decisions/hybrid-brain-store"
+  },
+  "next": {
+    "title": "ADR-003: Event-Driven Ingestion",
+    "permalink": "/decisions/event-driven-ingestion"
+  }
+}

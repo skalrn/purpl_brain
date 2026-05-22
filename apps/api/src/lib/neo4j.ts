@@ -44,6 +44,7 @@ export async function writeDriftAlert(alert: DriftAlert): Promise<void> {
          a.event_id        = $event_id,
          a.source          = $source,
          a.content         = $content,
+         a.reason          = $reason,
          a.actor           = $actor,
          a.timestamp       = $timestamp,
          a.confirmed_by_llm = $confirmed_by_llm,
@@ -56,6 +57,7 @@ export async function writeDriftAlert(alert: DriftAlert): Promise<void> {
         event_id: alert.event_id,
         source: alert.source,
         content: alert.content,
+        reason: alert.reason ?? null,
         actor: alert.actor,
         timestamp: alert.timestamp,
         confirmed_by_llm: alert.confirmed_by_llm,
@@ -395,6 +397,7 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
   project_id: string;
   source: string;
   content: string;
+  reason: string | null;
   actor: string;
   timestamp: string;
   resolution: string;
@@ -412,6 +415,7 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
                 e.project_id AS project_id,
                 a.source AS source,
                 a.content AS content,
+                a.reason AS reason,
                 a.actor AS actor,
                 a.timestamp AS timestamp,
                 a.resolution AS resolution,
@@ -426,6 +430,7 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
                 e.project_id AS project_id,
                 a.source AS source,
                 a.content AS content,
+                a.reason AS reason,
                 a.actor AS actor,
                 a.timestamp AS timestamp,
                 a.resolution AS resolution,
@@ -441,6 +446,7 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
       project_id: r.get("project_id") as string,
       source: r.get("source") as string,
       content: r.get("content") as string,
+      reason: (r.get("reason") as string | null) ?? null,
       actor: r.get("actor") as string,
       timestamp: r.get("timestamp") as string,
       resolution: r.get("resolution") as string,
@@ -464,6 +470,7 @@ export async function getDriftAlertsForActor(personId: string): Promise<Array<{
   project_id: string;
   source: string;
   content: string;
+  reason: string | null;
   actor: string;
   timestamp: string;
   resolution: string;
@@ -482,6 +489,7 @@ export async function getDriftAlertsForActor(personId: string): Promise<Array<{
               e.project_id AS project_id,
               a.source AS source,
               a.content AS content,
+              a.reason AS reason,
               a.actor AS actor,
               a.timestamp AS timestamp,
               a.resolution AS resolution,
@@ -498,6 +506,7 @@ export async function getDriftAlertsForActor(personId: string): Promise<Array<{
       project_id: r.get("project_id") as string,
       source: r.get("source") as string,
       content: r.get("content") as string,
+      reason: (r.get("reason") as string | null) ?? null,
       actor: r.get("actor") as string,
       timestamp: r.get("timestamp") as string,
       resolution: r.get("resolution") as string,
@@ -557,6 +566,10 @@ export async function listProjectsForActor(personId: string, since?: string): Pr
   sessions_since: number;
   decisions_since: number;
   last_event_at: string | null;
+  last_decision_logged_at: string | null;
+  last_session_agent_id: string | null;
+  last_session_operator_name: string | null;
+  last_session_work_summary: string | null;
 }>> {
   const session = getSession();
   const sinceTs = since ?? "1970-01-01T00:00:00.000Z";
@@ -566,40 +579,68 @@ export async function listProjectsForActor(personId: string, since?: string): Pr
        MATCH (e:Event {project_id: proj.project_id})
        WITH proj.project_id AS pid, count(e) AS event_count, max(e.timestamp) AS last_event_at
        OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e2:Event {project_id: pid})
-       WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count
+       WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count,
+            max(d.valid_from) AS last_decision_logged_at
        OPTIONAL MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->
                       (:Decision)-[:EXTRACTED_FROM]->(e3:Event {project_id: pid})
-       WITH pid, event_count, last_event_at, decision_count, count(DISTINCT a) AS pending_drift_count
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            count(DISTINCT a) AS pending_drift_count
        OPTIONAL MATCH (t:FollowUpTask {project_id: pid, status: "open"})
-       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
-            count(t) AS pending_tasks_count
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, count(t) AS pending_tasks_count
        OPTIONAL MATCH (es:Event {project_id: pid, source: "agent"})
        WHERE es.timestamp >= $since
-       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
-            pending_tasks_count, count(es) AS sessions_since
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, count(es) AS sessions_since
        OPTIONAL MATCH (ds:Decision)-[:EXTRACTED_FROM]->(esc:Event {project_id: pid, source: "agent"})
        WHERE esc.timestamp >= $since
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since,
+            count(DISTINCT ds) AS decisions_since
+       OPTIONAL MATCH (latest_agent:Event {project_id: pid, source: "agent"})
+       OPTIONAL MATCH (latest_agent)-[:AUTHORED_BY]->(latest_person:Person)
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            latest_agent, latest_person
+       ORDER BY latest_agent.timestamp DESC
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            head(collect(latest_person.name)) AS last_session_agent_id,
+            head(collect(latest_agent.operator_name)) AS last_session_operator_name,
+            head(collect(latest_agent.raw_content)) AS last_session_raw
        RETURN pid AS project_id,
               event_count,
               last_event_at,
               decision_count,
+              last_decision_logged_at,
               pending_drift_count,
               pending_tasks_count,
               sessions_since,
-              count(DISTINCT ds) AS decisions_since
+              decisions_since,
+              last_session_agent_id,
+              last_session_operator_name,
+              last_session_raw
        ORDER BY last_event_at DESC`,
       { person_id: personId, since: sinceTs }
     );
-    return result.records.map((r) => ({
-      project_id:          r.get("project_id") as string,
-      event_count:         toNum(r.get("event_count")),
-      decision_count:      toNum(r.get("decision_count")),
-      pending_drift_count: toNum(r.get("pending_drift_count")),
-      pending_tasks_count: toNum(r.get("pending_tasks_count")),
-      sessions_since:      toNum(r.get("sessions_since")),
-      decisions_since:     toNum(r.get("decisions_since")),
-      last_event_at:       (r.get("last_event_at") as string | null) ?? null,
-    }));
+    return result.records.map((r) => {
+      const raw: string = (r.get("last_session_raw") as string) ?? "";
+      const workMatch = raw.match(/Work completed:\s*(.+?)(?:\n|$)/);
+      return {
+        project_id:                  r.get("project_id") as string,
+        event_count:                 toNum(r.get("event_count")),
+        decision_count:              toNum(r.get("decision_count")),
+        pending_drift_count:         toNum(r.get("pending_drift_count")),
+        pending_tasks_count:         toNum(r.get("pending_tasks_count")),
+        sessions_since:              toNum(r.get("sessions_since")),
+        decisions_since:             toNum(r.get("decisions_since")),
+        last_event_at:               (r.get("last_event_at") as string | null) ?? null,
+        last_decision_logged_at:     (r.get("last_decision_logged_at") as string | null) ?? null,
+        last_session_agent_id:       (r.get("last_session_agent_id") as string | null) ?? null,
+        last_session_operator_name:  (r.get("last_session_operator_name") as string | null) ?? null,
+        last_session_work_summary:   workMatch ? workMatch[1].trim() : (raw ? raw.slice(0, 120) : null),
+      };
+    });
   } finally {
     await session.close();
   }
@@ -638,6 +679,10 @@ export async function listProjects(since?: string): Promise<Array<{
   sessions_since: number;
   decisions_since: number;
   last_event_at: string | null;
+  last_decision_logged_at: string | null;
+  last_session_agent_id: string | null;
+  last_session_operator_name: string | null;
+  last_session_work_summary: string | null;
 }>> {
   const session = getSession();
   // Use epoch as sentinel when no since is provided — avoids conditional Cypher
@@ -647,40 +692,68 @@ export async function listProjects(since?: string): Promise<Array<{
       `MATCH (e:Event)
        WITH e.project_id AS pid, count(e) AS event_count, max(e.timestamp) AS last_event_at
        OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e2:Event {project_id: pid})
-       WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count
+       WITH pid, event_count, last_event_at, count(DISTINCT d) AS decision_count,
+            max(d.valid_from) AS last_decision_logged_at
        OPTIONAL MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->
                       (:Decision)-[:EXTRACTED_FROM]->(e3:Event {project_id: pid})
-       WITH pid, event_count, last_event_at, decision_count, count(DISTINCT a) AS pending_drift_count
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            count(DISTINCT a) AS pending_drift_count
        OPTIONAL MATCH (t:FollowUpTask {project_id: pid, status: "open"})
-       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
-            count(t) AS pending_tasks_count
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, count(t) AS pending_tasks_count
        OPTIONAL MATCH (es:Event {project_id: pid, source: "agent"})
        WHERE es.timestamp >= $since
-       WITH pid, event_count, last_event_at, decision_count, pending_drift_count,
-            pending_tasks_count, count(es) AS sessions_since
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, count(es) AS sessions_since
        OPTIONAL MATCH (ds:Decision)-[:EXTRACTED_FROM]->(esc:Event {project_id: pid, source: "agent"})
        WHERE esc.timestamp >= $since
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since,
+            count(DISTINCT ds) AS decisions_since
+       OPTIONAL MATCH (latest_agent:Event {project_id: pid, source: "agent"})
+       OPTIONAL MATCH (latest_agent)-[:AUTHORED_BY]->(latest_person:Person)
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            latest_agent, latest_person
+       ORDER BY latest_agent.timestamp DESC
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            head(collect(latest_person.name)) AS last_session_agent_id,
+            head(collect(latest_agent.operator_name)) AS last_session_operator_name,
+            head(collect(latest_agent.raw_content)) AS last_session_raw
        RETURN pid AS project_id,
               event_count,
               last_event_at,
               decision_count,
+              last_decision_logged_at,
               pending_drift_count,
               pending_tasks_count,
               sessions_since,
-              count(DISTINCT ds) AS decisions_since
+              decisions_since,
+              last_session_agent_id,
+              last_session_operator_name,
+              last_session_raw
        ORDER BY last_event_at DESC`,
       { since: sinceTs }
     );
-    return result.records.map((r) => ({
-      project_id:          r.get("project_id") as string,
-      event_count:         toNum(r.get("event_count")),
-      decision_count:      toNum(r.get("decision_count")),
-      pending_drift_count: toNum(r.get("pending_drift_count")),
-      pending_tasks_count: toNum(r.get("pending_tasks_count")),
-      sessions_since:      toNum(r.get("sessions_since")),
-      decisions_since:     toNum(r.get("decisions_since")),
-      last_event_at:       (r.get("last_event_at") as string | null) ?? null,
-    }));
+    return result.records.map((r) => {
+      const raw: string = (r.get("last_session_raw") as string) ?? "";
+      const workMatch = raw.match(/Work completed:\s*(.+?)(?:\n|$)/);
+      return {
+        project_id:                  r.get("project_id") as string,
+        event_count:                 toNum(r.get("event_count")),
+        decision_count:              toNum(r.get("decision_count")),
+        pending_drift_count:         toNum(r.get("pending_drift_count")),
+        pending_tasks_count:         toNum(r.get("pending_tasks_count")),
+        sessions_since:              toNum(r.get("sessions_since")),
+        decisions_since:             toNum(r.get("decisions_since")),
+        last_event_at:               (r.get("last_event_at") as string | null) ?? null,
+        last_decision_logged_at:     (r.get("last_decision_logged_at") as string | null) ?? null,
+        last_session_agent_id:       (r.get("last_session_agent_id") as string | null) ?? null,
+        last_session_operator_name:  (r.get("last_session_operator_name") as string | null) ?? null,
+        last_session_work_summary:   workMatch ? workMatch[1].trim() : (raw ? raw.slice(0, 120) : null),
+      };
+    });
   } finally {
     await session.close();
   }
@@ -709,6 +782,7 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
   operator_name: string | null;
   timestamp: string;
   decision_count: number;
+  decisions_with_alternatives: number;
   work_summary: string;
 }>> {
   const session = getSession();
@@ -717,13 +791,16 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
       `MATCH (e:Event {project_id: $project_id, source: "agent"})
        MATCH (e)-[:AUTHORED_BY]->(p:Person)
        OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
-       WITH e, p, count(d) AS decision_count
+       WITH e, p,
+            count(d) AS decision_count,
+            sum(CASE WHEN size(coalesce(d.alternatives_considered, [])) > 0 THEN 1 ELSE 0 END) AS decisions_with_alternatives
        RETURN e.event_id AS event_id,
               p.name AS agent_id,
               e.operator_id AS operator_id,
               e.operator_name AS operator_name,
               e.timestamp AS timestamp,
               decision_count,
+              decisions_with_alternatives,
               e.raw_content AS raw_content
        ORDER BY e.timestamp DESC
        LIMIT 100`,
@@ -734,14 +811,15 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
       const workMatch = raw.match(/Work completed:\s*(.+?)(?:\n|$)/);
       const agentId = (r.get("agent_id") as string) ?? "unknown";
       return {
-        event_id:       r.get("event_id") as string,
-        agent_id:       agentId,
-        agent_type:     deriveAgentType(agentId),
-        operator_id:    (r.get("operator_id") as string | null) ?? null,
-        operator_name:  (r.get("operator_name") as string | null) ?? null,
-        timestamp:      r.get("timestamp") as string,
-        decision_count: toNum(r.get("decision_count")),
-        work_summary:   workMatch ? workMatch[1].trim() : raw.slice(0, 120),
+        event_id:                    r.get("event_id") as string,
+        agent_id:                    agentId,
+        agent_type:                  deriveAgentType(agentId),
+        operator_id:                 (r.get("operator_id") as string | null) ?? null,
+        operator_name:               (r.get("operator_name") as string | null) ?? null,
+        timestamp:                   r.get("timestamp") as string,
+        decision_count:              toNum(r.get("decision_count")),
+        decisions_with_alternatives: toNum(r.get("decisions_with_alternatives")),
+        work_summary:                workMatch ? workMatch[1].trim() : raw.slice(0, 120),
       };
     });
   } finally {
@@ -766,6 +844,7 @@ export async function getAgentSession(eventId: string): Promise<{
     decision_id: string;
     summary: string;
     rationale: string | null;
+    alternatives_considered: string[];
     confidence: string;
     status: string;
   }>;
@@ -777,6 +856,7 @@ export async function getAgentSession(eventId: string): Promise<{
     affected_decision_count: number;
     checked_at: string;
   }>;
+  brain_query_results_count: number | null;
 } | null> {
   const session = getSession();
   try {
@@ -785,6 +865,10 @@ export async function getAgentSession(eventId: string): Promise<{
        MATCH (e)-[:AUTHORED_BY]->(p:Person)
        OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
        OPTIONAL MATCH (c:PreflightCheck)-[:FOR_SESSION]->(e)
+       // Look for a QueryLog from this project within 30 min before the session timestamp
+       OPTIONAL MATCH (ql:QueryLog {project_id: e.project_id})
+         WHERE datetime(ql.timestamp) >= datetime(e.timestamp) - duration('PT30M')
+           AND datetime(ql.timestamp) <= datetime(e.timestamp) + duration('PT5M')
        RETURN e.event_id AS event_id,
               p.name AS agent_id,
               e.operator_id AS operator_id,
@@ -796,6 +880,7 @@ export async function getAgentSession(eventId: string): Promise<{
                 decision_id: d.decision_id,
                 summary: d.summary,
                 rationale: d.rationale,
+                alternatives_considered: d.alternatives_considered,
                 confidence: d.confidence,
                 status: d.status
               } END) AS decisions,
@@ -806,12 +891,14 @@ export async function getAgentSession(eventId: string): Promise<{
                 summary: c.summary,
                 affected_decision_count: c.affected_decision_count,
                 checked_at: c.checked_at
-              } END) AS preflight_checks`,
+              } END) AS preflight_checks,
+              max(ql.results_count) AS brain_query_results_count`,
       { event_id: eventId }
     );
     if (result.records.length === 0) return null;
     const r = result.records[0];
     const agentId = (r.get("agent_id") as string) ?? "unknown";
+    const rawQueryCount = r.get("brain_query_results_count");
     return {
       event_id:         r.get("event_id") as string,
       agent_id:         agentId,
@@ -824,11 +911,12 @@ export async function getAgentSession(eventId: string): Promise<{
       decisions:        ((r.get("decisions") as Array<Record<string, unknown>>) ?? [])
         .filter(Boolean)
         .map((d) => ({
-          decision_id: d.decision_id as string,
-          summary:     d.summary as string,
-          rationale:   (d.rationale as string | null) ?? null,
-          confidence:  (d.confidence as string) ?? "medium",
-          status:      (d.status as string) ?? "confirmed",
+          decision_id:             d.decision_id as string,
+          summary:                 d.summary as string,
+          rationale:               (d.rationale as string | null) ?? null,
+          alternatives_considered: (d.alternatives_considered as string[] | null) ?? [],
+          confidence:              (d.confidence as string) ?? "medium",
+          status:                  (d.status as string) ?? "confirmed",
         })),
       preflight_checks: ((r.get("preflight_checks") as Array<Record<string, unknown>>) ?? [])
         .filter(Boolean)
@@ -840,7 +928,34 @@ export async function getAgentSession(eventId: string): Promise<{
           affected_decision_count: toNum(c.affected_decision_count),
           checked_at:             c.checked_at as string,
         })),
+      brain_query_results_count: rawQueryCount != null ? toNum(rawQueryCount) : null,
     };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Write a QueryLog node when brain_query is called. Fire-and-forget.
+ * getAgentSession looks for QueryLogs in the 30-minute window before session start
+ * to populate brain_query_results_count.
+ */
+export async function writeQueryLog(params: {
+  project_id: string;
+  results_count: number;
+  timestamp: string;
+}): Promise<void> {
+  const session = getSession();
+  try {
+    await session.run(
+      `CREATE (:QueryLog {
+         log_id:        randomUUID(),
+         project_id:    $project_id,
+         results_count: $results_count,
+         timestamp:     $timestamp
+       })`,
+      params
+    );
   } finally {
     await session.close();
   }
@@ -1169,7 +1284,7 @@ export async function createFollowUpTaskFromAlert(alertId: string): Promise<{
          task_id:       randomUUID(),
          project_id:    e.project_id,
          title:         'Reopen: ' + d.summary,
-         description:   a.content,
+         description:   coalesce(a.reason, left(a.content, 200)),
          suggested_owner: a.actor,
          source:        'drift_reopen',
          status:        'open',

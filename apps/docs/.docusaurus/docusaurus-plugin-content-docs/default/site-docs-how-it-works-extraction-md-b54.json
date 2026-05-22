@@ -1,0 +1,26 @@
+{
+  "id": "how-it-works/extraction",
+  "title": "Entity Extraction",
+  "description": "Why extraction quality is the ceiling",
+  "source": "@site/docs/how-it-works/extraction.md",
+  "sourceDirName": "how-it-works",
+  "slug": "/how-it-works/extraction",
+  "permalink": "/how-it-works/extraction",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "The Brain Store",
+    "permalink": "/how-it-works/brain-store"
+  },
+  "next": {
+    "title": "Drift Detection",
+    "permalink": "/how-it-works/drift-detection"
+  }
+}

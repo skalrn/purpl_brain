@@ -245,6 +245,59 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: "decisions array is required and must be non-empty" });
       }
 
+      // Content quality gate — reject low-signal entries so agents are forced to retry
+      // with substantive content. A brain full of noise is as useless as an empty one.
+      const MIN_DESCRIPTION_CHARS = 20;
+      const MIN_RATIONALE_CHARS = 15;
+      const MIN_WORK_COMPLETED_CHARS = 10;
+
+      const qualityErrors: Array<{ field: string; decision_id?: string; reason: string }> = [];
+
+      if (!log.work_completed || log.work_completed.trim().length < MIN_WORK_COMPLETED_CHARS) {
+        qualityErrors.push({
+          field: "work_completed",
+          reason: `must be at least ${MIN_WORK_COMPLETED_CHARS} characters — describe what was built or changed`,
+        });
+      }
+
+      for (const d of log.decisions) {
+        if (!d.description || d.description.trim().length < MIN_DESCRIPTION_CHARS) {
+          qualityErrors.push({
+            field: "decisions[].description",
+            decision_id: d.id,
+            reason: `must be at least ${MIN_DESCRIPTION_CHARS} characters — be specific about what was decided`,
+          });
+        }
+        if (!d.rationale || d.rationale.trim().length < MIN_RATIONALE_CHARS) {
+          qualityErrors.push({
+            field: "decisions[].rationale",
+            decision_id: d.id,
+            reason: `must be at least ${MIN_RATIONALE_CHARS} characters — explain why this choice was made`,
+          });
+        }
+      }
+
+      if (qualityErrors.length > 0) {
+        return reply.status(422).send({
+          error: "Decision log rejected: content quality too low",
+          hint: "Retry with fuller descriptions and rationale. The brain filters noise to stay useful.",
+          violations: qualityErrors,
+        });
+      }
+
+      // Soft-signal warnings — accepted but flagged so agents can improve future logs.
+      const qualityWarnings: Array<{ field: string; decision_id?: string; hint: string }> = [];
+
+      for (const d of log.decisions) {
+        if (!d.alternatives_considered || d.alternatives_considered.length === 0) {
+          qualityWarnings.push({
+            field: "decisions[].alternatives_considered",
+            decision_id: d.id,
+            hint: "Adding alternatives_considered improves brain quality — what else was evaluated?",
+          });
+        }
+      }
+
       const eventId = `agent_${uuidv4()}`;
       const sourceId = `agent_session_${log.session_id}`;
 
@@ -317,6 +370,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
         event_id: eventId,
         decisions_logged: log.decisions.length,
         message: "Agent log queued for processing",
+        ...(qualityWarnings.length > 0 && { warnings: qualityWarnings }),
       };
     }
   );

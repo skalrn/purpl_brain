@@ -2,7 +2,7 @@
 
 **Status:** Draft  
 **Version:** 0.1  
-**Last Updated:** 2026-05-15  
+**Last Updated:** 2026-05-22  
 **Author:** Deepak Kollipalli  
 
 ---
@@ -183,18 +183,32 @@ This risk has two distinct failure modes that require separate mitigations:
 Note on timing: end-of-session logging compounds failure mode B. By session end, the agent's context is compressed and the reasoning behind early decisions may be unrecoverable. Mid-session logging ("log the moment a decision is made") preserves the *why* while it is still explicit. CLAUDE.md enforces this, but it only applies when the agent reads and follows it.
 
 **Mitigations for failure mode A (trigger discipline):**
-- CLAUDE.md instruction to log mid-session, immediately on each significant decision — primary enforcement layer
-- Session-end stop hook that prompts the agent to check whether it logged decisions before exit — safety net for missed mid-session calls
-- Beta onboarding flow that seeds the brain with one manual decision log before the first agent session, so the first `brain_query` returns something and the value loop is visible immediately
-- "Brain health" indicator (`last_write: 3 days ago, 0 decisions this week`) in the web UI — surfaces the empty-brain state explicitly rather than silently returning no results
-- Periodic digest ("your brain hasn't received a new decision in 5 days") to reinforce the write-back habit
+
+| Mitigation | Agent scope | Status |
+|---|---|---|
+| CLAUDE.md instruction — log mid-session immediately on each significant decision | Claude Code only | ✓ shipped |
+| `.cursor/rules/brain-protocol.mdc` — same instruction layer for Cursor | Cursor only | ✓ shipped |
+| Stop hook (`.claude/hooks/check-brain-decisions.sh`) — queries Neo4j at session end, exits 2 + stderr if no decisions logged in 2 hours, feeds warning back to Claude for one more turn | Claude Code only | ✓ shipped |
+| `BrainCallbackHandler` — LangGraph `BaseCallbackHandler` that calls `session.flush()` on `on_chain_end` and `on_chain_error` | LangGraph | ✓ shipped |
+| `BrainSession` context manager — `__exit__` calls `flush()` on normal exit and exceptions | ADK / plain Python | ✓ shipped |
+| Beta onboarding flow — seeds the brain with one manual decision log before the first agent session | All agents | not yet |
+| "Brain health" UI indicator (`last_write: 3 days ago, 0 decisions this week`) | All agents | not yet |
+| Periodic digest ("your brain hasn't received a new decision in 5 days") | All agents | not yet |
+
+Note: Cursor has no hook system. The schema validation gate (failure mode B) is the only automated enforcement for Cursor sessions. The `.cursor/rules` file is instruction-only.
 
 **Mitigations for failure mode B (content quality):**
-- Server-side schema validation on the write API: reject entries where `rationale` is empty, `decisions[].description` is below a minimum token threshold, or no `alternatives_considered` is provided. Return a structured rejection with the reason so the agent can retry with a better log. One round-trip is sufficient to force a higher-quality entry.
-- The re-derivation heuristic, embedded in CLAUDE.md: *"If session N+1 starts cold, would not knowing this cause it to redo work, make a conflicting choice, or hit the same dead end?"* Decisions that pass are worth logging; implementation details that don't belong in the code, not the brain.
-- Auto-extraction fallback (lower priority): if no decision was logged in a session where file changes occurred, run transcript extraction to recover partial signal. Flag extracted entries as lower confidence (`"confidence": "low"`). Recovers the *what* but frequently loses the *why* — treat as a last resort, not a substitute for mid-session logging.
 
-**Owner:** Must be resolved before public beta. The schema validation gate (failure mode B) affects the write API contract and must be specced before the API is considered stable.
+| Mitigation | Status |
+|---|---|
+| Schema validation gate on `POST /brain/agent-log`: 422 with structured `violations[]` per decision when `rationale` is empty, `description` < 20 chars, or `work_completed` < 10 chars | ✓ shipped |
+| `warnings[]` in 202 response for decisions missing `alternatives_considered` — accepted but flagged for improvement | ✓ shipped |
+| Re-derivation heuristic in CLAUDE.md: *"If session N+1 starts cold, would not knowing this cause re-derivation or a conflicting choice?"* | ✓ shipped (in CLAUDE.md) |
+| Auto-extraction fallback: if no decision logged in a session where file changes occurred, run transcript extraction at `confidence: "low"` | not yet |
+
+**Pre-beta scope (decided 2026-05-21):** Onboarding seed ships before beta (cold-start experience). `BrainHealthBadge` ships as part of the UI build (already specced in UI plan). Periodic digest and auto-extraction fallback are deferred post-beta — scope them after beta teams confirm the pain.
+
+**Owner:** ✓ Core mitigations shipped as of 2026-05-22.
 
 ---
 

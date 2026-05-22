@@ -1,0 +1,173 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/",
+          "mainDocId": "intro",
+          "docs": [
+            {
+              "id": "agent-interface/mcp-server",
+              "path": "/agent-interface/mcp-server",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "agent-interface/overview",
+              "path": "/agent-interface/overview",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "agent-interface/python-sdk",
+              "path": "/agent-interface/python-sdk",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "agent-interface/write-back",
+              "path": "/agent-interface/write-back",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "decisions/agent-decision-trails",
+              "path": "/decisions/agent-decision-trails",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "decisions/event-driven-ingestion",
+              "path": "/decisions/event-driven-ingestion",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "decisions/hybrid-brain-store",
+              "path": "/decisions/hybrid-brain-store",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "decisions/mcp-server-interface",
+              "path": "/decisions/mcp-server-interface",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "how-it-works/brain-store",
+              "path": "/how-it-works/brain-store",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "how-it-works/drift-detection",
+              "path": "/how-it-works/drift-detection",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "how-it-works/extraction",
+              "path": "/how-it-works/extraction",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "how-it-works/ingestion",
+              "path": "/how-it-works/ingestion",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "how-it-works/overview",
+              "path": "/how-it-works/overview",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "how-it-works/query-layer",
+              "path": "/how-it-works/query-layer",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "intro",
+              "path": "/intro",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "operations/cost-controls",
+              "path": "/operations/cost-controls",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "operations/evals",
+              "path": "/operations/evals",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "operations/setup",
+              "path": "/operations/setup",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "pitfalls/drift-triage-at-scale",
+              "path": "/pitfalls/drift-triage-at-scale",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "pitfalls/empty-brain",
+              "path": "/pitfalls/empty-brain",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "pitfalls/link-following",
+              "path": "/pitfalls/link-following",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "pitfalls/temporal-correctness",
+              "path": "/pitfalls/temporal-correctness",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "pitfalls/write-back-quality",
+              "path": "/pitfalls/write-back-quality",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "roadmap/beta-setup",
+              "path": "/roadmap/beta-setup",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "roadmap/phases",
+              "path": "/roadmap/phases",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "roadmap/post-beta",
+              "path": "/roadmap/post-beta",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "why/bet",
+              "path": "/why/bet",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "why/market",
+              "path": "/why/market",
+              "sidebar": "mainSidebar"
+            },
+            {
+              "id": "why/problem",
+              "path": "/why/problem",
+              "sidebar": "mainSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "mainSidebar": {
+              "link": {
+                "path": "/intro",
+                "label": "Introduction"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

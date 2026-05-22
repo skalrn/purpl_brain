@@ -66,6 +66,7 @@ export interface DriftAlert {
   event_id: string;
   source: EventSource;
   content: string;         // truncated challenging content
+  reason?: string;         // LLM one-sentence explanation of the contradiction
   actor: string;
   timestamp: string;
   confirmed_by_llm: boolean;

@@ -1,0 +1,212 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
+
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": API_KEY,
+      ...init?.headers,
+    },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`API ${res.status}: ${body}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ── Response types ──────────────────────────────────────────────────────────
+
+export interface Project {
+  project_id: string;
+  event_count: number;
+  decision_count: number;
+  pending_drift_count: number;
+  pending_tasks_count: number;
+  sessions_since: number;
+  decisions_since: number;
+  last_event_at: string | null;
+  last_decision_logged_at: string | null;
+  last_session_agent_id: string | null;
+  last_session_operator_name: string | null;
+  last_session_work_summary: string | null;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+  total: number;
+  since: string | null;
+}
+
+export interface DriftAlert {
+  alert_id: string;
+  decision_id: string;
+  decision_summary: string;
+  project_id: string;
+  source: string;
+  content: string;
+  reason: string | null;
+  actor: string;
+  timestamp: string;
+  resolution: string;
+  confirmed_by_llm: boolean;
+  fingerprint: string | null;
+}
+
+export interface DriftAlertsResponse {
+  alerts: DriftAlert[];
+  project_id: string | null;
+}
+
+export interface AgentSession {
+  event_id: string;
+  agent_id: string;
+  agent_type: "coding" | "infra" | "other";
+  operator_id: string | null;
+  operator_name: string | null;
+  timestamp: string;
+  decision_count: number;
+  decisions_with_alternatives: number;
+  work_summary: string;
+}
+
+export interface AgentSessionsResponse {
+  sessions: AgentSession[];
+  total: number;
+  project_id: string;
+}
+
+export interface DecisionDetail {
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  alternatives_considered: string[];
+  confidence: string;
+  status: string;
+}
+
+export interface PreflightCheck {
+  check_id: string;
+  change_description: string;
+  overall_risk: string;
+  summary: string;
+  affected_decision_count: number;
+  checked_at: string;
+}
+
+export interface AgentSessionDetail {
+  event_id: string;
+  agent_id: string;
+  agent_type: "coding" | "infra" | "other";
+  operator_id: string | null;
+  operator_name: string | null;
+  project_id: string;
+  timestamp: string;
+  raw_content: string;
+  decisions: DecisionDetail[];
+  preflight_checks: PreflightCheck[];
+  brain_query_results_count: number | null;
+  brain_query_distinct_sessions_count: number | null;
+}
+
+export interface FollowUpTask {
+  task_id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  suggested_owner?: string;
+  requires_approval: boolean;
+  source: string;
+  status: string;
+  decision_id: string;
+  decision_summary: string;
+  created_at: string;
+}
+
+export interface TasksResponse {
+  tasks: FollowUpTask[];
+  total: number;
+}
+
+// ── API helpers ─────────────────────────────────────────────────────────────
+
+export function fetchProjects(since?: string): Promise<ProjectsResponse> {
+  const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+  return apiFetch<ProjectsResponse>(`/brain/projects${qs}`);
+}
+
+export function fetchDriftAlerts(projectId?: string): Promise<DriftAlertsResponse> {
+  const qs = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+  return apiFetch<DriftAlertsResponse>(`/brain/drift-alerts${qs}`);
+}
+
+export function resolveDriftAlert(
+  alertId: string,
+  resolution: "keep" | "under_review" | "reopen"
+): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/brain/drift-alerts/${alertId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ resolution }),
+  });
+}
+
+export function fetchAgentSessions(projectId: string): Promise<AgentSessionsResponse> {
+  return apiFetch<AgentSessionsResponse>(
+    `/brain/agent-sessions?project_id=${encodeURIComponent(projectId)}`
+  );
+}
+
+export function fetchAgentSession(eventId: string): Promise<AgentSessionDetail> {
+  return apiFetch<AgentSessionDetail>(`/brain/agent-sessions/${encodeURIComponent(eventId)}`);
+}
+
+export function logSeedDecision(
+  projectId: string,
+  description: string,
+  rationale: string
+): Promise<{ ok: boolean }> {
+  const now = new Date().toISOString();
+  return apiFetch<{ ok: boolean }>("/brain/agent-log", {
+    method: "POST",
+    body: JSON.stringify({
+      schema_version: "1.0",
+      session_id: `seed-${Date.now()}`,
+      agent_id: "human-seed",
+      project_id: projectId,
+      timestamp_start: now,
+      timestamp_end: now,
+      work_completed: "Manual seed decision logged via onboarding",
+      decisions: [
+        {
+          id: "seed-1",
+          description,
+          rationale,
+          confidence: "high",
+        },
+      ],
+    }),
+  });
+}
+
+export function fetchTasks(projectId: string, status?: string): Promise<TasksResponse> {
+  const qs = status
+    ? `?project_id=${encodeURIComponent(projectId)}&status=${encodeURIComponent(status)}`
+    : `?project_id=${encodeURIComponent(projectId)}`;
+  return apiFetch<TasksResponse>(`/brain/tasks${qs}`);
+}
+
+// ── Utilities ───────────────────────────────────────────────────────────────
+
+export function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}

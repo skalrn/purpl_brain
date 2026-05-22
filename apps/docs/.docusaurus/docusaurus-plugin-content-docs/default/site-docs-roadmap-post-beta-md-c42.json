@@ -1,0 +1,22 @@
+{
+  "id": "roadmap/post-beta",
+  "title": "Post-Beta Items",
+  "description": "These are features that are designed and have a clear implementation path, but are only worth building if beta teams confirm the pain. Building them before beta validation is premature.",
+  "source": "@site/docs/roadmap/post-beta.md",
+  "sourceDirName": "roadmap",
+  "slug": "/roadmap/post-beta",
+  "permalink": "/roadmap/post-beta",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "Beta Requirements",
+    "permalink": "/roadmap/beta-setup"
+  }
+}

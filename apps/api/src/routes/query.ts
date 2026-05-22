@@ -5,7 +5,7 @@ import { runQuery, runQueryStream } from "../services/query-engine.js";
 import { runTemporalQuery } from "../services/temporal-engine.js";
 import { analyzeImpact } from "../services/impact-engine.js";
 import { parseQueryIntent } from "../lib/intent-parser.js";
-import { persistPreflightCheck } from "../lib/neo4j.js";
+import { persistPreflightCheck, writeQueryLog } from "../lib/neo4j.js";
 import { requireApiKey, requireProjectMember } from "../lib/auth-middleware.js";
 
 export const queryRoutes: FastifyPluginAsync = async (app) => {
@@ -70,6 +70,15 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const result = await runQuery({ query, project_id, mode: effectiveMode ?? "project" });
+
+      // Fire-and-forget: record that brain_query was called so getAgentSession
+      // can populate brain_query_results_count on the session detail view.
+      writeQueryLog({
+        project_id,
+        results_count: result.citations.length,
+        timestamp: new Date().toISOString(),
+      }).catch((err) => app.log.warn({ err }, "writeQueryLog failed"));
+
       return reply.code(200).send(result);
     }
   );

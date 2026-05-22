@@ -1,0 +1,26 @@
+{
+  "id": "decisions/agent-decision-trails",
+  "title": "ADR-004: Agent Decision Trails as a First-Class Brain Source",
+  "description": "Status 2026-05-15",
+  "source": "@site/docs/decisions/agent-decision-trails.md",
+  "sourceDirName": "decisions",
+  "slug": "/decisions/agent-decision-trails",
+  "permalink": "/decisions/agent-decision-trails",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "ADR-003: Event-Driven Ingestion",
+    "permalink": "/decisions/event-driven-ingestion"
+  },
+  "next": {
+    "title": "Setup",
+    "permalink": "/operations/setup"
+  }
+}

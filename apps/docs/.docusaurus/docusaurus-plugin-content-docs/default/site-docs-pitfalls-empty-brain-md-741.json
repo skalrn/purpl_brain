@@ -1,0 +1,26 @@
+{
+  "id": "pitfalls/empty-brain",
+  "title": "The Empty Brain Failure",
+  "description": "What happens",
+  "source": "@site/docs/pitfalls/empty-brain.md",
+  "sourceDirName": "pitfalls",
+  "slug": "/pitfalls/empty-brain",
+  "permalink": "/pitfalls/empty-brain",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "Eval Suite",
+    "permalink": "/operations/evals"
+  },
+  "next": {
+    "title": "Write-Back Quality: Facts vs. Decisions",
+    "permalink": "/pitfalls/write-back-quality"
+  }
+}

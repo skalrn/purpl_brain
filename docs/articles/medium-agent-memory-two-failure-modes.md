@@ -1,4 +1,4 @@
-# 🛑 You Gave Your AI Agent a Memory Store. Here's Why It Still Forgets Everything.
+# You Gave Your AI Agent a Memory Store. Here's Why It Still Forgets Everything.
 
 *~7 min read*
 
@@ -14,7 +14,7 @@ This is the article I wish existed before I built an agent memory system. There 
 
 ---
 
-## 1. 🏗️ The Problem Nobody Anticipates
+## 1. The Problem Nobody Anticipates
 
 When engineers design shared memory for AI agents, they spend almost all their time on the **storage problem**: how to embed decisions, how to structure the schema, how to retrieve relevant context at query time. These are real engineering challenges and they're solvable.
 
@@ -33,10 +33,10 @@ An empty memory store is obviously broken. A memory store full of noise is much 
 flowchart TD
     A[Agent session starts] --> B[Agent does work]
     B --> C{Calls write API?}
-    C -->|No| D[❌ Failure Mode A\nMemory store empty\nNext session starts cold]
+    C -->|No| D[Failure Mode A\nMemory store empty\nNext session starts cold]
     C -->|Yes| E{Logs signal?}
-    E -->|Noise: no rationale,\ntrivial decisions| F[❌ Failure Mode B\nMemory store full of noise\nNext session gets useless context]
-    E -->|Signal: decision +\nrationale + alternatives| G[✅ Memory store useful\nNext session inherits context]
+    E -->|Noise: no rationale,\ntrivial decisions| F[Failure Mode B\nMemory store full of noise\nNext session gets useless context]
+    E -->|Signal: decision +\nrationale + alternatives| G[Memory store useful\nNext session inherits context]
 
     style D fill:#ff6b6b,color:#fff
     style F fill:#ff9f43,color:#fff
@@ -45,7 +45,7 @@ flowchart TD
 
 ---
 
-## 2. 🔕 Failure Mode A: The Agent Never Logs
+## 2. Failure Mode A: The Agent Never Logs
 
 The trigger discipline problem is straightforward in diagnosis and frustrating in practice. The agent session ends. No write call was made. Nothing is persisted.
 
@@ -56,11 +56,11 @@ This happens for several reasons, all of them mundane:
 - The developer is testing and skips logging to move faster
 - The agent was configured with the write tool but never received a signal that the session was ending
 
-The natural instinct is to solve this with a session-end hook — a shell command that fires when the session closes and triggers a logging prompt. This works as a **safety net**, but it has a subtle problem we'll get to in section 4.
+The natural instinct is to solve this with a session-end hook — a shell command that fires when the session closes and triggers a logging prompt. This works as a safety net, but it has a subtle problem we'll get to in section 5.
 
 ### What actually works
 
-The most reliable solution is to make logging a **mid-session behaviour**, not an end-of-session behaviour. The agent logs the moment a decision is made, not after all decisions are made.
+The most reliable solution is to make logging a mid-session behaviour, not an end-of-session behaviour. The agent logs the moment a decision is made, not after all decisions are made.
 
 This sounds like discipline work — just tell the agent to log more often. But it's actually enforced through the system prompt. A well-written instruction set defines exactly what triggers a log call:
 
@@ -71,9 +71,20 @@ This sounds like discipline work — just tell the agent to log more often. But 
 
 The session-end hook then acts as a backup: it checks whether any decisions were logged during the session, and if not, prompts the agent to do a retrospective before closing. Two chances rather than one.
 
+Realistic compliance rates, based on our own production use:
+
+| Setup | Write-back rate |
+|---|---|
+| Claude Code + CLAUDE.md + session-end hook | ~85-90% |
+| Claude Code + CLAUDE.md, no hook | ~60-70% |
+| Cursor (no hook system available) | ~40-60% |
+| Custom agent, SDK only | Depends entirely on system prompt discipline |
+
+The hook is doing significant work in that top row. Without it, roughly one in three sessions produces nothing — not because the agent is broken, but because coding work absorbs attention and logging feels like overhead at the end of a long session.
+
 ---
 
-## 3. 📉 Failure Mode B: The Agent Logs, But Logs Noise
+## 3. Failure Mode B: The Agent Logs, But Logs Noise
 
 This failure mode is harder to see coming. The write API is being called. The memory store is growing. Everything looks healthy. But when the next session queries for prior context, it gets back something like:
 
@@ -99,7 +110,27 @@ Anything that passes the test belongs in the memory store. Anything that doesn't
 
 ---
 
-## 4. 🔀 Why These Failure Modes Need Different Solutions
+## 4. How Other Systems Avoid This Problem Entirely
+
+Before describing the fixes, it's useful to understand why Mem0 and Zep — the most widely used agent memory systems — don't have this problem in the same form.
+
+Both systems intercept at the **application layer**, not the agent layer. You call `mem0.add(messages)` from your orchestration code, passing the raw conversation turns. The memory system runs its own extraction pass over every message pair and writes to its store automatically. The agent never calls anything. The developer wires it in once. Write-back rate: ~100% by construction.
+
+If the agent crashes, closes early, or ignores its instructions — memory still gets written, because the write path doesn't go through the agent at all.
+
+The tradeoff is content quality. An automatic extraction pass over raw conversation produces facts, not decisions:
+
+> *"Team is using TypeScript. Chose Postgres. Created a users table."*
+
+These are actions. They describe what was done, not why it was done or what was considered and rejected. They pass the trigger discipline test and fail the re-derivation test. A system that always writes and always writes noise is solving a different problem than the one your team actually has.
+
+We're betting that structured, high-fidelity decision trails are worth the write-back friction for software engineering teams — rationale included, alternatives documented, confidence rated. That's a product decision, not a technical one. The right answer depends on whether your team needs to know *what happened* or *why it was decided*.
+
+If you need the latter, you need the agent to cooperate. Which means the failure modes in this article are unavoidable — and the fixes matter.
+
+---
+
+## 5. Why These Failure Modes Need Different Solutions
 
 It's tempting to think: "I'll solve both with a better prompt." Write better instructions. Tell the agent to log everything meaningful. Problem solved.
 
@@ -122,13 +153,13 @@ flowchart LR
     style C fill:#2ecc71,color:#fff
 ```
 
-The key insight: **content quality enforcement belongs on the server, not in the prompt**.
+Content quality enforcement belongs on the server, not in the prompt.
 
-A server-side validation layer that rejects entries missing required fields — rationale, alternatives considered — does something a prompt cannot: it creates a **feedback loop**. The agent calls the write API, gets a structured rejection with a reason, and retries with a better entry. One round-trip is enough to force a higher-quality log. The prompt sets the intention; the API enforces the contract.
+A server-side validation layer that rejects entries missing required fields — rationale, alternatives considered — does something a prompt cannot: it creates a feedback loop. The agent calls the write API, gets a structured rejection with a reason, and retries with a better entry. One round-trip is enough to force a higher-quality log. The prompt sets the intention; the API enforces the contract.
 
 ---
 
-## 5. ⏱️ The Timing Problem Nobody Mentions
+## 6. The Timing Problem Nobody Mentions
 
 There's a subtle reason end-of-session logging is a bad primary strategy, beyond the crash/close risk.
 
@@ -136,13 +167,13 @@ By the time an agent session ends, the context window is full of *later* work. A
 
 Mid-session logging captures the reasoning while it's still explicit. The agent logs "chose connection pooling because of the concurrency model" in the moment that choice was made, when the tradeoff analysis is fresh in context. End-of-session logging asks the agent to reconstruct that reasoning retroactively, from a compressed memory of a session it's already mostly forgotten.
 
-**This is a quality argument, not just a reliability argument.** Mid-session logging doesn't just increase the probability of getting a log — it increases the quality of the log you get.
+This is a quality argument, not just a reliability argument. Mid-session logging doesn't just increase the probability of getting a log — it increases the quality of the log you get.
 
-The practical implication: the session-end hook should be a **safety net for missed mid-session calls**, not the primary write path.
+The session-end hook should be a safety net for missed mid-session calls, not the primary write path.
 
 ---
 
-## 6. 🔒 Server-Side Quality Gates
+## 7. Server-Side Quality Gates
 
 The schema validation layer deserves a concrete example. Here's what a minimal rejection response looks like:
 
@@ -165,38 +196,43 @@ The schema validation layer deserves a concrete example. Here's what a minimal r
 
 The `retry_hint` field is not decoration. It gives the agent enough information to produce a valid entry on the second attempt without re-querying for the schema definition. One round-trip, not two.
 
-The fields that are worth validating are:
+Fields worth validating:
 
-✅ **`rationale`** — required, minimum token threshold. The single most valuable field in any decision log.
+**`rationale`** — required, minimum token threshold. The single most valuable field in any decision log.
 
-✅ **`alternatives_considered`** — at least one entry required. Even "considered X, rejected because Y" with one sentence per alternative is enough.
+**`alternatives_considered`** — at least one entry required. Even "considered X, rejected because Y" with one sentence per alternative is enough.
 
-✅ **`description`** — must differ meaningfully from the action taken. "Used Redis" as a description is an action. "Chose Redis over Postgres for the revocation list to get TTL-native eviction" is a decision.
+**`description`** — must differ meaningfully from the action taken. "Used Redis" as a description is an action. "Chose Redis over Postgres for the revocation list to get TTL-native eviction" is a decision.
 
-❌ **`confidence`** — don't validate this. Agents will set it to `"high"` to pass validation. Let it be optional.
+Fields not worth validating:
 
-❌ **`files_modified`** — don't validate this. It's additive metadata, not load-bearing information.
+**`confidence`** — don't validate this. Agents will set it to `"high"` to pass validation. Let it be optional.
+
+**`files_modified`** — additive metadata, not load-bearing. Skip it.
 
 ---
 
-## 7. 🔭 Observations and Limitations
+## 8. Honest Limitations
 
 **Server-side validation adds a round-trip.** For interactive sessions, one retry is imperceptible. For automated pipelines that batch-write at session end, a validation failure blocks the write until the retry succeeds. Design the retry flow to be non-blocking.
 
-**The re-derivation test requires the agent to model a hypothetical future session.** This is a non-trivial inference. Agents will sometimes pass decisions that fail the test (noise) and fail decisions that pass it (missed logs). The test reduces the error rate — it does not eliminate it.
+**The re-derivation test requires the agent to model a hypothetical future session.** Agents will sometimes pass decisions that fail the test (noise) and miss decisions that pass it. The test reduces the error rate — it doesn't eliminate it.
 
-**Auto-extraction from transcripts is a last resort, not a substitute.** If a session produces no log, running an extraction pass over the transcript recovers the *what* (what was done) but frequently loses the *why* (the reasoning behind it). A transcript that says "let me check... okay I'll use Redis" does not contain the tradeoff analysis. Flag auto-extracted entries as lower confidence.
+**Auto-extraction from transcripts is a coverage floor, not a substitute.** If a session produces no log, running an extraction pass over the raw transcript recovers the *what* but frequently loses the *why*. A transcript that says "let me check... okay I'll use Redis" doesn't contain the tradeoff analysis. An 8-hour coding session runs 50k-100k tokens; the extractor will find some decisions and miss others, confuse dead ends with choices, and occasionally hallucinate alternatives that were never considered. Flag auto-extracted entries as lower confidence. The right way to think about it: auto-extraction turns an empty brain into a noisy brain. An empty brain teaches users the tool doesn't work. A noisy brain at least keeps them engaged long enough to fix the setup.
 
-**Validation thresholds need calibration.** A 20-character minimum on `rationale` is a starting point, not a specification. The right threshold depends on the domain and the agent's verbosity. Start conservative and raise it if the memory store fills with barely-passing entries.
+**Validation thresholds need calibration.** A 20-character minimum on `rationale` is a starting point. The right threshold depends on the domain and the agent's verbosity. Start conservative and raise it if the memory store fills with barely-passing entries.
 
 ---
 
-## 💡 Key Takeaways
+## What to take away
 
-- 🧱 **The storage problem and the adoption problem are different problems.** Most teams solve storage first and discover adoption much later. Design for both from the start.
-- 🔀 **Trigger discipline and content quality are separate failure modes** that pull in opposite directions — they need separate solutions, not a single prompt.
-- ⏱️ **Mid-session logging is a quality argument, not just a reliability argument.** The reasoning behind early decisions gets compressed out of context by session end. Log while the tradeoff is still explicit.
-- 🔒 **Content quality enforcement belongs on the server.** Schema validation with a structured rejection and retry hint creates a feedback loop that prompts cannot.
+The storage problem and the adoption problem are different problems. Most teams solve storage first and discover adoption much later.
+
+Trigger discipline and content quality are separate failure modes that pull in opposite directions. A single prompt can't fix both — they need separate mechanisms.
+
+Mid-session logging is a quality argument, not just a reliability argument. The reasoning behind early decisions gets compressed out of context by session end. Log while the tradeoff is still explicit.
+
+Content quality enforcement belongs on the server. Schema validation with a structured rejection and retry hint creates a feedback loop that prompt instructions alone cannot.
 
 ---
 
@@ -204,6 +240,6 @@ The fields that are worth validating are:
 1. Render both Mermaid diagrams at https://mermaid.live — export each as PNG.
 2. Use Medium's import feature: Profile → Stories → Import a story. Do NOT paste markdown directly.
 3. After import, insert the PNG diagrams at the positions marked by the ```mermaid blocks (delete the code block, insert the image).
-4. Tables have been replaced with bullet groups — no manual conversion needed.
+4. The compliance rate table in section 2 will need manual formatting in Medium (no native table support — convert to a simple list or screenshot).
 5. Suggested tags: AI Engineering, Software Architecture, Machine Learning, Developer Tools, Agents
 -->

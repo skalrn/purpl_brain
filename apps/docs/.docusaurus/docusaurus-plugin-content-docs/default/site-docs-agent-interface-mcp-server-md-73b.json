@@ -1,0 +1,26 @@
+{
+  "id": "agent-interface/mcp-server",
+  "title": "MCP Server",
+  "description": "Setup",
+  "source": "@site/docs/agent-interface/mcp-server.md",
+  "sourceDirName": "agent-interface",
+  "slug": "/agent-interface/mcp-server",
+  "permalink": "/agent-interface/mcp-server",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "Agent Interface Overview",
+    "permalink": "/agent-interface/overview"
+  },
+  "next": {
+    "title": "Python SDK",
+    "permalink": "/agent-interface/python-sdk"
+  }
+}

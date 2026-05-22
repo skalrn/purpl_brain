@@ -2,19 +2,23 @@
 LangGraph / LangChain tool wrappers for Purpl Brain.
 
 Usage:
-    from purpl_brain import BrainClient, langgraph_tools
+    from purpl_brain import BrainClient, langgraph_tools, BrainCallbackHandler
     from langgraph.prebuilt import create_react_agent
 
     client = BrainClient()
+    handler = BrainCallbackHandler(client, session_id="my-session", project_id="my_proj")
     agent = create_react_agent(model, langgraph_tools(client))
+    agent.invoke(state, config={"callbacks": [handler]})
+    # handler.flush() is called automatically on chain end
 """
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.tools import tool
 
-from .client import BrainClient
+from .client import BrainClient, BrainSession
 
 
 def make_brain_tools(client: BrainClient) -> list:
@@ -151,3 +155,34 @@ def make_brain_tools(client: BrainClient) -> list:
         return "Signal logged — no existing decisions matched (threshold not met)."
 
     return [brain_query, brain_log_decision, brain_analyze_impact, brain_log_signal]
+
+
+class BrainCallbackHandler(BaseCallbackHandler):
+    """LangGraph callback handler that flushes a BrainSession when the chain ends.
+
+    Acts as the log_on_exit safety net for LangGraph agents. The orchestrator
+    adds decisions to the session during the run; BrainCallbackHandler ensures
+    they are flushed to the brain when the graph finishes, even if the agent
+    never called brain_log_decision as a tool.
+
+    Usage:
+        handler = BrainCallbackHandler(client, session_id="run-id", project_id="my_proj")
+        handler.session.work_completed = "Refactored the ingestion pipeline"
+        handler.session.add_decision(
+            id="chose-redis",
+            description="Use Redis Streams for the event queue",
+            rationale="Built-in consumer groups and persistence without extra infra",
+        )
+        graph.invoke(state, config={"callbacks": [handler]})
+        # on_chain_end fires automatically and calls session.flush()
+    """
+
+    def __init__(self, client: BrainClient, session_id: str, project_id: str, agent_id: str = "langgraph-agent"):
+        super().__init__()
+        self.session = BrainSession(client, session_id=session_id, project_id=project_id, agent_id=agent_id)
+
+    def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
+        self.session.flush()
+
+    def on_chain_error(self, error: BaseException, **kwargs: Any) -> None:
+        self.session.flush()

@@ -1,0 +1,26 @@
+{
+  "id": "how-it-works/brain-store",
+  "title": "The Brain Store",
+  "description": "Why two stores",
+  "source": "@site/docs/how-it-works/brain-store.md",
+  "sourceDirName": "how-it-works",
+  "slug": "/how-it-works/brain-store",
+  "permalink": "/how-it-works/brain-store",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3
+  },
+  "sidebar": "mainSidebar",
+  "previous": {
+    "title": "Ingestion",
+    "permalink": "/how-it-works/ingestion"
+  },
+  "next": {
+    "title": "Entity Extraction",
+    "permalink": "/how-it-works/extraction"
+  }
+}

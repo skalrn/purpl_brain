@@ -25,24 +25,25 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const PROJECT = "eval_link_following";
 const LINKED_PR_SET = "brain:linked_pr_processed";
 
-// A real encode/httpx PR that has a meaningful decision in its discussion.
-// PR #3360 is the compression policy PR — final gzip-only decision was made
-// in a comment thread, not in the PR description itself.
+// A real encode/httpx PR with meaningful decision discussion in comments.
+// PR #3613 — "Use standard library Zstandard for Python 3.14+" — 15 comments
+// discussing whether to adopt stdlib zstd vs the zstandard package, version
+// gating strategy, and backward compatibility. Decision detail lives in comments.
 const TEST_PR_OWNER = "encode";
 const TEST_PR_REPO = "httpx";
-const TEST_PR_NUM = "3360";
+const TEST_PR_NUM = "3613";
 const TEST_PR_URL = `https://github.com/${TEST_PR_OWNER}/${TEST_PR_REPO}/pull/${TEST_PR_NUM}`;
 
 // This ADR text deliberately does NOT contain the decision keywords.
-// The decision ("gzip only", "zstandard deferred") lives in the PR discussion.
-// The brain should only be able to answer the query after following the link.
+// The specifics (PEP 784, Python 3.14 version gate, stdlib vs zstandard package)
+// live in the PR discussion comments, not in the sparse ADR text below.
 const SYNTHETIC_ADR = `# ADR-042: HTTP Compression Support Policy
 
 ## Status
 Accepted
 
 ## Context
-We are finalising the compression support policy for the 1.0 release.
+We are finalising the zstandard compression support policy.
 A detailed discussion of the tradeoffs was held in the PR at ${TEST_PR_URL}.
 
 ## Decision
@@ -54,8 +55,8 @@ See linked PR.
 
 // Query that can ONLY be answered from the linked PR discussion, not from
 // the sparse ADR text above.
-const RECALL_QUERY = "What compression formats are supported in the httpx 1.0 release? Was zstandard included?";
-const RECALL_KEYWORDS = ["gzip", "zstd", "zstandard", "compression"];
+const RECALL_QUERY = "What was decided about zstandard support in httpx? Which Python version gates the stdlib zstd implementation?";
+const RECALL_KEYWORDS = ["zstd", "zstandard", "3.14", "PEP 784", "stdlib"];
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 

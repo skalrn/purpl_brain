@@ -10,5 +10,17 @@
         "MCP_TRANSPORT": "stdio"
       }
     }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/deepakkollipalli/aiplayground/gitrepo/purpl/purpl_brain/.claude/hooks/check-brain-decisions.sh"
+          }
+        ]
+      }
+    ]
   }
 }

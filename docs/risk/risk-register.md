@@ -1,6 +1,6 @@
 # Risk Register — Project Brain
 
-**Last Updated:** 2026-05-21  
+**Last Updated:** 2026-05-22  
 **Owner:** Deepak Kollipalli  
 
 ---
@@ -40,7 +40,7 @@ Each risk has a **Likelihood** (L: 1–3) and **Impact** (I: 1–3). **Exposure 
 | P3 | The chat UI becomes a product distraction — too much effort spent on UX vs. the brain | 2 | 2 | 4 | Phase 1 UI is intentionally minimal (basic HTML + Tailwind); no polished UX work until Phase 4 |
 | P4 | "Context in under 60 seconds" is hard to measure and demo convincingly | 2 | 2 | 4 | Define the demo scenario precisely: specific repo, specific time gap, specific question; record baseline time before and after |
 | P5 | Meeting transcript ingestion proves too noisy to provide signal — too much irrelevant content | 2 | 1 | 2 | Deferred to Phase 4; low risk to Phase 1–3; validate with a small transcript sample before committing to full integration |
-| P6 | Write-back adoption: agents don't log decisions (empty brain) or log noise (low-signal brain) — both make the product look broken on first use | 3 | 3 | 9 | Two distinct failure modes documented in `prd.md` R1. Trigger discipline: CLAUDE.md mid-session logging instruction + session-end stop hook + onboarding seed. Content quality: server-side schema validation on the write API (reject entries missing rationale/alternatives; force retry) — this is a pre-beta API contract decision. Re-derivation heuristic as agent-side quality filter. See prd.md R1 for full mitigation detail. |
+| P6 | Write-back adoption: agents don't log decisions (empty brain) or log noise (low-signal brain) — both make the product look broken on first use | 2 | 3 | 6 | Core mitigations shipped 2026-05-22. Trigger discipline: Claude Code Stop hook (exit 2 + stderr → re-entry turn), `.cursor/rules/brain-protocol.mdc`, LangGraph `BrainCallbackHandler`, ADK/Python `BrainSession` context manager. Content quality: 422 gate with structured `violations[]` on `POST /brain/agent-log`; `warnings[]` in 202 for missing alternatives. Remaining: onboarding seed, brain health UI, digest, auto-extraction fallback. Likelihood reduced from 3→2 because trigger discipline now has automated enforcement for all major agent types. See `prd.md` R1 for full detail. |
 
 ---
 
