@@ -17,6 +17,8 @@ The providers know this and have shipped partial fixes. Claude Projects pins fil
 
 The result: AI agents stay siloed by tool and by user. The work product of yesterday's agent in one developer's IDE is invisible to today's agent in another developer's IDE — and invisible to anyone trying to audit what the team's agents have been deciding on their behalf.
 
+There is a second problem compounding the first: the decisions AI agents make are opaque. Developers already distrust AI output — Stack Overflow's 2025 survey found 45.7% of developers actively distrust AI, and 76% refuse to use it for deployment or monitoring. With no auditable trail of what an agent decided and why, there is no mechanism to verify, correct, or build trust incrementally. The agent's reasoning dies in the session transcript. Auditability is not a nice-to-have for skeptical adopters — it is the mechanism by which trust is earned.
+
 ## The Insight
 
 Agents and the humans working with them need the same thing: institutional memory that is shared across people and tools, structured enough to audit, and grounded in the actual signals where decisions were made. Not a wiki, not a Notion page, not a Slack thread, and not a per-tool memory drawer locked inside one vendor's runtime.
@@ -40,9 +42,11 @@ The bet is that this loop — write at session end, read at session start, MCP a
 
 ## The Human Benefit
 
-Humans get auditability and oversight of agent decisions for free. Because every agent decision is a structured log with citations and a rationale field, the developer can query "what did the agent decide about caching last week and why" and get an answer grounded in the agent's own log. This is the same query path the next agent uses, so there are no two sources of truth.
+Auditability is a structural output of the agent memory loop, not a separate feature. Because every agent decision is a structured log with citations and a rationale field, the developer can query "what did the agent decide about caching last week and why" and get an answer grounded in the agent's own log — the same query path the next agent uses, so there is one source of truth.
 
-Drift detection comes along as a byproduct: when a new agent decision contradicts a prior one, the brain flags it. The developer sees "session 2 chose Redis; session 1 chose Memcached" before the contradiction lands in production.
+This directly addresses the trust gap. Developers do not distrust AI because the models are weak; they distrust it because the reasoning is opaque and unverifiable. When every session decision carries who made it, when, why, and which PR or ticket it traces to, the developer can verify before they act. Trust is built incrementally through a record, not asserted through a summary.
+
+Drift detection comes as a byproduct: when a new agent decision contradicts a prior one, the brain flags it before it lands in production. The developer sees "session 2 chose Redis; session 1 chose Memcached" and decides which to carry forward.
 
 The human use case (querying what happened, getting cited summaries, surfacing contradictions) is real and valuable. It is no longer the pitch. It is what falls out when agents have proper memory.
 

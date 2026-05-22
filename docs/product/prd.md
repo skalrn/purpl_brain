@@ -168,7 +168,23 @@ Post-pivot, the primary metrics measure the agent memory loop. Human-side metric
 | Source coverage | At least 1 ingestion source (GitHub) active per repo; multi-source is bonus, not required |
 | Trusted user retention | > 50% of beta users run an MCP-backed agent session at least weekly |
 
-## 8. Open Questions
+## 8. Risks
+
+### R1 — Write-back adoption: the brain is only as good as what agents write into it
+
+**Risk:** The entire value proposition depends on agents calling `brain_log_decision` at session end. If they don't — because the developer skips it, the session ends abruptly, or the tool isn't installed — the brain stays empty. An empty brain returns nothing from `brain_query`, which makes the product look broken to a new user even when the infrastructure is working correctly. Research on multi-agent failure modes confirms this: the coordination and specification layer (which purpl-brain lives in) accounts for the majority of failures, but it only helps if it is consistently populated.
+
+**Mitigation options (not yet decided):**
+- Default MCP hook that auto-calls `brain_log_decision` on session end — removes reliance on developer discipline
+- Beta onboarding flow that seeds the brain with one manual decision log before the first agent session, so the first `brain_query` returns something
+- A "brain health" indicator (e.g., `last_write: 3 days ago, 0 decisions this week`) visible in the web UI to surface the empty-brain state explicitly rather than silently returning no results
+- Periodic digest ("your brain hasn't received a new decision in 5 days — here's how to reconnect") to reinforce the write-back habit
+
+**Owner:** Must be resolved before public beta. An empty brain on first use is the highest-probability early churn cause.
+
+---
+
+## 9. Open Questions
 
 - **Permissions model:** How strictly should we mirror source system permissions at launch? Full mirroring is correct but complex. Initial POC may use project-level access control only.
 - **Agent identity:** How do we authenticate agents writing to the brain? API key per agent instance vs. OAuth?
