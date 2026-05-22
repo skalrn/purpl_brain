@@ -174,13 +174,27 @@ Post-pivot, the primary metrics measure the agent memory loop. Human-side metric
 
 **Risk:** The entire value proposition depends on agents calling `brain_log_decision` at session end. If they don't — because the developer skips it, the session ends abruptly, or the tool isn't installed — the brain stays empty. An empty brain returns nothing from `brain_query`, which makes the product look broken to a new user even when the infrastructure is working correctly. Research on multi-agent failure modes confirms this: the coordination and specification layer (which purpl-brain lives in) accounts for the majority of failures, but it only helps if it is consistently populated.
 
-**Mitigation options (not yet decided):**
-- Default MCP hook that auto-calls `brain_log_decision` on session end — removes reliance on developer discipline
-- Beta onboarding flow that seeds the brain with one manual decision log before the first agent session, so the first `brain_query` returns something
-- A "brain health" indicator (e.g., `last_write: 3 days ago, 0 decisions this week`) visible in the web UI to surface the empty-brain state explicitly rather than silently returning no results
-- Periodic digest ("your brain hasn't received a new decision in 5 days — here's how to reconnect") to reinforce the write-back habit
+This risk has two distinct failure modes that require separate mitigations:
 
-**Owner:** Must be resolved before public beta. An empty brain on first use is the highest-probability early churn cause.
+**Failure mode A — Trigger discipline:** the agent does not call the tool at all.
+
+**Failure mode B — Content quality:** the agent calls the tool but logs noise (no rationale, trivial decisions, missing alternatives) or misses the decisions that matter most. A brain full of low-signal entries is nearly as useless as an empty one, and harder to diagnose.
+
+Note on timing: end-of-session logging compounds failure mode B. By session end, the agent's context is compressed and the reasoning behind early decisions may be unrecoverable. Mid-session logging ("log the moment a decision is made") preserves the *why* while it is still explicit. CLAUDE.md enforces this, but it only applies when the agent reads and follows it.
+
+**Mitigations for failure mode A (trigger discipline):**
+- CLAUDE.md instruction to log mid-session, immediately on each significant decision — primary enforcement layer
+- Session-end stop hook that prompts the agent to check whether it logged decisions before exit — safety net for missed mid-session calls
+- Beta onboarding flow that seeds the brain with one manual decision log before the first agent session, so the first `brain_query` returns something and the value loop is visible immediately
+- "Brain health" indicator (`last_write: 3 days ago, 0 decisions this week`) in the web UI — surfaces the empty-brain state explicitly rather than silently returning no results
+- Periodic digest ("your brain hasn't received a new decision in 5 days") to reinforce the write-back habit
+
+**Mitigations for failure mode B (content quality):**
+- Server-side schema validation on the write API: reject entries where `rationale` is empty, `decisions[].description` is below a minimum token threshold, or no `alternatives_considered` is provided. Return a structured rejection with the reason so the agent can retry with a better log. One round-trip is sufficient to force a higher-quality entry.
+- The re-derivation heuristic, embedded in CLAUDE.md: *"If session N+1 starts cold, would not knowing this cause it to redo work, make a conflicting choice, or hit the same dead end?"* Decisions that pass are worth logging; implementation details that don't belong in the code, not the brain.
+- Auto-extraction fallback (lower priority): if no decision was logged in a session where file changes occurred, run transcript extraction to recover partial signal. Flag extracted entries as lower confidence (`"confidence": "low"`). Recovers the *what* but frequently loses the *why* — treat as a last resort, not a substitute for mid-session logging.
+
+**Owner:** Must be resolved before public beta. The schema validation gate (failure mode B) affects the write API contract and must be specced before the API is considered stable.
 
 ---
 
