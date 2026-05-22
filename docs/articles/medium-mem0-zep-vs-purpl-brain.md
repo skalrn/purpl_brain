@@ -18,9 +18,17 @@ Both Mem0 and Zep intercept at the application layer, not the agent layer. The w
 
 With Mem0, you call `mem0.add(messages)` from your orchestration code, passing the raw conversation turns from the session. Mem0 runs its own extraction pass over every message pair, identifies salient facts, and writes them to its store. The agent is never involved. If the agent crashes halfway through, or ignores every instruction it was given, memory still gets written — because the write path doesn't depend on the agent deciding to do anything.
 
-Zep does the same thing with a graph-first architecture. Every conversation episode automatically becomes a graph update. Entities, relationships, when facts became true, when they stopped being true. The developer instruments the application once and every session is covered.
+Zep is more sophisticated. Its underlying engine, Graphiti, builds a temporal knowledge graph — entities, relationships, and validity windows that track when facts became true and when they stopped being true. On the LongMemEval benchmark, Graphiti scores 63.8% vs Mem0's 49.0%. Zep also ships bi-temporal tracking: it distinguishes when a decision was made from when it was recorded, and can invalidate relationships when new information supersedes them. The developer instruments the application once and every session is covered.
 
 Write-back rate for both: close to 100%, by construction.
+
+---
+
+## Where Zep Is Ahead of Us
+
+Before getting into the tradeoffs, one thing to be direct about: Zep's temporal graph model is more mature than purpl_brain's current implementation. Bi-temporal tracking and automatic relationship invalidation are features we haven't shipped yet. If your primary requirement is a sophisticated, temporally-aware memory store with high benchmark scores, Zep is the better system today.
+
+That said, there's a specific problem it doesn't address — which is the reason we built something different.
 
 ---
 
@@ -61,6 +69,10 @@ The more I've looked at this, the more I think Mem0/Zep and purpl_brain are solv
 Mem0 and Zep store **conversational memory** — what was said, what was decided, what the user's preferences are. Good for personalization, session continuity, cross-session coherence. The agent tomorrow should know what the agent yesterday talked about.
 
 purpl_brain stores **decision provenance** — why something was decided, what was considered before deciding, what the confidence level was, and whether that decision has been contradicted by something that happened since. The agent tomorrow should know *why* yesterday's agent chose connection pooling over request-scoped connections, and whether the concurrency model assumption that drove that choice is still valid.
+
+There's a second difference that's less obvious: both Mem0 and Zep are agent-centric. They capture what agents do. Neither ingests what humans decide in the adjacent systems where engineering teams actually make decisions — Slack threads, Jira tickets, GitHub PR discussions, meeting notes. A decision an architect made in a Slack thread last Tuesday is invisible to every agent on the team, no matter how well-instrumented the application layer is.
+
+purpl_brain is project-scoped, not agent-scoped. It ingests signals from GitHub, Slack, Jira, and meeting transcripts alongside agent sessions, and puts everything into the same graph. An agent starting a session inherits not just what previous agents decided, but what the humans on the team decided too — without anyone copying context manually between systems. This is the problem space neither Mem0 nor Zep is building toward.
 
 These are different things. A Mem0 memory from an agent coding session might be: *"team chose connection pooling."* A purpl_brain decision is: *"chose connection pooling over request-scoped connections because the concurrency model creates contention under load; alternative was per-request connections which were rejected due to connection overhead at scale; confidence high."*
 

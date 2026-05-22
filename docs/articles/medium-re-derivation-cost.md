@@ -141,6 +141,18 @@ That's the only question that matters. Everything else is implementation detail.
 
 ---
 
+## The Operational Cost Comparison
+
+The token math above measures the cost of re-derivation itself. There's a second cost that teams rarely account for: the human time spent maintaining context so agents don't start cold.
+
+The alternative to a shared memory layer is manual context management — CLAUDE.md files, ADRs, handoff notes. Someone has to write them, keep them current, and review them before sessions. At a senior engineer's mid-market salary, 30 minutes per day of context maintenance runs roughly $75/day for a 10-agent team. purpl_brain's LLM costs for the same team — extraction, drift detection, query answering — run $2-5/day.
+
+The break-even against manual context maintenance is the first week.
+
+This isn't an argument that manual context management is bad. Teams that do it well get real value. It's an argument about where the cost actually lives: not in the token bill, which is rounding error, but in the engineering attention required to keep context files accurate across a team that's moving fast.
+
+---
+
 ## What This Means in Practice
 
 For a team of three to five developers actively using AI agents:
