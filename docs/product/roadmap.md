@@ -206,6 +206,8 @@ The pivot narrows the ICP to individual developers and small teams (2–8 engine
 | M5 | GitHub OAuth + seat identity — email as Person primary key, per-source alias merge, per-seat billing anchor | Not started |
 | M6 | AWS packaging — CDK/CloudFormation, ECS Fargate, HTTP+SSE MCP transport, AWS Marketplace metered billing | Not started |
 
+**Pre-M5 gate:** Before M5 starts, the write API contract must be finalized. Specifically: server-side schema validation on `POST /brain/agent-log` — reject entries missing `rationale` or `alternatives_considered`; return a structured rejection so the agent can retry. This is a breaking constraint on every agent client and must be stable before seat identity and billing are layered on. See `prd.md` R1 (failure mode B) for full rationale.
+
 See `docs/technical/phase3-implementation-plan.md` for milestone detail.
 
 ### Phase 3 Exit Criterion

@@ -1,6 +1,6 @@
 # Risk Register — Project Brain
 
-**Last Updated:** 2026-05-15  
+**Last Updated:** 2026-05-21  
 **Owner:** Deepak Kollipalli  
 
 ---
@@ -40,6 +40,7 @@ Each risk has a **Likelihood** (L: 1–3) and **Impact** (I: 1–3). **Exposure 
 | P3 | The chat UI becomes a product distraction — too much effort spent on UX vs. the brain | 2 | 2 | 4 | Phase 1 UI is intentionally minimal (basic HTML + Tailwind); no polished UX work until Phase 4 |
 | P4 | "Context in under 60 seconds" is hard to measure and demo convincingly | 2 | 2 | 4 | Define the demo scenario precisely: specific repo, specific time gap, specific question; record baseline time before and after |
 | P5 | Meeting transcript ingestion proves too noisy to provide signal — too much irrelevant content | 2 | 1 | 2 | Deferred to Phase 4; low risk to Phase 1–3; validate with a small transcript sample before committing to full integration |
+| P6 | Write-back adoption: agents don't log decisions (empty brain) or log noise (low-signal brain) — both make the product look broken on first use | 3 | 3 | 9 | Two distinct failure modes documented in `prd.md` R1. Trigger discipline: CLAUDE.md mid-session logging instruction + session-end stop hook + onboarding seed. Content quality: server-side schema validation on the write API (reject entries missing rationale/alternatives; force retry) — this is a pre-beta API contract decision. Re-derivation heuristic as agent-side quality filter. See prd.md R1 for full mitigation detail. |
 
 ---
 
@@ -47,9 +48,10 @@ Each risk has a **Likelihood** (L: 1–3) and **Impact** (I: 1–3). **Exposure 
 
 | ID | Risk | L | I | Exposure | Mitigation |
 |---|---|---|---|---|---|
-| M1 | GitHub Copilot Workspace or Cursor ships persistent cross-session agent memory before Phase 2 is complete | 2 | 3 | 6 | Focus differentiation on cross-surface synthesis and multi-product graph — these are harder to ship as a feature bolt-on to a single tool |
+| M1 | A provider ships persistent cross-session shared team memory for coding agents — **partially materialized:** Cloudflare Agent Memory (private beta Apr 2026) explicitly targets shared team profiles for coding agents (Claude Code, OpenCode) | 3 | 2 | 6 | Differentiation is now the schema and signal history, not the memory store itself. Cloudflare's offering is infrastructure passthrough — no structured decision schema, no rationale/alternatives/citations, no GitHub/Jira/Slack ingestion, no drift detection, locked to Cloudflare Workers. Monitor for schema layer addition or external signal connectors. See `vision.md` competitive table for full breakdown. |
 | M2 | Atlassian or Linear ships a "project brain" feature that covers Phase 1–2 functionality | 1 | 3 | 3 | These tools are siloed by design; cross-surface synthesis and agent write-back are architectural commitments they are unlikely to make quickly |
 | M3 | The trusted user POC group is too small to generate meaningful feedback | 2 | 2 | 4 | Target 3–5 users minimum; choose users with real context-switching pain (not just friendly reviewers); structured feedback questionnaire |
+| M4 | Agent memory infrastructure layer (Mem0, Zep, Letta, LangMem) adds a structured decision schema or dev-team-specific SKU — would close the most defensible differentiator | 2 | 3 | 6 | Mem0 (~48K GitHub stars) is the highest-risk vector — they have cross-agent scoping and team namespacing already; adding a decision schema is a config option, not a product pivot. Monitor Mem0, Zep, and Cognee (broadest ingestion connectors) release notes. GitHub/Jira/Slack ingestion is the harder moat; focus on shipping and deepening that pipeline. |
 
 ---
 
