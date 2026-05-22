@@ -53,7 +53,14 @@ Key findings to compare against:
 
 **Vocabulary mismatch:** Community says "context loss / re-explaining to the new session / AI contradicted itself." Product says "institutional memory / decision trails / audit-grade." Bridge phrase confirmed: "The next agent session knows what the last one decided."
 
-**Highest product risk:** Write-back adoption — empty brain on first use is the highest-probability early churn cause (documented in prd.md R1).
+**Highest product risk:** Write-back adoption — empty brain on first use is the highest-probability early churn cause (documented in prd.md R1). R1 has two distinct failure modes:
+
+- **Failure mode A — Trigger discipline:** agent doesn't call `brain_log_decision` at all. Mitigations: CLAUDE.md mid-session logging instruction (primary), session-end stop hook (safety net), onboarding seed, brain health indicator, periodic digest.
+- **Failure mode B — Content quality:** agent calls but logs noise or misses what matters. Mitigations: server-side schema validation on the write API (reject entries missing rationale/alternatives; force retry — this is a pre-beta API contract decision), re-derivation heuristic (*"would not knowing this cause session N+1 to redo work or make a conflicting choice?"*), auto-extraction fallback from transcripts as last resort (lower confidence, recovers *what* but loses *why*).
+
+Timing note: end-of-session logging compounds failure mode B — early decision reasoning gets compressed out of context by session end. Mid-session logging is a quality argument, not just a discipline argument.
+
+On each run: check whether any of the trigger or quality mitigations have been shipped. Flag shipped items as **Changed** and note whether they moved the write-back rate metric.
 
 ## Competitive baseline (May 2026)
 
