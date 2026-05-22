@@ -55,13 +55,52 @@ Key findings to compare against:
 
 **Highest product risk:** Write-back adoption — empty brain on first use is the highest-probability early churn cause (documented in prd.md R1).
 
+## Competitive baseline (May 2026)
+
+Two categories of competition. Check both on each run.
+
+### Provider-shipped memory (erosion risk: low-medium)
+These close the single-tool single-user gap but will not build cross-runtime or audit-grade layers.
+
+| Tool | Status as of May 2026 | Watch for |
+|---|---|---|
+| Claude Projects | Stable — pinned files, user-scoped, Anthropic-only | Any cross-tool or team-scoping announcement |
+| Cursor Rules / Project Memory | Stable — human-authored, Cursor-only | Agent write-back path |
+| ChatGPT Memory | Stable — per-user, per-account | Any team/org scoping |
+| GitHub Copilot Spaces | Stable — repo-pinned, Copilot-only | External signal ingestion |
+| **Cloudflare Agent Memory** | **Private beta Apr 2026 → public beta late Apr 2026. Closest competitor in stated intent.** Shared team profiles for coding agents (Claude Code, OpenCode). Accumulates coding conventions as durable team asset. **BUT:** infrastructure passthrough only — no decision schema, no rationale/alternatives/citations, no GitHub/Jira/Slack ingestion, no drift detection, locked to Cloudflare Workers runtime. Cannot answer "what did the team decide about X?" | Schema layer addition; query interface; external signal connectors; runtime portability |
+
+### Agent memory infrastructure (erosion risk: medium on first two differentiators)
+General-purpose memory libraries. Solve "agent forgets between sessions" for any app — not dev-team specific.
+
+| Tool | Status as of May 2026 | Watch for |
+|---|---|---|
+| **Mem0** | Market leader, ~48K GitHub stars. Cross-agent scoping (user/session/agent/app). New token-efficient single-pass extraction algorithm (Apr 2026). No GitHub/Jira/Slack ingestion. No structured decision schema. No drift detection. | Dev-team specific SKU; decision schema add-on; external signal connectors |
+| Zep / Graphiti | Temporal knowledge graph with validity windows. Not dev-team specific. No external ingestion. | Dev team pivot; contradiction detection |
+| Letta (MemGPT) | Per-agent OS-inspired memory. No shared team layer. | Team-scoped shared memory |
+| LangMem | Key-value, team namespace scoping, LangGraph-tied. | Decision schema; external ingestion |
+| Cognee | 30+ data source connectors + knowledge graph. Broadest ingestion. No decision schema, no drift detection. | Dev-team positioning; structured decision schema |
+
+### Gap matrix — which differentiators remain unoccupied (as of May 2026)
+
+| Differentiator | Covered? | Closest threat |
+|---|---|---|
+| Cross-agent, cross-tool (not runtime-locked) | Partially (Mem0, LangMem have scoping; none have MCP-native dev focus) | Mem0 + MCP integration |
+| Team-scoped, not user-scoped | Yes — Mem0, LangMem, Cloudflare | Eroded |
+| **Structured decision trails with citations** | **Nobody** | Cloudflare or Mem0 adding schema |
+| **Grounded in team signal history (GitHub, Jira, Slack, meetings)** | **Nobody** | Cognee pivoting to dev teams |
+| **Drift detection across agents and surfaces** | **Nobody** | — |
+
+On each run: re-check the last three rows. If any competitor has closed one, flag it as a **Changed** finding and recommend a `vision.md` update.
+
 ## Sources to search
 
 - Stack Overflow Developer Survey (annual — check for new edition)
 - GitHub Blog (engineering / AI section)
 - O'Reilly Radar
 - Anthropic / OpenAI / Google engineering blogs
-- Mem0, LangChain, CrewAI, AutoGen release notes and blog posts
+- Mem0, Zep, Letta, LangMem, Cognee release notes and blogs
+- Cloudflare Agents docs and blog (high priority — fastest-moving competitor)
 - Practitioner substacks: FutureAGI, Composio, Galileo, FlowHunt
 - Any new MCP ecosystem developments
 - Note: Reddit blocks Anthropic's crawler — use aggregated research and practitioner write-ups instead
