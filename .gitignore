@@ -10,3 +10,6 @@ dist/
 .claude/scheduled_tasks.lock
 brain_snapshot_*.tar.gz
 .mcp.json
+apps/docs/build/
+apps/docs/.docusaurus/
+apps/docs/apps/
