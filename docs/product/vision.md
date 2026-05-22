@@ -52,20 +52,49 @@ The human use case (querying what happened, getting cited summaries, surfacing c
 
 ## Competitive Positioning
 
-The direct comparisons a buyer will reach for first are the provider-shipped memory features: **Claude Projects, Cursor Rules / Project Memory, and ChatGPT Memory**. Address these head-on.
+Two categories of competition: **provider-shipped memory** (the first comparison a buyer reaches for) and **agent memory infrastructure** (the emerging technical layer). Neither closes the gap Purpl Brain fills.
+
+### Provider-shipped memory
 
 | Tool | What it does | Why it is not Purpl Brain |
 |---|---|---|
 | **Claude Projects** | Pinned files and persistent context per project, inside Claude.ai / Claude Code | Anthropic-only — Cursor and Copilot users see nothing. User-scoped — your teammate's project is invisible to you. Unstructured — no decision schema, no citation back to a PR or ticket, no contradiction detection. |
 | **Cursor Rules / Project Memory** | Human-authored `.cursorrules` and an auto-updating project memory inside Cursor | Cursor-only, by design. Rules are human-authored; auto-memory is unstructured text. No write path for other agents. No grounding in Slack/Jira/meetings. |
 | **ChatGPT Memory** | User-level memory across ChatGPT conversations | Per-user, per-account. Has no notion of a team, a repo, or a signal source. Not addressable by another agent. |
-| GitHub Copilot Spaces | Repo-pinned context for Copilot | Closed to non-Copilot agents; no cross-session decision log; no Slack/Jira/meeting ingestion |
+| **GitHub Copilot Spaces** | Repo-pinned context for Copilot | Closed to non-Copilot agents; no cross-session decision log; no Slack/Jira/meeting ingestion. |
+| **Cloudflare Agent Memory** *(private beta Apr 2026)* | Managed memory service for agents running on Cloudflare Workers; supports shared team profiles so coding conventions accumulate across developers | Closest competitor in stated intent. But: infrastructure passthrough only — no decision schema, no rationale field, no alternatives-considered, no citations. No ingestion from GitHub, Jira, Slack, or meetings. No drift detection. Locked to Cloudflare Workers runtime. You cannot ask it "what did the team decide about caching in May?" — it has no query layer with semantic grounding. |
 | Mem.ai | Personal notes with AI search | Single-user, manual capture. No agent write-back, no MCP, no decision schema. |
-| Glean | Enterprise search across SaaS | Read-only for agents; no agent write path; sales-led, $30+/seat, wrong ICP |
-| Notion AI | Q&A over a wiki | Human-curated content; no event ingestion; no agent decision schema |
+| Glean | Enterprise search across SaaS | Read-only for agents; no agent write path; sales-led, $30+/seat, wrong ICP. |
+| Notion AI | Q&A over a wiki | Human-curated content; no event ingestion; no agent decision schema. |
 | **Google A2A** | Agent-to-Agent communication protocol | Synchronous transport between live agents; not memory. No persistence, no semantic conflict detection, no cross-session awareness. Agents must both be running simultaneously and know each other's endpoints. Orthogonal technology — see Future Enhancements. |
 
-**Where provider memory is going, and why it does not converge on Purpl Brain.** Every provider will keep improving the memory drawer inside their own tool — that is a given. None of them will build a *shared* memory layer that spans competing runtimes, because the strategic incentive runs the other way: each provider wants their memory to be the stickiest, not the most portable. None will reach into a team's GitHub, Jira, Slack, and meeting transcripts to ground decisions in signal history, because that requires per-customer SaaS auth and a multi-source ingestion pipeline that is not their core business. And none will offer an auditable decision schema with citations, because their pitch is "the agent remembers" — not "the agent's reasoning is on the record."
+### Agent memory infrastructure
+
+A class of developer libraries has emerged for building agents with persistent memory. These are plumbing, not products — they give developers a store to build on, not a team brain out of the box.
+
+| Tool | What it does | Why it is not Purpl Brain |
+|---|---|---|
+| **Mem0** *(~48K GitHub stars, market leader)* | Dual-store (vector + graph) memory layer with cross-agent scoping (user/session/agent/app). Framework-agnostic. | General-purpose infrastructure — not dev-team specific. No GitHub/Jira/Slack/meeting ingestion. No structured decision schema with rationale and citations. No drift detection. Stores what agents type; does not know what your team decided or why. |
+| **Zep / Graphiti** | Temporal knowledge graph tracking entity relationships with validity windows — knows when a fact was true and when it was superseded | Not targeting dev teams. No external signal ingestion. No structured decision trails. Temporal validity ≠ contradiction detection across agent sessions. |
+| **Letta (MemGPT)** | OS-inspired tiered memory where agents actively manage their own context (RAM/disk model) | Per-agent, not team-scoped. No shared layer across agents or developers. Not cross-tool. |
+| **LangMem** | Key-value semantic memory with team-level namespace scoping; built into LangGraph | Tied to LangGraph ecosystem. No external signal ingestion. Flat key-value — no decision schema. |
+| **Cognee** | Knowledge graph + 30+ data source connectors; closest to ingestion breadth | Not dev-team specific. No structured agent decision schema. No drift detection. Raw graph extraction ≠ queryable, cited decision history. |
+
+### The gap that remains
+
+Running the five differentiators against every known competitor:
+
+| Differentiator | Covered by anyone? |
+|---|---|
+| Cross-agent, cross-tool (not locked to one runtime or library) | Partially — Mem0, LangMem have cross-agent scoping; none have MCP-native coding agent focus |
+| Team-scoped, not user-scoped | Yes — Mem0, LangMem, Cloudflare all have this |
+| **Structured decision trails with citations (rationale, alternatives, source PR/ticket)** | **Nobody** |
+| **Grounded in team signal history (GitHub, Jira, Slack, meetings)** | **Nobody** (Cognee has broad connectors but is not dev-team specific) |
+| **Drift detection across agents and surfaces** | **Nobody** |
+
+The first differentiator is being eroded. The last three are still unoccupied — and they are the hardest to build because they require opinionated schema design and a multi-source ingestion pipeline, not just a memory store.
+
+**Where the infrastructure layer is going, and why it does not converge on Purpl Brain.** Mem0, Zep, and Letta will keep improving generic memory primitives — that is their business. None will build an opinionated decision schema for software teams, because their TAM is every agent application, not just dev tooling. Cloudflare will keep expanding Agent Memory as infrastructure — shared profiles, faster retrieval — but will not build a query layer grounded in your team's GitHub history, because that is a per-customer integration problem outside their platform scope. The schema and the signal history are Purpl Brain's moat, not the memory store itself.
 
 **Purpl Brain's defensible wedge, stated as a contract:**
 
