@@ -6,14 +6,14 @@
 ## Title options (pick one per subreddit)
 
 - "End-of-session agent memory logging loses your best decisions. The timing is the problem."
-- "I built shared memory for AI agents. The problem wasn't storage, and fixing it wasn't a prompt."
+- "I've been experimenting with shared memory for AI agents. The problem wasn't storage, and fixing it wasn't a prompt."
 - "Agent memory: why the agent that logs faithfully still leaves the next session starting cold"
 
 ---
 
 ## Body
 
-Been building shared persistent memory for AI coding agents for the past few months. Vector store, knowledge graph, write API, the whole thing.
+Been experimenting with shared persistent memory for AI coding agents for the past few weeks. Vector store, knowledge graph, write API, the whole thing.
 
 Hit two failure modes I haven't seen written up clearly anywhere:
 
