@@ -1,4 +1,4 @@
-# I Built a Shared Decision Log for Human-Agent Teams to Find Out Whether It Would Actually Hold Up. Here's What the System Revealed and What It Doesn't Solve.
+# I Built a Shared Decision Log for Human-Agent Teams. Here's What It Revealed.
 
 *~7 min read*
 
