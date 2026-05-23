@@ -106,6 +106,41 @@ The first differentiator is being eroded. The last three are still unoccupied �
 
 Nobody is shipping all five at once. Provider memory will close the single-tool single-user gap. It will not close the team-scoped, cross-agent, audit-grade gap. That is the gap and that is the product.
 
+## Where the Design Leads and Lags
+
+*Full counter-argument analysis and market research for each of the 10 problem areas is in `docs/product/competitive-positioning-2026-05-22.md`. This section is the distillate.*
+
+### Genuine differentiators (market has not addressed)
+
+- **Multi-source human+agent unified graph.** Humans decide in Slack and Jira. Agents decide in coding sessions. No competitor ingests both into the same graph. The window to own this is 12-24 months before Atlassian or Microsoft makes it redundant for teams already on their platforms.
+- **Link-following from documents to referenced content.** An ADR that references a PR discussion without link-following loses 91% of the decision context. No shipped product follows embedded links as a first-class ingestion step. Current limitation: GitHub URLs only — Jira, Confluence, and Notion links are not yet followed.
+- **Decision-level drift detection.** Task-level conflict (two agents editing the same file) is handled by file locking and A2A protocols. Decision-level conflict (two agents making contradictory architectural choices) is not handled by any shipped product. The medium-term risk: if A2A or similar protocols mature to negotiate constraints before agents act, post-hoc detection becomes less valuable.
+- **Read-write symmetry with structured reasoning as primary write path.** Agents write decisions; humans and agents query the same graph. The answer any actor gets is grounded in the same source with the same citations.
+
+### Real gaps that need honest acknowledgment
+
+- **Write-back compliance ceiling.** 85-90% with the Stop hook is the realistic ceiling for agent-cooperative write-back. The 10-15% of missing sessions skew toward high-stakes sessions where the agent hit something unexpected and pivoted. Application-layer interception (Mem0, Zep) achieves near-100% by construction — at the cost of capturing facts, not reasoning. Whether to add application-layer interception as a primary path (not just an auto-extraction fallback) is the most consequential architectural decision before Phase 4.
+- **Bi-temporal tracking.** Graphiti/Zep tracks when a decision was made versus when it was recorded, and automatically invalidates relationships when superseded. The current Decision node model does not. This matters for teams with long decision histories. Whether to build on Graphiti rather than extending the current model is a design decision worth making before Phase 4.
+- **Conflict grouping at scale.** At 10 parallel agents and 200 decisions per day, drift detection at 0.72 cosine similarity produces 15-30 alerts daily. Without conflict grouping (clustering related alerts before surfacing them), triage time becomes a complaint. This is not built. It is the first post-beta build if alert volume becomes a blocker.
+- **Self-reported audit trail.** The decision record schema (description + rationale + alternatives + confidence + actor + timestamp + source citation) is closer to a true audit trail than anything OpenTelemetry captures. But it is agent-self-reported, not instrumentation-captured. For regulated industries (healthcare, finance), self-reported records are insufficient. This is a genuine architectural limitation for any enterprise beta customer in a regulated sector.
+
+### Competitive threats
+
+**Already live:**
+- **Microsoft Foundry Agent Service managed memory** (public preview December 2025, billing June 2026). Covers conversational cross-session continuity for Azure-native teams via automatic extraction and consolidation. Does not cover structured decision provenance, multi-source ingestion (Slack/Jira/meetings), or drift detection. Extending it to cover those three is months of opinionated product work, not a config change — but it is a plausible roadmap item.
+
+**12-24 month horizon:**
+- Native model memory in Claude, GPT-4, and Gemini reducing the re-derivation problem and making the infrastructure cost harder to justify.
+- Atlassian Intelligence extending Jira+Confluence integration to agent sessions, making multi-source ingestion redundant for teams on the Atlassian stack.
+- Google shipping a persistent memory layer on top of A2A. They have the protocol, the agent runtime, and the distribution. This is a product decision away.
+- Microsoft Foundry Agent Memory extending to structured decision provenance and drift detection.
+
+### What makes the design defensible despite the gaps
+
+The counter-arguments are all correct under ideal conditions. A disciplined team with well-maintained docs, thorough ADRs, and careful process can replicate most of what this system does — at the cost of continuous human attention and perfect execution. The bet is that human attention is the scarcest resource on a software team, and any system requiring perfect human execution fails at the edges: the new joiner, the rushed sprint, the Friday afternoon shortcut. The brain fails gracefully when agents don't cooperate — lower coverage, lower quality. Manual processes fail silently, and nobody notices until something breaks in production.
+
+---
+
 ## Ideal Customer Profile
 
 **Profile A — The Agent Operator (primary):** Individual developers and small teams (2–8 engineers) who use Cursor, Claude Code, or GitHub Copilot as a daily driver, run multiple AI sessions per day, and feel the cost of re-pasting context every time. They already pay $20–100/month for AI coding tools. They will pay $10–30/month for the memory layer those tools are missing.
