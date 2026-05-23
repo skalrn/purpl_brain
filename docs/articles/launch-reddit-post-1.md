@@ -87,18 +87,18 @@ Been experimenting with shared persistent memory for AI coding agents for the pa
 
 Mem0 and Zep intercept at the application layer — you pass raw conversation turns, they run an extraction pass and write to their store automatically. Near-100% coverage by construction. The failure mode is what gets extracted: facts, not decisions.
 
-A conversation that produces "okay, I'll use Redis for the revocation list" gets extracted as "team uses Redis." The reasoning — TTL-native eviction, the concurrency model, what Postgres would have required instead — doesn't survive the extraction pass. The transcript doesn't contain it explicitly; it's implicit in the back-and-forth that led to the conclusion.
+In my testing, a conversation that produces "okay, I'll use Redis for the revocation list" gets extracted as "team uses Redis." The reasoning — TTL-native eviction, the concurrency model, what Postgres would have required instead — didn't survive the extraction pass. The transcript doesn't contain the rationale explicitly; it's implicit in the back-and-forth that led to the conclusion. I haven't run a systematic eval comparing extraction output to cooperative write-back output — this is an observation from manual inspection, not a controlled study.
 
 **The cooperative write-back tradeoff:**
 
-The alternative is asking the agent to call a write API explicitly, with a structured schema: description, rationale, alternatives considered. You get the reasoning, but you depend on the agent cooperating. With Claude Code and a session-end hook, compliance runs around 85-90%. Without the hook, closer to 60-70%. The sessions most likely to skip logging are the high-stakes ones where the agent hit something unexpected.
+The alternative is asking the agent to call a write API explicitly, with a structured schema: description, rationale, alternatives considered. You get the reasoning, but you depend on the agent cooperating. In my setup with Claude Code and a session-end hook, compliance ran around 85-90% — rough estimate, not a controlled measurement. Without the hook, closer to 60-70%. The sessions most likely to skip logging are the high-stakes ones where the agent hit something unexpected.
 
 **What server-side validation does:**
 
 A validation layer that rejects entries missing rationale fields and returns a structured error forces a retry with a better entry. One round-trip. The schema contract produces better logs than prompt instructions alone, because prompt instructions can't create a feedback loop — the API can.
 
-The core tradeoff: automatic extraction at 100% coverage with shallow facts, versus cooperative write-back at 85-90% coverage with structured reasoning. Neither is clearly better. It depends on whether you need to know what happened or why it was decided.
+The core tradeoff: automatic extraction at near-100% coverage with shallow facts, versus cooperative write-back at ~85% coverage with structured reasoning. Neither is clearly better. It depends on whether you need to know what happened or why it was decided.
 
-Curious whether anyone has found a middle path — extraction approaches that reliably recover rationale from transcripts rather than just actions.
+The part I haven't resolved: whether structured extraction prompts with explicit rationale fields can close the quality gap. Basic extraction clearly loses reasoning. But a more targeted prompt — "extract the decision, the rationale, and what was rejected" — might recover more than I've measured. Has anyone run an eval on this? Curious how much rationale is actually recoverable from transcripts with better prompting, versus genuinely absent because the agent never made it explicit.
 
 *[Optional: "Wrote this up in more detail here if useful: [link]"]*
