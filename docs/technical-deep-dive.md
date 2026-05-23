@@ -7,11 +7,75 @@
 
 ---
 
+## Before You Start: Four Things to Know
+
+If you are new to AI, these four concepts appear everywhere in this document and in any conversation about this product. Read these first. Every later section references back to them.
+
+---
+
+### Concept 1: What an AI agent is (and how it differs from a chatbot)
+
+A **chatbot** (like ChatGPT in a browser) waits for you to type something, replies, and stops. It does not take actions on its own.
+
+An **AI agent** is an AI that can take a sequence of actions without waiting for you between each step. You give it a goal — "add authentication to this API" — and it reads files, writes code, runs tests, reads the output, fixes errors, and keeps going until the task is done or it gets stuck. It uses tools (file reading, code execution, web search) to interact with the world.
+
+The key difference: a chatbot responds. An agent acts.
+
+**Why this matters for this product:** AI agents working on a codebase make dozens of decisions — which library to use, how to structure a module, what to skip — without any human seeing those decisions happen. When the agent session ends, those decisions are gone. The next agent session starts from scratch and may make completely different choices. This product is the memory layer that sits between sessions so agents can inherit what previous agents decided.
+
+*See also: Part 7 (Agent Write-Back) for how this works technically.*
+
+---
+
+### Concept 2: What a context window is (and why AI "forgets")
+
+Every time you talk to an AI, it can only "see" a limited amount of text at once. This limit is called the **context window**. Think of it like a desk: you can only have so many papers on the desk at one time. When you add new papers, old ones fall off the edge.
+
+For an AI agent working on a coding task, the context window fills up with: the task description, the files it has read, the code it has written, the errors it has seen, and the conversation so far. As the session gets longer, early context gets compressed or dropped to make room for recent work.
+
+When the session ends, the context window is completely cleared. The next session starts with an empty desk.
+
+**Why this matters for this product:** this is why agents "forget" between sessions — the context window is wiped when the session ends. It is also why logging decisions at the end of a session is less reliable than logging them mid-session: by the end, the context window is full of recent work, and the reasoning behind early decisions has already been compressed or lost. See *Concept 4* for why early decisions are the most valuable ones to capture.
+
+*See also: Part 7.3 (Write-back compliance) and section 4.4 (Query layer) for how context is managed.*
+
+---
+
+### Concept 3: What a token is (and why it affects cost and memory)
+
+AI models do not read text word by word. They read **tokens** — chunks of text roughly equal to three-quarters of a word on average. "authentication" is one token. "I decided to use Redis" is five tokens.
+
+Tokens matter for two reasons:
+
+**Cost:** every AI API call charges per token sent and received. A system prompt that is 2,000 tokens costs real money on every call. At scale — hundreds of agent sessions per day — token costs compound. This is why prompt caching (section 3.6) matters: by reusing an identical prefix across many calls, the cost of the stable portion drops by 90%.
+
+**Capacity:** the context window (Concept 2) is measured in tokens. A model with a 100,000 token context window can hold roughly 75,000 words. That sounds large, but a long coding session with many file reads and code edits can consume it quickly.
+
+**Why this matters for this product:** the re-derivation problem (an agent spending 3,000 tokens figuring out a constraint that already exists in the knowledge graph) is a token cost problem. Retrieving that constraint from the graph costs around 150 tokens. The difference — 2,850 tokens per re-derivation, multiplied across many sessions — is the economic argument for shared agent memory.
+
+*See also: Part 8 (Cost Controls) and the re-derivation cost article in `docs/articles/`.*
+
+---
+
+### Concept 4: Why an AI does not know your private Slack messages
+
+Large language models (like Claude or GPT-4) are trained once on a massive dataset of public text — books, websites, code repositories, research papers. After training, the model is frozen. It knows what was in that dataset. It does not know anything that happened after the training cutoff, and it has never seen anything that was not in that dataset.
+
+Your team's Slack messages, Jira tickets, GitHub PR reviews, and meeting transcripts were never in that dataset. They are private. The model has no idea they exist.
+
+**RAG** (Retrieval-Augmented Generation) is the standard technique for bridging this gap. Instead of hoping the model already knows the answer, you: (1) retrieve the relevant private documents yourself, (2) paste them into the model's context window, and (3) ask the model to answer based only on what you just gave it. The model does not need to have been trained on your data — it just needs to see it in the current context window.
+
+**Why this matters for this product:** every query answer this system produces works this way. When you ask "what decisions were made about the auth module?", the system retrieves the relevant Slack threads, PR comments, and agent logs from its knowledge graph, injects them into the context window, and asks Claude to produce a cited answer based only on those retrieved sources. Claude does not answer from its training data — it answers from your team's actual history.
+
+*See also: section 3.4 (RAG), section 4.4 (Query layer), and Part 6 (Citation Contract).*
+
+---
+
 ## How to use this document
 
-This document is written to do two things at once. First: teach you the AI and systems concepts behind every decision in this product, from scratch, as if you have strong software intuition but have not spent years building AI systems. Second: give you the vocabulary and reasoning to handle a technically sharp audience who asks hard questions.
+This document is written to do two things at once. First: teach you the AI and systems concepts behind every decision in this product, from scratch. Second: give you the vocabulary and reasoning to handle a technically sharp audience who asks hard questions.
 
-Every section follows the same structure: what it is, why we built it this way, what we seriously considered instead, and what question a sharp engineer is likely to ask about it.
+Every section follows the same structure: what it is, why it was built this way, what was seriously considered instead, and what question a sharp engineer is likely to ask about it.
 
 ---
 
@@ -145,6 +209,8 @@ The power of a graph database is **traversal**: you can follow edges efficiently
 
 ### 3.4 What is RAG?
 
+*(If you have not read Concept 4 in the "Before You Start" section, read it first — it explains why this pattern exists.)*
+
 RAG stands for Retrieval-Augmented Generation. It is the most widely used pattern for making a language model answer questions about information it was not trained on.
 
 The pattern has three steps:
@@ -159,6 +225,8 @@ RAG solves the fundamental limitation of a language model: it only knows what it
 
 ### 3.5 What is a large language model (LLM) in this context?
 
+*(LLMs are trained on public data and frozen — they cannot know your private team history without RAG. See Concept 4 for why.)*
+
 This product uses two Anthropic models:
 
 - **Claude Haiku** for fast, cheap classification tasks — determining what kind of query the user is asking, routing to the right retrieval mode. Haiku is small, fast, and inexpensive.
@@ -167,6 +235,8 @@ This product uses two Anthropic models:
 In the extraction pipeline, the LLM's job is to read raw content (a Slack thread, a PR description, a meeting transcript) and identify structured decisions: what was decided, by whom, why, with what confidence. This is the most quality-critical step in the system — everything downstream depends on the quality of what gets extracted.
 
 ### 3.6 What is prompt caching?
+
+*(Not sure what tokens are? See Concept 3 in the "Before You Start" section.)*
 
 Every time you call an LLM API, you pay for the tokens in the prompt. For this product, the system prompt — which includes extraction rules, output schema, citation instructions, and agent persona — is thousands of tokens long and is the same across every call in a session.
 
@@ -326,6 +396,8 @@ After the answer is generated, a post-processing step verifies that every cited 
 
 ## Part 7 — Agent Write-Back: The Novel Loop
 
+*(New to agents? See Concept 1 in the "Before You Start" section. New to context windows? See Concept 2.)*
+
 The most architecturally novel aspect of this product is that AI agents are not passive consumers of the brain — they are writers.
 
 ### 7.1 The problem it solves
@@ -379,6 +451,8 @@ The drift diff is what makes agent resume qualitatively different from just read
 ---
 
 ## Part 8 — Cost Controls at Scale
+
+*(Not sure what tokens are or why they cost money? See Concept 3 in the "Before You Start" section.)*
 
 LLM API calls are expensive. Every architectural decision about when to call an LLM, which model to use, and how to structure the call has cost implications.
 
