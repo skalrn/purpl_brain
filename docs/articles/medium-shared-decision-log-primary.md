@@ -40,7 +40,7 @@ All three systems use some form of automatic extraction from conversation transc
 
 A transcript that says "let me check... okay, I'll use Redis" doesn't contain the tradeoff analysis. An extraction pass over that transcript produces "team uses Redis." The downstream consequence: an agent that reads "team uses Redis" can avoid proposing a migration to MySQL. It cannot reason about whether a new service should also use Redis, because it doesn't know why Redis was chosen.
 
-### Gap 2: Agents don't write back. And humans don't exist.
+### Gap 2: The human side of the team is invisible.
 
 Mem0, Zep, and Foundry Agent Memory are agent-scoped: one agent, across sessions. None of them have a write path where an agent explicitly logs a decision with structured rationale and alternatives considered. The extraction pass handles writes automatically.
 
