@@ -1,20 +1,20 @@
-# Our Eval Suite Passed. Our Product Was Broken. Here's What We Got Wrong.
+# The Eval Suite Passed. The Product Was Broken. Here's What I Got Wrong.
 
 ---
 
-By the time we ran our first full-codebase review, purpl_brain had eighteen eval scripts covering extraction precision, citation accuracy, drift recall, cross-session recall, project isolation, latency, MCP smoke tests, security checks, and graph integrity. The eval suite took about twelve minutes to run. Most evals had hard pass thresholds — if they failed, the process exited non-zero.
+When I reviewed the purpl_brain codebase end-to-end, I had a suite of eval scripts covering extraction precision, citation accuracy, drift recall, cross-session recall, project isolation, latency, MCP smoke tests, security checks, and graph integrity. Most evals had hard pass thresholds — if they failed, the process exited non-zero.
 
 The review found that the Python SDK, which is one of the two primary ways agents interact with the system, returned a 404 on every query. The demo mode was broken — it 401'd on every authenticated call. The Marketplace metering Lambda reported zero seats to AWS even with active users. A critical rendering issue exposed API keys in browser memory.
 
-None of these were caught by any of the eighteen evals.
+None of these were caught by any of the evals.
 
-This article is about a specific mistake in how we thought about eval coverage, why the mistake is easy to make, and the mental model that prevents it.
+This article is about a specific mistake in how I thought about eval coverage, why the mistake is easy to make, and the mental model that prevents it.
 
 ---
 
 ## 1. 🔍 The Mistake: Testing What You Can Control, Not What Users Experience
 
-Our evals were well-designed for what they tested. The extraction eval seeded labeled GitHub PRs and verified the extractor identified the right decisions. The cross-session eval seeded five agent decisions across five simulated sessions and verified a fresh query recalled at least four of them. The citation eval verified that every `[N]` in a generated answer pointed to a chunk that existed in the retrieved context.
+The evals were well-designed for what they tested. The extraction eval seeded labeled GitHub PRs and verified the extractor identified the right decisions. The cross-session eval seeded five agent decisions across five simulated sessions and verified a fresh query recalled at least four of them. The citation eval verified that every `[N]` in a generated answer pointed to a chunk that existed in the retrieved context.
 
 These evals have clear inputs and clear expected outputs. They are easy to write, easy to debug, and they tell you something real about the system.
 
@@ -36,7 +36,7 @@ The root cause is not a failure to write a test. It is that the eval suite's loc
 
 `docker-compose.demo.yml` set `NODE_ENV: demo`. The auth middleware only activated the dev bypass for `NODE_ENV === "development"`. Demo mode had a `DEV_API_KEY` set but the bypass didn't fire. Every authenticated route 401'd.
 
-We had no eval that started the demo Docker Compose stack and ran any authenticated request through it. Every eval ran against a live development stack with `NODE_ENV=development`. The demo stack was tested by running it manually before releases.
+There was no eval that started the demo Docker Compose stack and ran any authenticated request through it. Every eval ran against a live development stack with `NODE_ENV=development`. The demo stack was tested by running it manually before releases.
 
 **Gap 3 — Marketplace metering always reporting zero seats.**
 
@@ -118,7 +118,7 @@ Write it first. Run it on every commit. Make it the first check in CI. If it fai
 
 ---
 
-## 5. 📋 The Coverage Map We Should Have Had
+## 5. 📋 The Coverage Map That Was Missing
 
 A coverage map for an agent memory system looks different from a coverage map for a library:
 
@@ -133,7 +133,7 @@ A coverage map for an agent memory system looks different from a coverage map fo
 - Prod stack: start `docker-compose.prod.yml`, run smoke test
 - AWS: synthetic canary that runs in the deployed environment every 5 minutes
 
-**Component tests (inside-out — the ones we already had):**
+**Component tests (inside-out — the ones that existed):**
 - Extraction precision and recall
 - Citation accuracy
 - Drift detection recall and precision
@@ -155,7 +155,7 @@ For any system with multiple client paths: every path needs its own entry point 
 
 For demo and production environments: automated tests that start the actual stack and make real requests are not optional. Manual testing before releases is not sufficient — it is not repeatable, it is not on every commit, and it is the first thing to be skipped when a release is under time pressure.
 
-The eval suite we had was not bad. It was incomplete in a specific way that only appears when you ask "does this test the experience of a user who has never seen our code?" If the answer is no for any supported entry point, that entry point is untested.
+The eval suite was not bad. It was incomplete in a specific way that only appears when you ask "does this test the experience of a user who has never seen the code?" If the answer is no for any supported entry point, that entry point is untested.
 
 ---
 

@@ -4,15 +4,15 @@
 
 ---
 
-Last Tuesday an AI agent spent about 4,000 tokens figuring out that our Redis consumer groups needed to exist before workers started. If they didn't, the first batch of events would be silently dropped.
+Here's a concrete constraint from building this system: Redis consumer groups must exist before workers start consuming. If they don't, the first batch of events is silently dropped with no error.
 
-It read the worker initialization code. It traced the stream names through three files. It looked at an old bug fix that added a retry loop. It synthesized the constraint: **consumer groups must be created before workers start consuming.**
+An agent session traced this by reading the worker initialization code, following stream names across three files, and finding a retry loop added in an earlier bug fix. It synthesized the constraint from the gap between those three files — not from any single document, because the constraint was never written down anywhere.
 
 Then the session ended.
 
-Wednesday morning, a different agent session started. Someone asked it to review the worker startup sequence. It spent 3,800 tokens figuring out the same thing.
+The next agent session that touched the worker startup sequence had no way to know that tracing had already been done. It started from scratch.
 
-This is not a documentation problem. The constraint was never going to end up in a README. It lives in the gap between three files, visible only to someone who reads all three in sequence. The Tuesday agent found it. The Wednesday agent found it again. So did the Thursday agent.
+This is not a documentation problem. The constraint was never going to end up in a README. It lives in the gap between three files, visible only to someone who reads all three in sequence. Without a shared memory layer, every session that touches that code re-derives it independently.
 
 That's the re-derivation problem. And once you see it, you see it everywhere.
 

@@ -4,13 +4,15 @@
 
 ---
 
-Last year I integrated Mem0 into an agent session and ran a test. The agent spent forty minutes reasoning through a service architecture decision: three alternatives evaluated, one chosen, two explicitly rejected with reasons. The session ended. I queried the memory store. It returned: "Team uses Redis. Team uses PostgreSQL."
+I built the write API first. Agents would call it, log what they decided, and the next session could query the graph instead of re-deriving context from scratch. The infrastructure worked. Entries landed in the graph. Queries returned results.
 
-The agent had made a decision. The memory store had captured facts. Those are not the same thing.
+Then I read what the agents had actually logged.
 
-Mem0 is not broken. It does exactly what it was designed to do: extract salient information from conversation turns and store it for retrieval. The problem is that the reasoning behind a decision is not salient in the same way a fact is. "Redis was chosen over PostgreSQL because Redis TTL-native eviction matched the revocation list's access pattern" doesn't survive a general-purpose extraction pass. What survives is "team uses Redis."
+"Used Redis." "Created users table." "Switched to TypeScript." The entries were syntactically valid and semantically useless. The agents had been faithful about calling the API. They had logged actions, not decisions. The next session queried the graph and re-derived everything anyway, from a store that looked full.
 
-I built a shared decision log for human-agent teams to find out whether a different approach would hold up. This article covers what the system revealed, what it doesn't solve, and the specific question I need early users to help answer.
+That failure was the first thing the system revealed: cooperative write-back and automatic extraction fail in the same direction. Both produce facts. Neither reliably captures why a choice was made, what was evaluated and rejected, or what constraint shaped the outcome. "Chose Redis over PostgreSQL because TTL-native eviction matched the revocation list's access pattern" doesn't emerge from a general extraction pass, and it doesn't emerge from an agent calling a write API without a schema that forces it.
+
+I built a shared decision log for human-agent teams to find out whether fixing that at the schema layer would hold up. This article covers what the system revealed, what it doesn't solve, and the specific question I need early users to help answer.
 
 ---
 

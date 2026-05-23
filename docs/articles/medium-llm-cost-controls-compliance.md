@@ -1,12 +1,12 @@
-# We Wrote a Prompt Caching Spec. Then We Shipped Code That Violated Every Rule In It.
+# I Wrote a Prompt Caching Spec. Then Shipped Code That Violated Every Rule In It.
 
 ---
 
-Six weeks into building an LLM-powered knowledge system, we wrote `llm-cost-controls.md`. It was a careful document: seven rules for prompt caching, annotated with the reasoning behind each one, a section on anti-patterns, and explicit instructions for the Anthropic SDK calls that power the system.
+I wrote `llm-cost-controls.md` early in building purpl_brain. It was a careful document: seven rules for prompt caching, annotated with the reasoning behind each one, a section on anti-patterns, and explicit instructions for the Anthropic SDK calls that power the system.
 
-The document was good. We referenced it when writing new LLM call sites. We added it to `CLAUDE.md` with a note saying "Rules enforced when writing SDK code." We felt appropriately responsible about our infrastructure costs.
+The document was good. I referenced it when writing new LLM call sites. I added it to `CLAUDE.md` with a note saying "Rules enforced when writing SDK code."
 
-A full-codebase review found that the actual `llm.ts` implementation violated every rule in the document. Not one or two — all of them. The query engine sent 12,000-token retrieved context blocks as plain strings with no cache_control on every query. The extraction pipeline — the highest-volume call site in the system — had zero second-breakpoint caching. No call site logged `cache_read_input_tokens`. The document said "If it is zero, there is a silent invalidator — find it before shipping." Nobody had verified it was non-zero.
+Reviewing the actual `llm.ts` implementation, I found it violated every rule in the document. Not one or two — all of them. The query engine sent 12,000-token retrieved context blocks as plain strings with no cache_control on every query. The extraction pipeline — the highest-volume call site in the system — had zero second-breakpoint caching. No call site logged `cache_read_input_tokens`. The document said "If it is zero, there is a silent invalidator — find it before shipping." I hadn't verified it was non-zero.
 
 This article is about why this gap happens, what it costs, and the one change to the code structure that makes compliance verifiable rather than aspirational.
 
@@ -32,9 +32,9 @@ The rules that follow from this are mechanical:
 
 ---
 
-## 2. 🛑 What We Actually Shipped
+## 2. 🛑 What Was Actually Shipped
 
-Our `llm.ts` `chat()` function looked like this:
+The `llm.ts` `chat()` function looked like this:
 
 ```typescript
 const response = await anthropicClient.messages.create({

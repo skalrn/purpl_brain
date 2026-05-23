@@ -1,21 +1,21 @@
-# The One-Line Bug That Proved Our Agent Memory System Didn't Work
+# The One-Line Bug That Proved the Agent Memory System Didn't Work
 
 ---
 
-We spent three months building a system whose entire value proposition rests on a single promise: an AI agent in one tool can log a decision, and a completely different AI agent in a completely different tool can recall it later — without anyone copying context between them.
+I built this system around one core promise: an AI agent in one tool can log a decision, and a completely different AI agent in a completely different tool can recall it later — without anyone copying context between them.
 
-We ran evals. We had a cross-session recall test that passed at 80%. We had an MCP smoke test. We had a drift detection eval, a citation accuracy eval, a project isolation eval.
+I had evals. A cross-session recall test that passed at 80%. An MCP smoke test. A drift detection eval, a citation accuracy eval, a project isolation eval.
 
-Then a full-codebase review found this:
+Then, reviewing the full codebase, I found this:
 
 ```python
 # tools_langgraph.py, line 37
 result = client.post("/query", {"query": text, "project_id": project_id})
 ```
 
-The API route is registered at `/brain/query`. Every LangGraph and Google ADK agent using our Python SDK was getting a 404 on every single brain query. The core product promise — cross-agent, cross-tool memory recall — was completely broken for half our SDK surface. Had been broken since the file was first written.
+The API route is registered at `/brain/query`. Every LangGraph and Google ADK agent using the Python SDK was getting a 404 on every single brain query. The core product promise — cross-agent, cross-tool memory recall — was completely broken for half the SDK surface. Had been broken since the file was first written.
 
-None of our evals caught it.
+None of the evals caught it.
 
 This article is about what that miss reveals, why it happens so easily in agent infrastructure, and what an eval suite that actually catches it looks like.
 
@@ -23,7 +23,7 @@ This article is about what that miss reveals, why it happens so easily in agent 
 
 ## 1. 🔍 Why This Particular Bug Is Easy to Miss
 
-The MCP path worked correctly. Our TypeScript MCP server called the right URLs. Our cross-session eval seeded decisions via the REST API directly and queried via the REST API directly. The eval suite never touched the Python SDK.
+The MCP path worked correctly. The TypeScript MCP server called the right URLs. The cross-session eval seeded decisions via the REST API directly and queried via the REST API directly. The eval suite never touched the Python SDK.
 
 The SDK existed in a completely separate package (`packages/python/`) with its own client and tool wrappers. It was tested with a smoke test that verified the SDK could be imported and that the tool schemas looked right. It was not tested by actually calling the API through the SDK and verifying a non-404 response.
 
