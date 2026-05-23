@@ -33,10 +33,72 @@ Has anyone dealt with this differently? Curious what setups people are actually 
 
 ---
 
-## Subreddit-specific notes
+---
 
-**r/LocalLLaMA:** Lead with the local vs. cloud angle if relevant. This community cares about self-hosted stacks. Mention that the approach works with any LLM, not just Claude.
+## r/LocalLLaMA
 
-**r/ExperiencedDevs:** Lead with the team workflow angle. "If you're running AI agents across a team with multiple developers, this compounds fast." Less about the technical stack, more about the organizational problem.
+**Title:** End-of-session agent memory logging loses your best decisions. The timing is the problem.
 
-**r/MachineLearning:** More technical framing. Lead with the extraction quality angle: why automatic transcript extraction loses the reasoning even when it captures the action.
+Been experimenting with shared persistent memory for AI coding agents for the past few weeks. Qdrant for semantic retrieval, Neo4j for the decision graph, MCP server as the agent interface. Works with any LLM — I've tested with Claude and Ollama-hosted models. The write-back problem is the same regardless of what's running under the hood.
+
+Hit two failure modes that apply no matter what stack you're on:
+
+**Failure mode A: the agent never writes.** The session ends, nothing is logged, and the next session starts cold. The obvious fix is a session-end hook. The problem: by the time the session ends, the context window is full of later work. Decisions made in the first hour of a three-hour session have already been compressed. The agent reconstructs them from a summary, not the original reasoning. Mid-session logging captures the rationale while it's still explicit in context.
+
+**Failure mode B: the agent writes, but logs actions instead of decisions.** "Used Redis." "Created users table." These pass the write call but the next session gets back facts with no rationale and re-derives anyway. The fix was server-side: a validation layer that rejects entries missing rationale fields and returns a structured error the agent can act on. The agent retries with a better entry. One round-trip beats any amount of prompt engineering.
+
+The tradeoff with Mem0 and Zep: they sidestep failure mode A entirely by intercepting at the application layer — no agent cooperation required. But automatic extraction from conversation transcripts produces facts, not reasoning. Different architecture, different failure mode. Not a solved problem either way.
+
+Curious what memory setups people are running with local models. Does the write-back problem look different when the model is slower or has a shorter context window?
+
+*[Optional: "Wrote this up in more detail here if useful: [link]"]*
+
+---
+
+## r/ExperiencedDevs
+
+**Title:** Agent memory: why the agent that logs faithfully still leaves the next session starting cold
+
+If you're running AI agents across a team with multiple developers, this compounds fast.
+
+Been experimenting with shared persistent memory for AI coding agents for the past few weeks. The infrastructure part was straightforward. The failure modes weren't.
+
+**Failure mode A: the agent never writes.** Session ends, nothing logged, next session starts cold and re-derives everything. You notice this one quickly. The fix is a mid-session trigger, not just a session-end hook — by the time the session ends, early decisions have already been compressed out of context. The agent reconstructs from a summary. You get a worse log than if it had written mid-session while the reasoning was explicit.
+
+**Failure mode B: the agent writes, but logs the wrong thing.** The memory store fills up. Looks healthy. But query it from the next session and you get back "used TypeScript, used Postgres, created a users table." Facts about what was done, no rationale for why. The next session re-derives anyway, from a store that looked full.
+
+This one is invisible until weeks in and the memory hasn't helped once.
+
+The fix for B was server-side enforcement, not a better prompt. A validation layer that rejects log entries missing rationale and returns a structured error the agent can act on. The agent retries with a better entry. Prompt instructions alone pull in both directions at once — aggressive enough to guarantee logging tends to over-log; selective enough to filter carefully tends to under-log. You need separate mechanisms for each failure mode.
+
+Has anyone dealt with this at team scale? Curious whether the failure modes shift when multiple developers are running independent sessions against the same codebase.
+
+*[Optional: "Wrote this up in more detail here if useful: [link]"]*
+
+---
+
+## r/MachineLearning
+
+**Title:** Why automatic extraction from agent transcripts loses the reasoning even when it captures the action
+
+Been experimenting with shared persistent memory for AI coding agents for the past few weeks. One finding worth writing up: automatic transcript extraction and agent-cooperative write-back fail in opposite ways, and the distinction matters more than it looks.
+
+**The extraction quality problem:**
+
+Mem0 and Zep intercept at the application layer — you pass raw conversation turns, they run an extraction pass and write to their store automatically. Near-100% coverage by construction. The failure mode is what gets extracted: facts, not decisions.
+
+A conversation that produces "okay, I'll use Redis for the revocation list" gets extracted as "team uses Redis." The reasoning — TTL-native eviction, the concurrency model, what Postgres would have required instead — doesn't survive the extraction pass. The transcript doesn't contain it explicitly; it's implicit in the back-and-forth that led to the conclusion.
+
+**The cooperative write-back tradeoff:**
+
+The alternative is asking the agent to call a write API explicitly, with a structured schema: description, rationale, alternatives considered. You get the reasoning, but you depend on the agent cooperating. With Claude Code and a session-end hook, compliance runs around 85-90%. Without the hook, closer to 60-70%. The sessions most likely to skip logging are the high-stakes ones where the agent hit something unexpected.
+
+**What server-side validation does:**
+
+A validation layer that rejects entries missing rationale fields and returns a structured error forces a retry with a better entry. One round-trip. The schema contract produces better logs than prompt instructions alone, because prompt instructions can't create a feedback loop — the API can.
+
+The core tradeoff: automatic extraction at 100% coverage with shallow facts, versus cooperative write-back at 85-90% coverage with structured reasoning. Neither is clearly better. It depends on whether you need to know what happened or why it was decided.
+
+Curious whether anyone has found a middle path — extraction approaches that reliably recover rationale from transcripts rather than just actions.
+
+*[Optional: "Wrote this up in more detail here if useful: [link]"]*
