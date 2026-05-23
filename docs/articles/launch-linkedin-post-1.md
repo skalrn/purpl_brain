@@ -7,7 +7,7 @@ My AI agents are making decisions I don't know about.
 I'm making decisions they don't know about.
 And they don't know what each other decided either.
 
-I've been experimenting with a shared memory layer for AI-assisted software teams in my spare time. Somewhere humans and agents both read from and write to. The infrastructure wasn't the hard part.
+I built a shared decision log for human-agent teams to find out whether it would actually hold up. Somewhere humans and agents both read from and write to. The infrastructure wasn't the hard part.
 
 Two ways shared agent memory fails in practice:
 
