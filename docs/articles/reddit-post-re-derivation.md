@@ -3,23 +3,21 @@
 **Target subreddits:** r/LocalLLaMA, r/ClaudeAI, r/devtools, r/MachineLearning (post separately, don't cross-post simultaneously)
 
 **Title options (pick one):**
-- "Your AI agent re-derives the same constraints every session. I measured what that costs."
-- "AI agents have no memory between sessions. I measured the tax that quietly charges you for it."
-- "I noticed my AI agent kept re-reading the same 3 files every session to reach the same conclusion. So I measured it."
+- "Your AI agent re-derives the same constraints every session. Here's what that costs."
+- "AI agents have no memory between sessions. Here's the tax that quietly charges you for it."
+- "I noticed my AI agent kept re-reading the same 3 files every session to reach the same conclusion. Here's the math."
 
 ---
 
 ## POST BODY
 
-Last week I noticed something annoying.
+While building a shared memory layer for AI agents, I kept hitting the same wall.
 
-An agent session spent about 4,000 tokens figuring out that our Redis consumer groups needed to exist before workers started — or the first batch of events would be silently dropped. It read the worker init code, traced stream names across three files, found an old bug fix, and synthesized the constraint.
+A session would trace a non-obvious constraint: Redis consumer groups must exist before workers start consuming, or the first batch of events is silently dropped. The agent read the worker init code, traced stream names across three files, found an old bug fix, and synthesized it from the gap between those files — not from any single document.
 
 Then the session ended.
 
-Next day, a different session. Same question, different angle. 3,800 tokens. Same conclusion.
-
-I checked our session logs. This had happened four times in two weeks. Same constraint. Re-derived from scratch every time. Because **every agent session starts cold** — it has no memory of what a previous session already worked out.
+The next session that touched the same code had no way to know that tracing had already been done. It started from scratch. Because **every agent session starts cold** — it has no memory of what a previous session already worked out.
 
 ---
 
@@ -31,9 +29,9 @@ I started calling this **re-derivation debt**: knowledge your team already paid 
 
 ---
 
-### I measured it
+### The math
 
-A typical re-discovery — read files, trace call chains, synthesize a non-obvious constraint — runs 2,000–5,000 input tokens. Call it 3,000 average.
+A typical re-discovery — read files, trace call chains, synthesize a non-obvious constraint — runs 2,000–5,000 input tokens. Call it 3,000 average for modeling purposes.
 
 Over a month, active project, 5 such constraints, 20 agent sessions:
 
