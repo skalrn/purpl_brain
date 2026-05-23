@@ -1,4 +1,4 @@
-# I Built a Shared Decision Log for Human-Agent Teams. Here's the Gap That Made It Worth Building.
+# I Built a Shared Decision Log for Human-Agent Teams to Find Out Whether It Would Actually Hold Up. Here's What the System Revealed and What It Doesn't Solve.
 
 *~7 min read*
 
@@ -10,7 +10,7 @@ The agent had made a decision. The memory store had captured facts. Those are no
 
 Mem0 is not broken. It does exactly what it was designed to do: extract salient information from conversation turns and store it for retrieval. The problem is that the reasoning behind a decision is not salient in the same way a fact is. "Redis was chosen over PostgreSQL because Redis TTL-native eviction matched the revocation list's access pattern" doesn't survive a general-purpose extraction pass. What survives is "team uses Redis."
 
-This article covers what I built to address that gap, how it differs from Mem0, Zep, and Microsoft Foundry Agent Memory, what's been validated end-to-end, and the specific question I need early users to help answer.
+I built a shared decision log for human-agent teams to find out whether a different approach would hold up. This article covers what the system revealed, what it doesn't solve, and the specific question I need early users to help answer.
 
 ---
 
