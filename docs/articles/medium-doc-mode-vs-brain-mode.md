@@ -169,4 +169,4 @@ The token savings fund themselves. The structural capabilities — drift detecti
 
 ---
 
-*Purpl Brain is open source. The eval script, seed scripts, and comparison methodology are in the repo. If you run this against a different codebase and get different numbers, we'd want to know.*
+*Purpl Brain is open source. The eval script, seed scripts, and comparison methodology are in the repo. If you run this against a different codebase and get different numbers, I'd want to know.*
