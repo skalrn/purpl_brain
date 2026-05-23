@@ -1,10 +1,10 @@
 # purpl-brain
 
-**Institutional knowledge that doesn't retire when your engineers do.**
+**A shared decision log for human-agent software teams.**
 
-purpl-brain captures what your team decided, why, and tells your next agent before it repeats the mistake.
+I built this to find out whether the idea would actually hold up: a single graph where both humans and AI agents write what they decided and why, so neither has to re-derive what the other already figured out.
 
-An agent starts a session and queries the brain — retrieving the decisions your team made three months ago, the rationale behind them, and any open contradictions — before writing a line of code. When the session ends, its own decisions are written back in. The next session — different agent, different engineer, different week — picks up with full context. The team does nothing between them.
+The system works end-to-end for one developer plus AI agents. The open question — and the reason for early access — is whether the structured decision trail holds value when a second human joins the graph. If that problem resonates with your team, I'd like to hear from you.
 
 ---
 
@@ -12,25 +12,42 @@ An agent starts a session and queries the brain — retrieving the decisions you
 
 Your agents are starting cold on a codebase your team has been building for years.
 
-They don't know you chose PostgreSQL over MongoDB because of your compliance requirement. They don't know you rejected the microservices rewrite six months ago. They don't know the JWT expiry was shortened after a security audit, not arbitrarily. Every session, they rediscover or — worse — contradict decisions your team already made.
+They don't know you chose PostgreSQL over MongoDB because of a compliance requirement. They don't know you rejected the microservices rewrite six months ago. They don't know the JWT expiry was shortened after a security audit, not arbitrarily. Every session, they rediscover or — worse — contradict decisions your team already made.
 
-CLAUDE.md files cap out at a few hundred lines and go stale. Session history captures noise, not signal. Decisions happen in Slack threads, Jira comments, design reviews, and PR discussions — none of which any agent has access to at session start.
+The deeper problem: humans and agents decide things in different places. A developer makes a choice in a Slack thread. An agent makes a choice in a coding session. Neither system knows what the other decided. CLAUDE.md files cap out at a few hundred lines and go stale. Session history captures noise, not signal.
 
 ---
 
-## What purpl-brain does differently
+## What it does differently
 
-**Decision extraction, not session capture.** purpl-brain reads your GitHub PRs, Slack threads, Jira tickets, meeting transcripts, and ADRs and extracts concluded decisions — the choices your team settled, with rationale and attribution. A developer debugging for three hours is not a decision. Choosing jose over jsonwebtoken because of Edge compatibility is. purpl-brain stores signal, not noise.
+**Decision extraction, not session capture.** purpl-brain reads GitHub PRs, Slack threads, Jira tickets, meeting transcripts, and ADRs and extracts concluded decisions — the choices your team settled, with rationale and attribution. A developer debugging for three hours is not a decision. Choosing `jose` over `jsonwebtoken` because of Edge compatibility is. Signal, not noise.
 
-**Multi-source truth.** The real decision usually happened before the agent was involved — in a design review, a Slack debate, a PR comment thread. purpl-brain ingests where your team actually decides things. An agent session is just one more signal source, not the only one.
+**Multi-source, human+agent graph.** The real decision usually happened before the agent was involved — in a design review, a Slack debate, a PR comment thread. purpl-brain ingests where your team actually decides things and puts agent decisions in the same graph. An agent starting a session can retrieve not just what previous agents decided, but what the engineering lead decided in a Slack thread last Thursday.
 
-**Drift detection.** When work in progress contradicts a decision made months ago, purpl-brain surfaces it before the code ships — not in the post-mortem. Two-stage detection: semantic similarity flags candidates, LLM confirmation eliminates false positives.
+**Facts vs reasoning.** Existing memory systems (Mem0, Zep, Foundry Agent Memory) capture facts via automatic extraction: "team uses Redis." purpl-brain captures reasoning via structured write-back: "chose Redis over Postgres because TTL-native eviction matched the access pattern and Postgres would have required a background job." The next agent can reason about whether the same choice applies to a new service. A fact cannot enable that.
+
+**Drift detection.** When work in progress contradicts a decision made months ago, the system surfaces it before the code ships. Two-stage detection: semantic similarity flags candidates, LLM confirmation eliminates false positives.
 
 **Full provenance.** Every answer includes source URL, actor, and timestamp. Not "the team decided X" — "@alice closed this in favor of X on 2025-11-14, referencing Jira ticket AUTH-312."
 
 ---
 
+## Validation state
+
+Validated end-to-end for one developer plus AI agents:
+
+- Write-back, schema validation, and retry loop
+- Cross-session retrieval with citations (the Redis consumer group ordering constraint — logged mid-session, retrieved by the next session, not re-derived)
+- Multi-source ingestion: GitHub, Slack, Jira in the same graph as agent decisions
+- Drift detection: tested with contradictory inputs, surfaces alerts with correct context
+
+Not yet validated: multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis early access is designed to test.
+
+---
+
 ## Real numbers
+
+Measured against the builder's own eval suite and manually labeled test cases — not independently verified.
 
 | Eval | Result | What it measures |
 |---|---|---|
@@ -41,7 +58,7 @@ CLAUDE.md files cap out at a few hundred lines and go stale. Session history cap
 | MCP tool correctness | **8/8 PASS** | All 4 MCP tools verified against REST API equivalents |
 | Drift detection recall | **≥ 80%** | Known contradictions caught; < 8% false positive rate on benign content |
 | Citation faithfulness | **0 fabricated** | Every cited source_url and quoted_text verified against source documents |
-| Attribution accuracy | **5/5 (100%)** | actor.id, source type, and quote overlap correct across 5 agent_ids — quote overlap 0.62–0.73 |
+| Attribution accuracy | **5/5 (100%)** | actor.id, source type, and quote overlap correct across 5 agent_ids |
 | Query latency p50 / p95 | **4.7s / 9.8s** | Anthropic Claude Haiku, cross-session queries |
 
 ---
@@ -75,11 +92,11 @@ Add purpl-brain to Claude Code or Cursor. Four tools become available in every s
 | Tool | When to call |
 |------|-------------|
 | `brain_query` | Session start — recall prior decisions and open drift alerts before touching anything |
-| `brain_log_decision` | Session end — log what you decided, what you rejected, and why |
+| `brain_log_decision` | Mid-session or end — log what you decided, what you rejected, and why |
 | `brain_analyze_impact` | Before any architectural change — check which decisions your change affects |
 | `brain_log_signal` | When you find something unexpected — report findings that may contradict existing decisions |
 
-Four tools, not fifty-three. The discipline is the product. If decisions are logged explicitly, they are precise, attributed, and queryable. If everything is captured automatically, you get a session dump — not institutional knowledge.
+Four tools, not fifty-three. The discipline is the product. If decisions are logged explicitly, they are precise, attributed, and queryable. If everything is captured automatically, you get a session dump — not a decision trail.
 
 Add the CLAUDE.md snippet from `setup.sh` to your project repo and these calls happen automatically, not by model judgment.
 
@@ -97,7 +114,7 @@ bash setup.sh
 
 `setup.sh` collects your keys, writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste MCP config and CLAUDE.md snippet.
 
-### Beta testers (pre-built images)
+### Early access (pre-built images)
 
 No source build needed. Requires Docker and a GitHub account with access to the GHCR images.
 
@@ -149,8 +166,6 @@ Paste into `~/.claude/settings.json`:
 For Cursor: `apps/mcp/cursor-config.example.json`.
 
 **Make Claude call these automatically** — add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
-
-Also available: `/analyze-impact` slash command. Copy `.claude/commands/analyze-impact.md` into your project's `.claude/commands/` directory for an explicit on-demand impact check before significant changes.
 
 ---
 
@@ -230,15 +245,15 @@ bash brain-restore.sh brain_snapshot_my-project-v1.0.tar.gz
 
 | Audience | Document |
 |----------|----------|
-| Business / investors | [docs/pitch/business-brief.md](docs/pitch/business-brief.md) |
-| Senior engineers | [docs/pitch/technical-deep-dive.md](docs/pitch/technical-deep-dive.md) |
-| Q&A / rebuttal prep | [docs/pitch/faq.md](docs/pitch/faq.md) |
-| Full product vision | [docs/product/vision.md](docs/product/vision.md) |
+| Understanding the full system | [docs/technical-deep-dive.md](docs/technical-deep-dive.md) |
+| Full product vision and competitive positioning | [docs/product/vision.md](docs/product/vision.md) |
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
 | Why Qdrant + Neo4j | [docs/technical/adrs/001-hybrid-brain-store.md](docs/technical/adrs/001-hybrid-brain-store.md) |
 | Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
 | Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
+| Business brief | [docs/pitch/business-brief.md](docs/pitch/business-brief.md) |
+| FAQ and rebuttal prep | [docs/pitch/faq.md](docs/pitch/faq.md) |
 
 ---
 
