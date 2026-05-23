@@ -827,6 +827,21 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
   }
 }
 
+export async function countRecentDecisions(projectId: string, since: string): Promise<number> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (d:Decision {project_id: $project_id})
+       WHERE d.valid_from >= $since
+       RETURN count(d) AS n`,
+      { project_id: projectId, since }
+    );
+    return toNum(result.records[0]?.get("n") ?? 0);
+  } finally {
+    await session.close();
+  }
+}
+
 /**
  * Return full detail for a single agent session by event_id, including
  * every decision extracted from it. Used for pre-merge audit.

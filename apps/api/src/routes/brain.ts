@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession } from "../lib/neo4j.js";
+import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
@@ -507,6 +507,28 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (e) {
         fastify.log.error(e);
         return reply.status(500).send({ error: "Failed to fetch agent session" });
+      }
+    }
+  );
+
+  // ── GET /brain/decisions/recent ──────────────────────────────────────────
+  // Lightweight count of decisions logged since a given ISO timestamp.
+  // Used by the Claude Code stop hook to check write-back compliance without
+  // requiring direct Neo4j access.
+  fastify.get<{ Querystring: { project_id: string; since: string } }>(
+    "/brain/decisions/recent",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { project_id, since } = req.query;
+      if (!project_id || !since) {
+        return reply.status(400).send({ error: "project_id and since are required" });
+      }
+      try {
+        const count = await countRecentDecisions(project_id, since);
+        return { count, project_id, since };
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to count recent decisions" });
       }
     }
   );

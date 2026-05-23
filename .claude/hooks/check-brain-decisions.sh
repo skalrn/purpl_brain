@@ -5,11 +5,25 @@
 # to call brain_log_decision before the session truly closes.
 
 PROJECT_ID="skalrn_purpl_brain"
-NEO4J_URI="http://localhost:7474"
-NEO4J_USER="neo4j"
-NEO4J_PASS="password"
-HEALTH_URL="http://localhost:3001/health"
+BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3001}"
+HEALTH_URL="${BRAIN_API_URL}/health"
 LOOKBACK_HOURS=2
+
+# Resolve API key: prefer env var, fall back to .env file in repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ENV_FILE="$REPO_ROOT/.env"
+
+if [ -n "$BRAIN_API_KEY" ]; then
+  API_KEY="$BRAIN_API_KEY"
+elif [ -f "$ENV_FILE" ]; then
+  API_KEY=$(grep -m1 '^API_KEY=' "$ENV_FILE" | cut -d= -f2-)
+fi
+
+if [ -z "$API_KEY" ]; then
+  # Can't authenticate — skip silently
+  exit 0
+fi
 
 # Skip if brain API is not running
 if ! curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
@@ -23,33 +37,21 @@ cutoff = datetime.now(timezone.utc) - timedelta(hours=$LOOKBACK_HOURS)
 print(cutoff.strftime('%Y-%m-%dT%H:%M:%S.000Z'))
 ")
 
-# Query Neo4j for Decision nodes written in the lookback window for this project
-QUERY=$(cat <<EOF
-{
-  "statements": [{
-    "statement": "MATCH (d:Decision) WHERE d.project_id = '$PROJECT_ID' AND d.valid_from >= '$CUTOFF' RETURN count(d) AS n"
-  }]
-}
-EOF
-)
-
+# Query via the brain API — no direct Neo4j access required
 RESPONSE=$(curl -sf \
-  -u "${NEO4J_USER}:${NEO4J_PASS}" \
-  -H "Content-Type: application/json" \
-  -d "$QUERY" \
-  "${NEO4J_URI}/db/neo4j/tx/commit" 2>/dev/null)
+  -H "x-api-key: ${API_KEY}" \
+  "${BRAIN_API_URL}/brain/decisions/recent?project_id=${PROJECT_ID}&since=${CUTOFF}" 2>/dev/null)
 
 COUNT=$(echo "$RESPONSE" | python3 -c "
 import json, sys
 try:
-    data = json.load(sys.stdin)
-    print(data['results'][0]['data'][0]['row'][0])
+    print(json.load(sys.stdin)['count'])
 except Exception:
     print(-1)
 ")
 
 if [ "$COUNT" = "-1" ]; then
-  # Neo4j query failed — don't block
+  # API call failed — don't block
   exit 0
 fi
 
