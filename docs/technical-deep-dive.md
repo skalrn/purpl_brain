@@ -1,5 +1,9 @@
 # purpl-brain: Technical Deep Dive
-### For the builder who wants to understand it deeply — and explain it to anyone
+### For the builder who wants to understand it deeply and explain it to anyone
+
+**How to use this document:** this is a preparation document, not a product spec. Read it before technical conversations, recruiter calls, or community discussions. Every section answers: what is it, why was it built this way, what was seriously considered instead, and what a sharp audience is likely to ask.
+
+**Framing:** this is a side project built to find out whether a shared decision log for human-agent teams would actually hold up. The system works end-to-end for one developer plus AI agents. Team-scale validation has not happened yet. That is the open question.
 
 ---
 
@@ -42,7 +46,7 @@ An archive does not know that two documents contradict each other. This system *
 
 An archive treats AI agents as users who read from it. This system treats AI agents as **first-class actors who both read from and write to it** — an agent's decisions during a coding session are ingested, stored, and served as context to the next agent or human who works on the same problem.
 
-That last point is genuinely new. No existing tool — not Notion, not Confluence, not Linear, not any memory layer for AI agents — closes the loop between AI agent action and team knowledge. This product does.
+That last point is the gap this system is built to fill. Most agent memory systems (Mem0, Zep, Microsoft Foundry Agent Memory) capture what agents *did* — facts and actions extracted automatically from conversation transcripts. None of them have a write path where agents explicitly log structured reasoning with rationale and alternatives. None of them put agent decisions and human decisions into the same graph. The human knowledge layer (Slack, Jira, meetings, GitHub reviews) and the agent knowledge layer remain separate silos in every existing system.
 
 ---
 
@@ -86,7 +90,7 @@ To measure how "close" two vectors are — and therefore how similar two pieces 
 - **0.0** means the vectors are perpendicular — the texts are unrelated.
 - **-1.0** means the vectors point in opposite directions — theoretically opposite meaning (rare in practice for natural language).
 
-In this product, a cosine similarity above **0.85** between a new decision and an existing one triggers the drift detection pipeline (meaning: these two decisions are about the same topic and may contradict each other).
+In this product, a cosine similarity above **0.72** between a new decision and an existing one triggers the drift detection pipeline (meaning: these two decisions are about the same topic and may contradict each other). This threshold was calibrated pre-beta: the original threshold of 0.55 produced 15-30 alerts per day at 10-agent scale, which exceeded practical triage capacity. Raising it to 0.72 trades recall for precision — it catches near-identical contradictions while filtering semantically adjacent but non-conflicting decisions. The threshold is a configuration parameter, not a hard architectural constant.
 
 The name "cosine" comes from the fact that it measures the cosine of the angle between the two vectors in 768-dimensional space. The intuition is: if you were standing at the origin and pointing at two different directions, how similar are those directions? Length does not matter — only direction. This makes cosine similarity robust to text length: a long paragraph and a short summary of the same idea can have cosine similarity close to 1.0.
 
@@ -230,7 +234,7 @@ Translates a natural language question into a grounded, cited answer. Five stage
 
 Runs after every brain update. Two modes:
 
-**Drift detection:** after a new Decision is written to the graph, the system embeds the decision text and compares it against all existing Decisions for the same project using Qdrant similarity. If a new decision is semantically close to an existing one (threshold: cosine similarity > 0.85), it flags the pair for LLM confirmation. The LLM reads both decisions and determines whether they genuinely contradict each other or are just about the same topic but compatible. Confirmed contradictions create a `CHALLENGES` edge in the graph and a `DriftAlert` node.
+**Drift detection:** after a new Decision is written to the graph, the system embeds the decision text and compares it against all existing Decisions for the same project using Qdrant similarity. If a new decision is semantically close to an existing one (threshold: cosine similarity > 0.72, calibrated pre-beta from an initial 0.55), it flags the pair for LLM confirmation. The LLM reads both decisions and determines whether they genuinely contradict each other or are just about the same topic but compatible. Confirmed contradictions create a `CHALLENGES` edge in the graph and a `DriftAlert` node.
 
 **Impact analysis:** given any starting node (a PR, a ticket, a decision), traverses the graph following `affects`, `implements`, and `references` edges to depth 3 (direct dependencies, their dependencies, transitive effects). Returns a ranked list of everything the starting node touches. This is the "what does this change affect?" query that normally requires a senior engineer to answer from memory.
 
@@ -343,11 +347,25 @@ Agents emit a structured JSON log at session end (or at defined checkpoints). Th
 
 This log is submitted to `POST /brain/agent-log`, processed through the same pipeline as human-generated events, and stored in the same knowledge graph. Agent decisions are treated with the same weight and visibility as decisions made in a meeting or Slack thread.
 
-### 7.3 Why structured, not free text
+### 7.3 Write-back compliance in practice
+
+The system depends on agents calling the write API. Compliance is not 100%.
+
+From observed usage (rough estimates, not controlled measurements):
+
+- **Claude Code + CLAUDE.md + session-end Stop hook:** ~85-90%. The hook acts as a safety net — if the session ends without a log, it prompts the agent for a retrospective before closing.
+- **Claude Code + CLAUDE.md, no hook:** ~60-70%. Roughly one session in three produces nothing, not because the agent is broken but because coding work absorbs attention and logging feels like overhead.
+- **Cursor:** ~40-60%. Cursor has no hook system, so the session-end safety net is unavailable.
+
+The sessions most likely to skip logging are the highest-stakes ones — where the agent hit something unexpected and pivoted. This skew is the hardest problem: the missing 10-15% is weighted toward exactly the cases where missing a log hurts most.
+
+**The auto-extraction fallback:** if a session produces no log, a post-session extraction pass over the raw transcript can recover *what* was done but frequently misses *why* it was decided. A transcript that says "let me check... okay, I'll use Redis" doesn't contain the tradeoff analysis. Auto-extracted entries are flagged as lower confidence. The right framing: auto-extraction changes the failure mode from empty brain to noisy brain. An empty brain teaches users the system doesn't work. A noisy brain keeps them engaged long enough to fix the setup.
+
+### 7.5 Why structured, not free text
 
 A natural language session summary is easy to write. It is difficult to parse reliably for entity extraction, graph linking, or contradiction detection. A structured schema lets the processing pipeline treat agent decisions the same as human decisions — with typed graph edges, queryable fields, and a defined confidence level. The `schema_version` field in the log means breaking changes can be versioned without breaking historical data.
 
-### 7.4 The read side
+### 7.6 The read side
 
 An agent beginning a session calls `brain_query` (or `GET /brain/agent-resume`) with its task ID. The brain returns:
 
@@ -446,6 +464,34 @@ This is one of the identified security findings. The current pipeline trusts the
 
 Redis Streams provides the features needed for this use case — consumer groups, at-least-once delivery, backpressure — with significantly simpler operations than a dedicated message queue. Redis was already in the stack for rate limiting and session state. Adding a message queue would mean a second infrastructure dependency and a second operational surface. At POC and early beta scale, Redis Streams is sufficient. The migration path to Kafka (for scale) or SQS (for managed infrastructure) is straightforward — consumer group semantics are the same, and the worker code abstracts the queue behind a `StreamWorker` base class.
 
+**Q: How does this compare to Mem0? They score 94.4 on LongMemEval — isn't that better than what you have?**
+
+Mem0's April 2026 algorithm scores 94.4 on LongMemEval, which measures cross-session recall — how well a system remembers facts from prior conversations. That benchmark measures a real and valuable capability. It does not measure whether the system captures *why* a decision was made, what alternatives were considered, or whether it can detect when a new decision contradicts an old one.
+
+Mem0 intercepts at the application layer: you pass raw conversation turns, it extracts facts automatically, near-100% write-back coverage by construction. The failure mode is content quality. A conversation that produces "let's use Redis for the revocation list" gets extracted as "team uses Redis." The reasoning — TTL-native eviction, the concurrency model, why Postgres was rejected — doesn't survive a general-purpose extraction pass. The system's write-back is structured and explicit: the agent provides rationale and alternatives directly. Coverage is lower (~85-90% with the hook), content quality is higher.
+
+The honest comparison: Mem0 solves coverage. This system bets on quality. Whether that tradeoff is worth it depends on whether you need to know what happened or why it was decided.
+
+**Q: What about Zep? It has bi-temporal tracking — doesn't that make it more sophisticated?**
+
+Yes, on the temporal dimension specifically. Zep/Graphiti scores 71.2% overall on LongMemEval (63.8% on the temporal sub-task). Its bi-temporal model tracks both when a fact was valid and when it was recorded — which matters for queries like "what did the team believe about the auth model in March?" The system's current Decision node model has `valid_from` / `valid_to` fields but does not implement automatic `valid_to` updates when a superseding decision is logged. That is a real gap.
+
+What Zep does not do: ingest signals from GitHub, Slack, Jira, and meeting transcripts into the same graph. It is agent-scoped, not team-scoped. A Slack thread and an agent session don't end up in the same queryable store in Zep. Whether bi-temporal tracking or multi-source human+agent graph is the more valuable property depends on the use case.
+
+**Q: Microsoft already shipped Foundry Agent Memory. Doesn't that make this redundant?**
+
+Foundry Agent Memory (shipped December 2025, billing June 2026) covers conversational cross-session continuity for Azure-native teams: automatic extraction, consolidation, and retrieval across agent sessions. For Azure teams that need basic "remember what the agent did last week," it is already a viable answer.
+
+What it does not do: structured decision provenance (rationale, alternatives, confidence), multi-source ingestion (Slack, Jira, meetings alongside agent sessions), drift detection across agents and surfaces, or non-Azure agent support. These are the three gaps the system is specifically built around. Microsoft extending Foundry Agent Memory to cover those three is plausible — it is months of opinionated product work, not a config change.
+
+The honest position: for Azure-native teams who need basic cross-session continuity, Foundry Agent Memory is already worth evaluating. This system is for teams who need to know *why* decisions were made and want the human knowledge layer (Slack threads, Jira tickets, design meetings) in the same graph as the agent knowledge layer.
+
+**Q: Why not just use application-layer interception like Mem0 does, instead of asking agents to cooperate?**
+
+Application-layer interception achieves near-100% write-back coverage. The cost is what gets extracted: automatic extraction from conversation transcripts reliably recovers actions, not reasoning. "Chose Redis over Postgres because TTL-native eviction matched the access pattern and Postgres would have required a background job" requires the agent to have expressed that reasoning explicitly. Most transcripts don't contain it that way — the reasoning is implicit in the back-and-forth that led to the conclusion.
+
+The system's bet is that structured reasoning at 85-90% coverage is more valuable than shallow facts at 100% coverage. Whether that bet is right depends on how teams actually use the memory: if they just want to avoid re-discovering actions, Mem0's approach works. If they need to understand the constraints that shaped a decision, cooperative write-back with schema validation is the only path.
+
 **Q: You built this almost entirely with Claude. What does that mean for the quality and security of the code?**
 
 It means the development velocity was dramatically higher than solo development would otherwise allow. It also means the code reflects the AI's strengths and weaknesses: the code is generally well-structured and the documentation is thorough, but security discipline requires explicit attention because an AI assistant optimises for making things work, not for adversarial thinking. The security review (run by Opus 4.7) identified the specific gaps: unauthenticated MCP HTTP transport, credential defaults leaking into production, missing per-project authorization, and an injection pipeline in the agent write-back path. These are fixable and known. The broader point: AI-assisted development is a force multiplier but not a substitute for deliberate security review, and this project treated them as distinct activities.
@@ -534,4 +580,63 @@ Honesty matters in technical demos. The following known limitations are worth be
 
 ---
 
-*Document written to be self-contained. Code references are accurate as of `pivot/agent-memory` branch, 2026-05-20. Last updated: embedding model section rewritten to reflect dual-provider architecture (nomic-embed-text locally, text-embedding-3-small in cloud) and model-lock safety mechanism.*
+---
+
+## Part 13 — Validation State: What Has and Hasn't Been Tested
+
+Being clear about this matters. Overclaiming validation is the fastest way to lose credibility with a technical audience.
+
+**Validated end-to-end (one developer, one set of agents):**
+
+- Write-back mechanism: agents call the write API mid-session, the validation layer rejects low-quality entries, retry produces a better record.
+- Query retrieval: queries at session start return prior decisions with citations. The Redis consumer group ordering constraint example in the articles is real — logged mid-session, retrieved by the next session, not re-derived.
+- Multi-source ingestion: GitHub events, Slack messages, and Jira tickets flow through the pipeline and appear in the same graph as agent decisions. Cross-source citation works.
+- Drift detection: tested with deliberately contradictory inputs, surfaces the alert with correct context and citations.
+- MCP interface: `brain_query`, `brain_log_decision`, `brain_analyze_impact`, `brain_log_signal` all work via Claude Code.
+
+**Not yet validated:**
+
+- **Team scale.** The system has not been used by a second person. The hypothesis — that a developer joining a project mid-stream gets useful context from the graph without the first developer doing anything extra — has not been tested.
+- **Cross-developer write consistency.** One developer can maintain write-back discipline because they set up the system. Whether a second developer's agents produce entries that are consistent enough in quality and schema to be useful alongside the first developer's entries is unknown.
+- **Drift detection at real decision volume.** Tested with synthetic contradictions. Behaviour at 50-100 real decisions per day across multiple developers is untested.
+- **Identity resolution.** alice@company.com and alice_dev on GitHub are not automatically linked. Manual mapping works for known team members; automatic cross-source resolution is not built.
+
+**The specific question that needs early users to answer:**
+
+Does the structured decision trail hold its value when a second human joins the graph? Everything else is secondary.
+
+---
+
+## Part 14 — Explaining This to Non-Technical Audiences
+
+For recruiters, PMs, or generalists who ask about the project. Use these framings.
+
+### "What is it in one sentence?"
+
+"A shared memory for software teams where both humans and AI agents write what they decide and why — so neither has to re-derive what the other already figured out."
+
+### "Why does this matter?"
+
+Every AI coding session starts cold. The agent re-reads files, re-derives constraints, and re-makes decisions that were already made in a previous session. At one developer, that's wasted time. At a team of five, each running multiple agent sessions daily, the same knowledge gets re-derived by every session. This system stores decisions once and retrieves them for every session that needs them.
+
+The second problem: humans make decisions in Slack and Jira. Agents make decisions in coding sessions. Neither system knows what the other decided. This system puts both in the same graph so any actor — human or agent — can query the full decision history.
+
+### "Isn't this just a wiki or a knowledge base?"
+
+A wiki requires humans to write it, keep it current, and remember to read it before every session. Agents don't read wikis. This system has a write path for both humans (via ingestion from Slack, Jira, GitHub, meetings) and agents (via structured API write-back), and a read path for both (natural language query or MCP tool call). The key difference: it is active, not passive. It flags contradictions. It notifies when a new decision conflicts with an old one. A wiki does nothing when you make a decision that contradicts something written six months ago.
+
+### "Who is it for?"
+
+Developers who use AI agents daily and feel the pain of starting every session cold. Teams running multiple AI agents on the same codebase who want visibility into what each agent decided. Engineers who want an auditable record of AI agent reasoning, not just what was committed.
+
+### "Is it production-ready?"
+
+Honest answer: it works end-to-end for one developer. The team-scale hypothesis — that it holds value when multiple humans and agents write to the same graph — has not been tested yet. That is what early access is designed to find out.
+
+### "What's the hardest part technically?"
+
+Not the storage. The hardest problem is getting agents to write back consistently, and getting the write-back to capture reasoning rather than just actions. Automatic extraction (what Mem0 and Zep do) is reliable but captures facts. Cooperative write-back with structured schema captures reasoning but depends on agent discipline. Both approaches have failure modes. The system bets on reasoning being more valuable than coverage.
+
+---
+
+*Last updated: 2026-05-22. Threshold corrected to 0.72 (pre-beta calibration from 0.55). Competitive Q&A section added (Mem0/Zep/Foundry). Validation state section added. Non-technical explanation section added.*
