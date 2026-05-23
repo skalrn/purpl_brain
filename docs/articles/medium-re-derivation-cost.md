@@ -6,7 +6,7 @@
 
 Here's a concrete constraint from building this system: Redis consumer groups must exist before workers start consuming. If they don't, the first batch of events is silently dropped with no error.
 
-An agent session traced this by reading the worker initialization code, following stream names across three files, and finding a retry loop added in an earlier bug fix. It synthesized the constraint from the gap between those three files — not from any single document, because the constraint was never written down anywhere.
+An agent session traced this by reading the worker initialization code, following stream names across three files, and finding a retry loop added in an earlier bug fix. It synthesized the constraint from the gap between those three files. The constraint was never written down anywhere.
 
 Then the session ended.
 
