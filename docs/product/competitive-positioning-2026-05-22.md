@@ -114,9 +114,9 @@ Facts prevent the wrong action. Decisions enable the right one. An agent that kn
 An agent that knows facts but not reasoning makes locally correct choices that are globally wrong. Fixing an architectural drift that accumulated over three months costs more than three months of brain infrastructure. The cost comparison isn't brain vs no brain — it's brain vs one architectural incident.
 
 **Market research:**
-Zep/Graphiti scores 63.8% vs Mem0's 49.0% on LongMemEval — a significant gap driven by temporal graphs and provenance tracking. MemCubes (MemOS, July 2025) introduces memory units carrying provenance and versioning metadata. LangMem uses reflection-driven consolidation. Provenance is moving toward non-negotiable structural property rather than governance add-on. Append-only decision logs with rationale are the direction the research community is heading.
+On LongMemEval, Zep/Graphiti scores 71.2% overall (63.8% on the temporal reasoning sub-task). Mem0's April 2026 update — a new token-efficient algorithm using single-pass hierarchical extraction and multi-signal retrieval — scores 94.4 on LongMemEval while staying under 7,000 tokens per retrieval call. The biggest Mem0 gains are on single-session recall (+53.6) and temporal reasoning (+42.1). This closes the headline benchmark gap significantly; the distinction that remains is structural (rationale/alternatives fields), not recall accuracy. MemCubes (MemOS, July 2025) introduces memory units carrying provenance and versioning metadata. LangMem uses reflection-driven consolidation. Provenance is moving toward non-negotiable structural property rather than governance add-on. Append-only decision logs with rationale are the direction the research community is heading.
 
-Key sources: [Memory Systems Compared 2026 (Fountain City Tech)](https://fountaincity.tech/resources/blog/agent-memory-knowledge-systems-compared/), [Mem0: Production-Ready AI Agents (arXiv)](https://arxiv.org/html/2504.19413v1), [Provenance-Aware Tiered Memory (arXiv)](https://arxiv.org/pdf/2602.17913)
+Key sources: [Memory Systems Compared 2026 (Fountain City Tech)](https://fountaincity.tech/resources/blog/agent-memory-knowledge-systems-compared/), [Mem0: Production-Ready AI Agents (arXiv)](https://arxiv.org/html/2504.19413v1), [Mem0 Token-Efficient Memory Algorithm (mem0.ai)](https://mem0.ai/blog/mem0-the-token-efficient-memory-algorithm), [Provenance-Aware Tiered Memory (arXiv)](https://arxiv.org/pdf/2602.17913)
 
 **Trajectory:**
 Provenance is becoming non-negotiable. The academic direction is clear; production systems are 12-18 months behind. Zep's temporal graphs are more sophisticated than most production implementations.
@@ -249,15 +249,15 @@ They have different interfaces, not different needs. Both need an answer grounde
 Maintaining separate search surfaces for humans and agents — GitHub search, Notion, direct DB queries, agent context files — is not free. Someone configures each, someone maintains each, and none of them talk to each other. The operational overhead of fragmented retrieval is hidden across every team member who uses a different tool to answer the same question.
 
 **Market research:**
-Microsoft Foundry IQ is the most direct competitor: a unified knowledge layer for agents with automatic source routing, in public preview as of 2025-2026. Glean does agentic RAG with semantic search across enterprise knowledge. UniHGKR (research) unifies heterogeneous knowledge retrieval. MindsDB enables semantic SQL querying. The enterprise knowledge management space is moving fast, with Microsoft, Google, and Glean all shipping unified retrieval in 2025-2026. Query planning (decompose → parallel execute → compile) is becoming standard.
+Microsoft Foundry IQ is a unified knowledge layer for agents with automatic source routing, powered by Azure AI Search. Separately, **Microsoft already shipped managed long-term memory in Foundry Agent Service** (announced at Ignite 2025, public preview December 2025, billing starts June 1 2026). It automatically extracts, consolidates, and retrieves context across agent sessions — the application-layer interception pattern — with no custom embedding database required. This is not a future threat; it is present competition for Azure-native teams. Glean does agentic RAG with semantic search across enterprise knowledge. UniHGKR (research) unifies heterogeneous knowledge retrieval. MindsDB enables semantic SQL querying. The enterprise knowledge management space is moving fast, with Microsoft, Google, and Glean all shipping unified retrieval in 2025-2026. Query planning (decompose → parallel execute → compile) is becoming standard.
 
-Key sources: [Foundry IQ (Microsoft Learn)](https://learn.microsoft.com/en-us/azure/search/agentic-retrieval-overview), [Agentic RAG Explained (Glean)](https://www.glean.com/blog/agentic-rag-explained)
+Key sources: [Foundry IQ (Microsoft Learn)](https://learn.microsoft.com/en-us/azure/search/agentic-retrieval-overview), [Memory in Foundry Agent Service (Microsoft Foundry Blog)](https://devblogs.microsoft.com/foundry/introducing-memory-in-foundry-agent-service/), [Foundry Agent Memory (InfoQ)](https://www.infoq.com/news/2025/12/foundry-agent-memory-preview/), [Agentic RAG Explained (Glean)](https://www.glean.com/blog/agentic-rag-explained)
 
 **Trajectory:**
-This is the fastest-moving area. Microsoft's distribution advantage means Foundry IQ could become the default for enterprises already on Azure. Implicit source routing is replacing manual tool selection.
+This is the fastest-moving area. Microsoft has already shipped managed agent memory. The remaining question is not whether they'll do it but whether they'll extend it to structured decision provenance, multi-source ingestion (Slack/Jira), and drift detection. Implicit source routing is replacing manual tool selection.
 
 **Honest assessment:**
-The read-write symmetry (agents write decisions, humans and agents query them) is differentiated. Foundry IQ reads from existing sources; purpl_brain also generates new structured knowledge from agent sessions. It also doesn't have drift detection. The real competitive threat: Microsoft adding agent session logging to Foundry IQ is a plausible product extension with a 12-24 month horizon. This would make purpl_brain's unified query interface redundant for Azure-native enterprise teams.
+The read-write symmetry (agents write decisions, humans and agents query them) remains differentiated. Foundry Agent Memory is conversational-context focused — it extracts preferences and summaries, not structured decision records with rationale and alternatives. It also has no drift detection and no ingestion from Slack/Jira/meetings. For Azure-native enterprise teams, Foundry Agent Memory is already a viable alternative for basic cross-session continuity. The gap that remains defensible is structured decision provenance and multi-source human+agent graph. Microsoft extending Foundry Agent Memory to cover those two features is a plausible but non-trivial product extension — it requires an opinionated schema for decisions, a multi-source ingestion pipeline, and drift detection logic. That is months of work, not a config change.
 
 ---
 
@@ -325,9 +325,14 @@ A2A coordination is ephemeral and runtime. purpl_brain is persistent and histori
 - Conflict grouping for triage scale: not built, required before 10+ agent teams (#7)
 - Regulated industry audit: self-reported decisions are insufficient for HIPAA/GDPR compliance (#10)
 
-### Competitive threats with 12-24 month horizon
+### Competitive threats — active and horizon
+
+**Already live (not future):**
+- Microsoft Foundry Agent Service managed memory — in public preview, billing June 2026. Covers conversational cross-session continuity for Azure teams. Does not cover structured decisions, multi-source ingestion, or drift detection. (#9)
+
+**12-24 month horizon:**
 - Native model memory (Claude, GPT-4, Gemini) reducing the re-derivation problem (#1)
-- Microsoft Foundry IQ extending to agent session logging (#9)
+- Microsoft Foundry Agent Memory extending to structured decision provenance, Slack/Jira ingestion, and drift detection (#9)
 - Google shipping a memory layer on top of A2A (#5, #9)
 - Atlassian Intelligence extending Jira+Confluence integration to agent sessions (#2)
 

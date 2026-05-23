@@ -4,7 +4,7 @@
 
 ---
 
-Last Tuesday an AI agent spent about 4,000 tokens figuring out that our Redis consumer groups needed to exist before workers started — or the first batch of events would be silently dropped.
+Last Tuesday an AI agent spent about 4,000 tokens figuring out that our Redis consumer groups needed to exist before workers started. If they didn't, the first batch of events would be silently dropped.
 
 It read the worker initialization code. It traced the stream names through three files. It looked at an old bug fix that added a retry loop. It synthesized the constraint: **consumer groups must be created before workers start consuming.**
 
@@ -20,7 +20,7 @@ That's the re-derivation problem. And once you see it, you see it everywhere.
 
 ## What Re-derivation Actually Costs
 
-A typical re-discovery — the kind where an agent reads source files, traces call chains, and synthesizes a non-obvious constraint — runs somewhere between 2,000 and 5,000 input tokens. Call it 3,000 for a constraint of average complexity.
+A typical re-discovery (the kind where an agent reads source files, traces call chains, and synthesizes a non-obvious constraint) runs somewhere between 2,000 and 5,000 input tokens. Call it 3,000 for a constraint of average complexity.
 
 Here's what that looks like over a month on an active project with five discovered constraints and 20 agent sessions:
 
@@ -52,7 +52,7 @@ Those numbers look small in isolation. They compound.
 
 ## The Compounding Math
 
-The problem with re-derivation debt is that it doesn't stay constant — it grows with team size and session frequency.
+The problem with re-derivation debt is that it doesn't stay constant; it grows with team size and session frequency.
 
 At a team of one running 20 sessions/month, the cost is background noise. At a team of five, each running independent sessions, the same constraint gets re-discovered by each developer's agent independently. At 10 developers, each running 15 sessions/month:
 
@@ -68,7 +68,7 @@ With persistent memory, that same constraint corpus costs roughly the same to re
 Cost: $0.34/month
 ```
 
-**$6.41/month difference — from re-derivation alone.** Not from better retrieval. Not from fancy embeddings. From simply not re-buying knowledge the team already paid for.
+**$6.41/month difference, from re-derivation alone.** Not from better retrieval. Not from fancy embeddings. From simply not re-buying knowledge the team already paid for.
 
 And this is a conservative estimate. It only counts 5 constraints. A real codebase has dozens: the ones about why certain abstractions exist, which configuration values can't be changed without a migration, which third-party APIs have undocumented rate limits that aren't in any README, which ordering constraints exist between initialization steps.
 
@@ -78,7 +78,7 @@ And this is a conservative estimate. It only counts 5 constraints. A real codeba
 
 Re-derivation cost is invisible per-session because it looks exactly like useful work. The agent is reading files. It's making inferences. It's producing correct output. Nothing in the trace tells you that this exact sequence of tool calls happened three sessions ago and produced the same conclusion.
 
-The cost only becomes visible in aggregate — and most teams don't aggregate agent session costs across sessions. They look at per-request billing, not at the cumulative cost of the same knowledge being reconstructed repeatedly.
+The cost only becomes visible in aggregate. Most teams don't aggregate agent session costs across sessions. They look at per-request billing, not at the cumulative cost of the same knowledge being reconstructed repeatedly.
 
 This is why re-derivation debt doesn't get fixed. It's not painful enough in any single session to trigger a response, but it's a steady tax across every session the team runs.
 
@@ -86,7 +86,7 @@ This is why re-derivation debt doesn't get fixed. It's not painful enough in any
 
 ## What Closing the Loop Looks Like
 
-The fix is not elaborate. When a session discovers something non-obvious — a constraint, a decision, an edge case that cost tokens to find — it logs it before the session ends:
+The fix is not elaborate. When a session discovers something non-obvious (a constraint, a decision, an edge case that cost tokens to find), it logs it before the session ends:
 
 ```
 brain_log_decision({
@@ -135,7 +135,7 @@ When teams evaluate AI coding tools, they tend to look at per-request latency an
 
 The right unit for a team running multiple agent sessions over weeks is **cost per piece of knowledge, amortised over the number of times it gets used**.
 
-A constraint that costs 3,000 tokens to discover and gets re-discovered 20 times costs 60,000 tokens. The same constraint stored after first discovery and retrieved 19 more times costs 3,000 + 2,850 = 5,850 tokens. The difference is not a retrieval technology question — it's a write-back question. Did the first session log what it found?
+A constraint that costs 3,000 tokens to discover and gets re-discovered 20 times costs 60,000 tokens. The same constraint stored after first discovery and retrieved 19 more times costs 3,000 + 2,850 = 5,850 tokens. The difference is not a retrieval technology question. It's a write-back question. Did the first session log what it found?
 
 That's the only question that matters. Everything else is implementation detail.
 
@@ -145,7 +145,7 @@ That's the only question that matters. Everything else is implementation detail.
 
 The token math above measures the cost of re-derivation itself. There's a second cost that teams rarely account for: the human time spent maintaining context so agents don't start cold.
 
-The alternative to a shared memory layer is manual context management — CLAUDE.md files, ADRs, handoff notes. Someone has to write them, keep them current, and review them before sessions. At a senior engineer's mid-market salary, 30 minutes per day of context maintenance runs roughly $75/day for a 10-agent team. purpl_brain's LLM costs for the same team — extraction, drift detection, query answering — run $2-5/day.
+The alternative to a shared memory layer is manual context management: CLAUDE.md files, ADRs, handoff notes. Someone has to write them, keep them current, and review them before sessions. At a senior engineer's mid-market salary, 30 minutes per day of context maintenance runs roughly $75/day for a 10-agent team. The brain's LLM costs for the same team (extraction, drift detection, query answering) run $2-5/day.
 
 The break-even against manual context maintenance is the first week.
 
@@ -159,10 +159,10 @@ For a team of three to five developers actively using AI agents:
 
 - **The initial constraint corpus builds itself.** Sessions naturally discover constraints through normal work. The discipline is logging them, not finding them.
 - **The break-even is fast.** A constraint that gets re-discovered twice has already paid back the cost of storing it. At three re-discoveries, it's generating a return.
-- **Scale does the rest.** The more sessions run, the bigger the gap between teams that store knowledge and teams that don't. The compounding isn't theoretical — it's arithmetic.
+- **Scale does the rest.** The more sessions run, the bigger the gap between teams that store knowledge and teams that don't. The compounding isn't theoretical. It's arithmetic.
 
 The hidden cost of every session starting cold isn't visible until you're looking at the cumulative picture. When you look at that picture, it's not subtle.
 
 ---
 
-*Purpl Brain is the knowledge layer we built to close this loop — continuous ingestion from GitHub, Slack, and Jira, plus agent write-back via `brain_log_decision`. The re-derivation analysis above uses real token costs measured against our own codebase. The math is in the repo.*
+*I built this memory layer to test whether the loop was worth closing. Continuous ingestion from GitHub, Slack, and Jira, plus agent write-back via `brain_log_decision`. The token costs above use Sonnet's published input pricing; the constraint count and session count are illustrative for a mid-size active project running five to ten sessions per week.*

@@ -3,35 +3,25 @@
 
 ---
 
-I spent three months building shared persistent memory for AI coding agents.
+My AI agents are making decisions I don't know about.
+I'm making decisions they don't know about.
+And they don't know what each other decided either.
 
-Vector store, knowledge graph, write API, MCP read path. The works.
+I've been experimenting with a shared memory layer for AI-assisted software teams in my spare time. Somewhere humans and agents both read from and write to. The infrastructure wasn't the hard part.
 
-Then I ran a real session and discovered the actual problem has nothing to do with storage.
+Two ways shared agent memory fails in practice:
 
-There are two ways agent memory fails in practice — and they require completely different fixes:
+**Failure mode A: the agent never writes.**
+Session ends, nothing logged, next session starts cold. Re-derives everything the previous session already figured out. You notice this one quickly.
 
-**Failure mode A — The agent never writes.**
-The session ends. Nothing was logged. The memory store is empty. The next session starts cold, re-derives everything the previous session already figured out.
+**Failure mode B: the agent writes, but logs the wrong thing.**
+The memory store fills up. Looks healthy. But the next session queries it and gets back "used TypeScript, used Postgres, created a users table." Facts, not decisions. What was done, not why. It re-derives anyway, from a store that looked full.
 
-This one is obvious when it happens. You notice.
+This one is invisible. You don't notice until weeks in and the memory hasn't helped once.
 
-**Failure mode B — The agent writes, but writes noise.**
-The memory store is growing. Everything looks healthy. But when the next session queries for context, it gets back:
+The instinct is to fix both with a better prompt. It doesn't work. They pull in opposite directions and need completely different solutions.
 
-*"Previous session used TypeScript. Used Postgres. Created a users table."*
-
-Facts, not decisions. What was done, not why. The next session can't build on it — it re-derives anyway, from a memory store that looked full.
-
-This one is invisible. You don't notice until you're three weeks in and the brain hasn't helped once.
-
-The instinct is to solve both with a better prompt. It doesn't work. These two failure modes pull in opposite directions — instructions aggressive enough to guarantee logging produce over-logging. Instructions that filter carefully produce under-logging.
-
-They need separate solutions.
-
-I wrote up what actually works, including why content quality enforcement belongs on the server rather than the prompt, and why mid-session logging is a quality problem as much as a reliability one.
-
-Link in comments.
+Wrote up what actually works and why. Link in comments.
 
 ---
 
