@@ -12,6 +12,16 @@
     }
   },
   "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/deepakkollipalli/aiplayground/gitrepo/purpl/purpl_brain/.claude/hooks/mid-session-brain-check.sh"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
