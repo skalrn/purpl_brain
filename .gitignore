@@ -25,3 +25,7 @@ docs/product/competitive-positioning-*.md
 README.backup.md
 README_Perplexity_v1.md
 engineering-decision-products-prd.md
+
+# Python
+__pycache__/
+*.pyc
