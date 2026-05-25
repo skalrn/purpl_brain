@@ -14,7 +14,7 @@ sidebar_position: 1
 
 ```bash
 # Clone the repo
-git clone https://github.com/purpl/purpl_brain.git
+git clone https://github.com/skalrn/purpl_brain.git
 cd purpl_brain
 
 # Copy and fill in environment variables

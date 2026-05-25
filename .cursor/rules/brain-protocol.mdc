@@ -39,7 +39,12 @@ Significant decisions include:
 - Deciding NOT to do something
 - Discovering a constraint or edge case that will affect future work
 
-**Note:** Cursor has no Stop hook. There is no automated reminder at session end. You must call `brain_log_decision` mid-session as decisions are made. The API will reject entries where `rationale` is empty or descriptions are too short — retry with fuller content if you receive a 422.
+**Note — Cursor has no hooks.** Claude Code sessions in this repo run two automated safety nets that Cursor does not have:
+
+1. **PostToolUse hook** (`mid-session-brain-check.sh`) — fires after every tool call; if no decisions have been logged in the last 45 minutes it interrupts with a reminder.
+2. **Stop hook** (`check-brain-decisions.sh`) — fires at session end; if no decisions were logged in the last 2 hours it gives Claude one final turn to log before closing.
+
+Because neither hook runs in Cursor, you must enforce the same cadence manually: after roughly every 45 minutes of substantive work, check whether a decision worth logging has been made. If yes, log it before continuing. The API will reject entries where `rationale` is empty or descriptions are too short — retry with fuller content if you receive a 422.
 
 ## When something unexpected surfaces — call immediately
 
@@ -54,3 +59,7 @@ If you discover something that contradicts a past decision, call `brain_log_sign
 **`brain_analyze_impact`** — `change_description` (string), `project_id` (string)
 
 **`brain_log_signal`** — `text` (string), `project_id` (string), optional `source` ("agent" | "github" | "slack" | "jira" | "meeting" | "document")
+
+## Claude Code setup note
+
+`.claude/settings.json` is gitignored. If you are setting up Claude Code (not Cursor) for this repo, copy `.claude/settings.example.json` → `.claude/settings.json` and fill in `BRAIN_API_KEY`. The example file uses relative hook paths and works from the repo root.

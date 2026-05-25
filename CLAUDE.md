@@ -10,29 +10,17 @@ The core insight: AI agents are first-class actors that both read from and write
 
 ## Documentation Structure
 
-All design and planning documents live in `/docs`:
-
 ```
 docs/
-  product/
-    vision.md          # Problem, strategic bet, positioning, phase summary
-    prd.md             # Requirements, features, success metrics, open questions
-    personas.md        # Four personas including AI Agent as non-human actor
-    roadmap.md         # Four phases with exit criteria and deliverables
   technical/
     architecture.md    # Full system design: ingestion → processing → brain store → query → interface
-    query-layer.md     # Deep spec: intent parsing, retrieval modes, context budget, citation contract, latency
-    entity-extraction.md  # Deep spec: two-pass hybrid extraction, source strategies, confidence scoring
-    anomaly-engine.md  # Deep spec: detector implementations, false positive control, severity scoring
-    phase1-implementation-plan.md  # 7 milestones, build order, tech stack, exit criterion
     llm-cost-controls.md          # Prompt caching patterns, breakpoint placement, anti-patterns
     adrs/
       001-hybrid-brain-store.md        # Vector DB + Graph DB rationale
       002-mcp-server-interface.md      # Why MCP over bespoke agent SDK; Python SDK for LangGraph/ADK
       003-event-driven-ingestion.md    # Webhook-first with Redis Streams queue
       004-agent-decision-trails.md     # Agent log schema and write-back design
-  risk/
-    risk-register.md   # Technical, product, market, and security risks with mitigations
+      005-embedding-model.md           # Embedding model selection rationale
 ```
 
 ## Key Architectural Decisions
@@ -216,7 +204,7 @@ Do not skip this even if the session was short. The cost of asking is low; the c
 
 ## Build Order
 
-Phase 1 → Phase 2 → Phase 3 → Phase 4. A phase does not start until its exit criterion is met. See `docs/product/roadmap.md` for exit criteria per phase.
+Phase 1 → Phase 2 → Phase 3 → Phase 4.
 
 ## Skill Management
 

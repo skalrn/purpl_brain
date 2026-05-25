@@ -2,6 +2,8 @@
 
 **A shared decision log for human-agent software teams.**
 
+![purpl-brain project view — drift alerts surfaced from real decision history](docs/assets/screenshot-project.png)
+
 I built this to find out whether the idea would actually hold up: a single graph where both humans and AI agents write what they decided and why, so neither has to re-derive what the other already figured out.
 
 The system works end-to-end for one developer plus AI agents. The open question — and the reason for early access — is whether the structured decision trail holds value when a second human joins the graph. If that problem resonates with your team, I'd like to hear from you.
@@ -20,15 +22,15 @@ The deeper problem: humans and agents decide things in different places. A devel
 
 ## What it does differently
 
-**Decision extraction, not session capture.** purpl-brain reads GitHub PRs, Slack threads, Jira tickets, meeting transcripts, and ADRs and extracts concluded decisions — the choices your team settled, with rationale and attribution. A developer debugging for three hours is not a decision. Choosing `jose` over `jsonwebtoken` because of Edge compatibility is. Signal, not noise.
+**Decision extraction, not session capture.** purpl-brain reads GitHub PRs, Slack threads, meeting transcripts, and ADRs and extracts concluded decisions — the choices your team settled, with rationale and attribution. A developer debugging for three hours is not a decision. Choosing `jose` over `jsonwebtoken` because of Edge compatibility is. Signal, not noise.
 
-**Multi-source, human+agent graph.** The real decision usually happened before the agent was involved — in a design review, a Slack debate, a PR comment thread. purpl-brain ingests where your team actually decides things and puts agent decisions in the same graph. An agent starting a session can retrieve not just what previous agents decided, but what the engineering lead decided in a Slack thread last Thursday.
+**The decisions that matter aren't in your ADRs.** ADRs capture the decisions someone thought to document. Most decisions live in a PR comment thread, a Slack debate that ended without a summary, or an agent session that nobody wrote up. purpl-brain ingests those sources and puts agent decisions in the same graph — so a new session can query across all of them, not just the docs someone remembered to write.
 
-**Facts vs reasoning.** Existing memory systems (Mem0, Zep, Foundry Agent Memory) capture facts via automatic extraction: "team uses Redis." purpl-brain captures reasoning via structured write-back: "chose Redis over Postgres because TTL-native eviction matched the access pattern and Postgres would have required a background job." The next agent can reason about whether the same choice applies to a new service. A fact cannot enable that.
+**Why, not just what.** "Team uses Redis" is a fact. "Chose Redis over Postgres because TTL-native eviction matched the access pattern and Postgres would have required a background job" is reasoning. The next agent can apply reasoning to a new decision. It cannot apply a fact. purpl-brain stores the rationale alongside the choice, and requires it at write time.
 
 **Drift detection.** When work in progress contradicts a decision made months ago, the system surfaces it before the code ships. Two-stage detection: semantic similarity flags candidates, LLM confirmation eliminates false positives.
 
-**Full provenance.** Every answer includes source URL, actor, and timestamp. Not "the team decided X" — "@alice closed this in favor of X on 2025-11-14, referencing Jira ticket AUTH-312."
+**Full provenance.** Every answer includes source URL, actor, and timestamp. Not "the team decided X" — "@alice closed this in favor of X on 2025-11-14, in PR #312."
 
 ---
 
@@ -37,8 +39,8 @@ The deeper problem: humans and agents decide things in different places. A devel
 Validated end-to-end for one developer plus AI agents:
 
 - Write-back, schema validation, and retry loop
-- Cross-session retrieval with citations (the Redis consumer group ordering constraint — logged mid-session, retrieved by the next session, not re-derived)
-- Multi-source ingestion: GitHub, Slack, Jira in the same graph as agent decisions
+- Cross-session retrieval with citations: a decision logged by one agent session is correctly recalled by a later session with no shared context
+- Multi-source ingestion: GitHub, Slack, and meeting transcripts in the same graph as agent decisions
 - Drift detection: tested with contradictory inputs, surfaces alerts with correct context
 
 Not yet validated: multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis early access is designed to test.
@@ -66,7 +68,7 @@ Measured against the builder's own eval suite and manually labeled test cases �
 ## How it works
 
 ```
-Signal sources: GitHub PRs · Slack · Jira · meetings · ADRs · agent sessions
+Signal sources: GitHub PRs · Slack · meetings · ADRs · agent sessions
   │
   ▼  normalizer (rule-based schema normalisation — no LLM)
   ▼  extractor (LLM: extract decisions, people, tickets, linked PR threads)
@@ -187,13 +189,6 @@ For live ingestion: configure a GitHub webhook to `POST /webhooks/github`.
 npm run worker:slack -w apps/api
 ```
 
-### Jira
-
-```bash
-# In .env: JIRA_BASE_URL, JIRA_WEBHOOK_SECRET
-npm run seed:jira -w apps/api -- --project YOUR_PROJECT
-```
-
 ### ADRs and local docs
 
 ```bash
@@ -245,15 +240,11 @@ bash brain-restore.sh brain_snapshot_my-project-v1.0.tar.gz
 
 | Audience | Document |
 |----------|----------|
-| Understanding the full system | [docs/technical-deep-dive.md](docs/technical-deep-dive.md) |
-| Full product vision and competitive positioning | [docs/product/vision.md](docs/product/vision.md) |
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
 | Why Qdrant + Neo4j | [docs/technical/adrs/001-hybrid-brain-store.md](docs/technical/adrs/001-hybrid-brain-store.md) |
 | Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
 | Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
-| Business brief | [docs/pitch/business-brief.md](docs/pitch/business-brief.md) |
-| FAQ and rebuttal prep | [docs/pitch/faq.md](docs/pitch/faq.md) |
 
 ---
 
@@ -280,7 +271,7 @@ git checkout -b release-beta-0.1.0
 git push
 ```
 
-Builds obfuscated Docker images and pushes to GHCR:
+Builds and pushes Docker images to GHCR:
 - `ghcr.io/skalrn/purpl-brain-api:beta-latest`
 - `ghcr.io/skalrn/purpl-brain-web:beta-latest`
 

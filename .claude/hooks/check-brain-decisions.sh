@@ -8,6 +8,13 @@ PROJECT_ID="skalrn_purpl_brain"
 BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3001}"
 HEALTH_URL="${BRAIN_API_URL}/health"
 LOOKBACK_HOURS=2
+COOLDOWN_MINUTES=15
+COOLDOWN_FILE="/tmp/purpl-brain-stop-${PROJECT_ID}"
+AUDIT_LOG="$HOME/.claude/hook-audit.log"
+
+_audit() {
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) stop $1" >> "$AUDIT_LOG" 2>/dev/null || true
+}
 
 # Resolve API key: prefer env var, fall back to .env file in repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,6 +25,8 @@ if [ -n "$BRAIN_API_KEY" ]; then
   API_KEY="$BRAIN_API_KEY"
 elif [ -f "$ENV_FILE" ]; then
   API_KEY=$(grep -m1 '^API_KEY=' "$ENV_FILE" | cut -d= -f2-)
+elif [ -f "$REPO_ROOT/apps/api/.env" ]; then
+  API_KEY=$(grep -m1 '^\(DEV_API_KEY\|API_KEY\)=' "$REPO_ROOT/apps/api/.env" | cut -d= -f2-)
 fi
 
 if [ -z "$API_KEY" ]; then
@@ -25,8 +34,18 @@ if [ -z "$API_KEY" ]; then
   exit 0
 fi
 
+# Check cooldown — avoid hitting the API on every LLM response
+NOW=$(date +%s)
+if [ -f "$COOLDOWN_FILE" ]; then
+  LAST=$(cat "$COOLDOWN_FILE")
+  ELAPSED=$(( NOW - LAST ))
+  if [ "$ELAPSED" -lt $(( COOLDOWN_MINUTES * 60 )) ]; then
+    exit 0
+  fi
+fi
+
 # Skip if brain API is not running
-if ! curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+if ! curl -sf --max-time 2 "$HEALTH_URL" > /dev/null 2>&1; then
   exit 0
 fi
 
@@ -38,7 +57,7 @@ print(cutoff.strftime('%Y-%m-%dT%H:%M:%S.000Z'))
 ")
 
 # Query via the brain API — no direct Neo4j access required
-RESPONSE=$(curl -sf \
+RESPONSE=$(curl -sf --max-time 2 \
   -H "x-api-key: ${API_KEY}" \
   "${BRAIN_API_URL}/brain/decisions/recent?project_id=${PROJECT_ID}&since=${CUTOFF}" 2>/dev/null)
 
@@ -56,6 +75,8 @@ if [ "$COUNT" = "-1" ]; then
 fi
 
 if [ "$COUNT" -eq 0 ]; then
+  _audit "prompted"
+  echo "$NOW" > "$COOLDOWN_FILE"
   cat >&2 <<'MSG'
 ⚠️  Brain check: no decisions were logged to purpl-brain in the last 2 hours.
 
@@ -72,4 +93,6 @@ MSG
   exit 2
 fi
 
+_audit "silent count=$COUNT"
+echo "$NOW" > "$COOLDOWN_FILE"
 exit 0

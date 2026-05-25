@@ -8,9 +8,24 @@ BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3001}"
 COOLDOWN_MINUTES=45
 COOLDOWN_FILE="/tmp/purpl-brain-mid-session-${PROJECT_ID}"
 LOOKBACK_MINUTES=$COOLDOWN_MINUTES
+AUDIT_LOG="$HOME/.claude/hook-audit.log"
+
+_audit() {
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) posttooluse $1" >> "$AUDIT_LOG" 2>/dev/null || true
+}
+
+# Check cooldown first — skip before any network calls if within cooldown window
+NOW=$(date +%s)
+if [ -f "$COOLDOWN_FILE" ]; then
+  LAST=$(cat "$COOLDOWN_FILE")
+  ELAPSED=$(( NOW - LAST ))
+  if [ "$ELAPSED" -lt $(( COOLDOWN_MINUTES * 60 )) ]; then
+    exit 0
+  fi
+fi
 
 # Skip if brain API is not running
-if ! curl -sf "${BRAIN_API_URL}/health" > /dev/null 2>&1; then
+if ! curl -sf --max-time 2 "${BRAIN_API_URL}/health" > /dev/null 2>&1; then
   exit 0
 fi
 
@@ -23,20 +38,12 @@ if [ -n "$BRAIN_API_KEY" ]; then
   API_KEY="$BRAIN_API_KEY"
 elif [ -f "$ENV_FILE" ]; then
   API_KEY=$(grep -m1 '^API_KEY=' "$ENV_FILE" | cut -d= -f2-)
+elif [ -f "$REPO_ROOT/apps/api/.env" ]; then
+  API_KEY=$(grep -m1 '^\(DEV_API_KEY\|API_KEY\)=' "$REPO_ROOT/apps/api/.env" | cut -d= -f2-)
 fi
 
 if [ -z "$API_KEY" ]; then
   exit 0
-fi
-
-# Check cooldown — skip if we reminded less than COOLDOWN_MINUTES ago
-NOW=$(date +%s)
-if [ -f "$COOLDOWN_FILE" ]; then
-  LAST=$(cat "$COOLDOWN_FILE")
-  ELAPSED=$(( NOW - LAST ))
-  if [ "$ELAPSED" -lt $(( COOLDOWN_MINUTES * 60 )) ]; then
-    exit 0
-  fi
 fi
 
 # Check brain API for recent decisions within the lookback window
@@ -46,7 +53,7 @@ cutoff = datetime.now(timezone.utc) - timedelta(minutes=$LOOKBACK_MINUTES)
 print(cutoff.strftime('%Y-%m-%dT%H:%M:%S.000Z'))
 ")
 
-RESPONSE=$(curl -sf \
+RESPONSE=$(curl -sf --max-time 2 \
   -H "x-api-key: ${API_KEY}" \
   "${BRAIN_API_URL}/brain/decisions/recent?project_id=${PROJECT_ID}&since=${CUTOFF}" 2>/dev/null)
 
@@ -66,10 +73,12 @@ fi
 # Decisions were logged recently — reset cooldown and continue silently
 if [ "$COUNT" -gt 0 ]; then
   echo "$NOW" > "$COOLDOWN_FILE"
+  _audit "silent count=$COUNT"
   exit 0
 fi
 
 # Nothing logged in the last 45 minutes — remind Claude and reset cooldown
+_audit "prompted"
 echo "$NOW" > "$COOLDOWN_FILE"
 
 cat >&2 <<'MSG'

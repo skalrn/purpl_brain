@@ -257,7 +257,7 @@ npx tsx apps/api/src/scripts/eval-mcp.ts
 npx tsx apps/api/src/scripts/eval-integration.ts
 ```
 
-All evals must pass before merging changes to the extraction or query pipeline. Eval status as of 2026-05-19: all Phase 1 (M7) and Phase 2 (M6) evals PASS. See `docs/product/roadmap.md` for exit criteria per phase.
+All evals must pass before merging changes to the extraction or query pipeline. Eval status as of 2026-05-19: all Phase 1 (M7) and Phase 2 (M6) evals PASS.
 
 ---
 
@@ -296,7 +296,7 @@ This wipes derived state (Neo4j nodes, Qdrant chunks) for the project and replay
 - **Phase 2** ✓ — Slack, Jira, meetings, agent logs, drift detection, temporal diff, streaming
 - **Phase 3** in progress — MCP server (M1 ✓), agent write-back (M2 ✓), MCP eval (M3 ✓), beta polish (M4), identity resolution (M5), AWS packaging (M6)
 
-The active branch is `pivot/agent-memory`. All work merges to `main` after phase exit criteria are met (see `docs/product/roadmap.md`).
+All work merges to `main` after phase exit criteria are met.
 
 ---
 
@@ -305,12 +305,8 @@ The active branch is `pivot/agent-memory`. All work merges to `main` after phase
 | If you want to understand… | Read |
 |---|---|
 | Full system design | `docs/technical/architecture.md` |
-| Extraction logic in depth | `docs/technical/entity-extraction.md` |
-| Query pipeline in depth | `docs/technical/query-layer.md` |
 | Why hybrid vector + graph | `docs/technical/adrs/001-hybrid-brain-store.md` |
 | Why MCP over custom SDK | `docs/technical/adrs/002-mcp-server-interface.md` |
 | Why webhooks over polling | `docs/technical/adrs/003-event-driven-ingestion.md` |
 | Why agents write to the brain | `docs/technical/adrs/004-agent-decision-trails.md` |
 | LLM cost controls (caching rules) | `docs/technical/llm-cost-controls.md` |
-| Every implementation decision explained | `docs/technical-deep-dive.md` |
-| Open security findings | Memory: `project_open_todos.md` (SEC-C1 through SEC-M8) |

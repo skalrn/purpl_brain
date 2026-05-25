@@ -109,7 +109,10 @@ Given a new message/event and a list of existing project decisions, determine:
 Routine updates, bug fixes, or messages that are consistent with decisions are NOT drift.
 
 Respond with JSON only:
-{ "drifts": [{ "decision_id": "...", "reason": "one sentence why this is a contradiction" }] }
+{ "drifts": [{ "decision_id": "...", "reason": "one sentence describing the contradiction — state what conflicts with what, not what the message says" }] }
+
+Example reason format: "Removes obfuscation step, contradicting the decision to ship obfuscated builds for IP protection."
+Bad format: "The message suggests removing obfuscation, which contradicts..."
 
 Return { "drifts": [] } if no contradictions found.`;
 

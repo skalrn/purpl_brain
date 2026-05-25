@@ -79,17 +79,30 @@ function extractCanonicalEvent(
     (sourceEntity as Record<string, unknown>).id ??
     deliveryId
   );
+
+  const bodyText = String((sourceEntity as Record<string, unknown>).body ?? "").trim();
   const rawContent = [
     (sourceEntity as Record<string, unknown>).title,
-    (sourceEntity as Record<string, unknown>).body,
+    bodyText || undefined,
   ]
     .filter(Boolean)
     .join("\n\n");
+
+  // CONN-2: skip events with no usable content (e.g. empty review submissions)
+  if (!rawContent.trim()) return null;
 
   const htmlUrl = String(
     (sourceEntity as Record<string, unknown>).html_url ??
     (repo as Record<string, unknown>).html_url ??
     ""
+  );
+
+  // CONN-1: use the GitHub event's own timestamp, not the ingest time
+  const eventTimestamp = String(
+    (sourceEntity as Record<string, unknown>).merged_at ??
+    (sourceEntity as Record<string, unknown>).updated_at ??
+    (sourceEntity as Record<string, unknown>).created_at ??
+    new Date().toISOString()
   );
 
   return {
@@ -102,7 +115,7 @@ function extractCanonicalEvent(
       id: String(sender.login),
       name: String(sender.login),
     },
-    timestamp: new Date().toISOString(),
+    timestamp: eventTimestamp,
     event_type: eventType,
     raw_content: rawContent,
     url: htmlUrl,
