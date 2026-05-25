@@ -10,6 +10,18 @@ dist/
 .claude/scheduled_tasks.lock
 brain_snapshot_*.tar.gz
 .mcp.json
+.claude/settings.json
 apps/docs/build/
 apps/docs/.docusaurus/
 apps/docs/apps/
+
+# Private content — lives in purpl_brain_private repo
+memory/
+docs/articles/
+docs/pitch/
+docs/interview/
+docs/review/
+docs/product/competitive-positioning-*.md
+README.backup.md
+README_Perplexity_v1.md
+engineering-decision-products-prd.md

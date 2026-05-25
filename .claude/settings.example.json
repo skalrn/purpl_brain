@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "purpl-brain": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "apps/mcp/src/index.ts"],
+      "env": {
+        "BRAIN_API_URL": "http://localhost:3001",
+        "BRAIN_API_KEY": "",
+        "MCP_TRANSPORT": "stdio"
+      }
+    }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/mid-session-brain-check.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-brain-decisions.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
