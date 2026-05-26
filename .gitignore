@@ -11,6 +11,7 @@ dist/
 brain_snapshot_*.tar.gz
 .mcp.json
 .claude/settings.json
+.claude/settings.local.json
 apps/docs/build/
 apps/docs/.docusaurus/
 apps/docs/apps/
@@ -18,6 +19,8 @@ apps/docs/apps/
 # Private content — lives in purpl_brain_private repo
 memory/
 docs/articles/
+docs/scenarios/
+docs/ux/
 docs/pitch/
 docs/interview/
 docs/review/

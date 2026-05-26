@@ -129,6 +129,8 @@ docker compose -f docker-compose.prod.yml up -d
 
 Web UI: `http://localhost:3000` · API: `http://localhost:3001/health`
 
+> **Note:** The web UI is under active development. Core flows (ingest, query, decisions, drift) work. Some views are incomplete or placeholder. The API and MCP server are stable — if you prefer a minimal setup, the API alone is fully functional without the web layer.
+
 ---
 
 ## LLM provider options
@@ -165,7 +167,9 @@ Paste into `~/.claude/settings.json`:
 }
 ```
 
-**Make Claude call these automatically** — add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
+**Make Claude call these automatically** by adding the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
+
+> **Note:** The example hook scripts in `.claude/hooks/` use `skalrn_purpl_brain` as the project ID. If you copy them manually, change `PROJECT_ID` at the top of each script to match your own project. Running `setup.sh` does this automatically.
 
 ---
 
