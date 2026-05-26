@@ -138,15 +138,15 @@ Web UI: `http://localhost:3000` · API: `http://localhost:3001/health`
 | | Anthropic path | Ollama path |
 |---|---|---|
 | LLM | Claude Haiku (extraction + query) | gemma3n:e2b + gemma2:9b |
-| Embeddings | OpenAI text-embedding-3-small | nomic-embed-text:v1.5 |
+| Embeddings | nomic-embed-text:v1.5 (Ollama) | nomic-embed-text:v1.5 (Ollama) |
 | Avg query latency | ~7s | ~60–90s |
-| External keys | Anthropic + OpenAI | None |
+| External keys | Anthropic API key only | None |
 | Cost | ~$5–15/month active team | Free |
 | Test status | **Not yet verified end-to-end** | **Tested** |
 
-The Ollama path has been tested end-to-end. The Anthropic path is wired and the code paths exist, but has not been run through a full integration test. If you try it and hit issues, please open an issue.
+Both paths use Ollama for embeddings (`nomic-embed-text:v1.5` — always required). This keeps a single embedding space so you can switch LLM providers without re-indexing Qdrant.
 
-Both paths produce 768-dim vectors — the Qdrant collection is compatible between providers.
+The Anthropic path has not been run through a full integration test. If you try it and hit issues, please open an issue.
 
 ---
 
