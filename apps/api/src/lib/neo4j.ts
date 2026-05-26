@@ -71,9 +71,11 @@ export async function writeDriftAlert(alert: DriftAlert): Promise<void> {
 
 export async function resolveDriftAlert(
   alert_id: string,
-  resolution: "keep" | "under_review" | "reopen",
+  resolution: "keep" | "under_review" | "reopen" | "escalate",
   resolved_at: string
 ): Promise<void> {
+  // "escalate" moves a confirmation back to pending conflict for human review
+  const storedResolution = resolution === "escalate" ? "pending" : resolution;
   const session = getSession();
   try {
     await session.run(
@@ -86,7 +88,7 @@ export async function resolveDriftAlert(
          WHEN "reopen" THEN "changed"
          ELSE d.status
        END`,
-      { alert_id, resolution, resolved_at }
+      { alert_id, resolution: storedResolution, resolved_at }
     );
   } finally {
     await session.close();
@@ -1424,6 +1426,166 @@ export async function checkPersonInProject(person_id: string, project_id: string
       { person_id, project_id }
     );
     return result.records.length > 0;
+  } finally {
+    await session.close();
+  }
+}
+
+export async function listDecisions(projectId: string, limit = 50): Promise<Array<{
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  confidence: string;
+  alternatives_considered: string[];
+  valid_from: string;
+  agent_id: string;
+  operator_name: string | null;
+  event_id: string;
+  event_source: string;
+}>> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: $project_id})
+       MATCH (e)-[:AUTHORED_BY]->(p:Person)
+       RETURN d.decision_id AS decision_id,
+              d.summary AS summary,
+              d.rationale AS rationale,
+              coalesce(d.confidence, 'medium') AS confidence,
+              coalesce(d.alternatives_considered, []) AS alternatives_considered,
+              coalesce(d.valid_from, e.timestamp) AS valid_from,
+              p.name AS agent_id,
+              e.operator_name AS operator_name,
+              e.event_id AS event_id,
+              coalesce(e.source, 'agent') AS event_source
+       ORDER BY valid_from DESC
+       LIMIT $limit`,
+      { project_id: projectId, limit: neo4j.int(limit) }
+    );
+    return result.records.map((r) => ({
+      decision_id:             r.get("decision_id") as string,
+      summary:                 (r.get("summary") as string) ?? "",
+      rationale:               (r.get("rationale") as string | null) ?? null,
+      confidence:              (r.get("confidence") as string) ?? "medium",
+      alternatives_considered: (r.get("alternatives_considered") as string[]) ?? [],
+      valid_from:              r.get("valid_from") as string,
+      agent_id:                (r.get("agent_id") as string) ?? "unknown",
+      operator_name:           (r.get("operator_name") as string | null) ?? null,
+      event_id:                r.get("event_id") as string,
+      event_source:            (r.get("event_source") as string) ?? "agent",
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
+export async function getDecisionDetail(decisionId: string): Promise<{
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  alternatives_considered: string[];
+  confidence: string;
+  status: string;
+  valid_from: string;
+  // Source event
+  event_id: string;
+  event_source: string;
+  event_url: string | null;
+  event_timestamp: string;
+  agent_id: string;
+  operator_name: string | null;
+  project_id: string;
+  // Drift alerts challenging this decision
+  drift_alerts: Array<{
+    alert_id: string;
+    source: string;
+    content: string;
+    reason: string | null;
+    actor: string;
+    timestamp: string;
+    resolution: string;
+  }>;
+  // Follow-up tasks created from drift on this decision
+  follow_up_tasks: Array<{
+    task_id: string;
+    title: string;
+    description: string | null;
+    status: string;
+    created_at: string;
+  }>;
+} | null> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (d:Decision {decision_id: $decision_id})-[:EXTRACTED_FROM]->(e:Event)
+       MATCH (e)-[:AUTHORED_BY]->(p:Person)
+       OPTIONAL MATCH (a:DriftAlert)-[:CHALLENGES]->(d)
+       OPTIONAL MATCH (t:FollowUpTask)-[:ADDRESSES]->(d)
+       WITH d, e, p,
+            collect(DISTINCT {
+              alert_id:   a.alert_id,
+              source:     a.source,
+              content:    a.content,
+              reason:     a.reason,
+              actor:      a.actor,
+              timestamp:  a.timestamp,
+              resolution: a.resolution
+            }) AS raw_alerts,
+            collect(DISTINCT {
+              task_id:     t.task_id,
+              title:       t.title,
+              description: t.description,
+              status:      t.status,
+              created_at:  t.created_at
+            }) AS raw_tasks
+       RETURN d.decision_id          AS decision_id,
+              d.summary              AS summary,
+              d.rationale            AS rationale,
+              coalesce(d.alternatives_considered, []) AS alternatives_considered,
+              coalesce(d.confidence, 'medium')        AS confidence,
+              coalesce(d.status, 'confirmed')         AS status,
+              coalesce(d.valid_from, e.timestamp)     AS valid_from,
+              e.event_id             AS event_id,
+              e.source               AS event_source,
+              e.url                  AS event_url,
+              e.timestamp            AS event_timestamp,
+              p.name                 AS agent_id,
+              e.operator_name        AS operator_name,
+              e.project_id           AS project_id,
+              raw_alerts,
+              raw_tasks`,
+      { decision_id: decisionId }
+    );
+
+    if (result.records.length === 0) return null;
+    const r = result.records[0];
+
+    const filterNull = <T extends Record<string, unknown>>(items: T[], keyField: string): T[] =>
+      items.filter((x) => x[keyField] != null);
+
+    return {
+      decision_id:             r.get("decision_id") as string,
+      summary:                 (r.get("summary") as string) ?? "",
+      rationale:               (r.get("rationale") as string | null) ?? null,
+      alternatives_considered: (r.get("alternatives_considered") as string[]) ?? [],
+      confidence:              (r.get("confidence") as string) ?? "medium",
+      status:                  (r.get("status") as string) ?? "confirmed",
+      valid_from:              r.get("valid_from") as string,
+      event_id:                r.get("event_id") as string,
+      event_source:            (r.get("event_source") as string) ?? "agent",
+      event_url:               (r.get("event_url") as string | null) ?? null,
+      event_timestamp:         r.get("event_timestamp") as string,
+      agent_id:                (r.get("agent_id") as string) ?? "unknown",
+      operator_name:           (r.get("operator_name") as string | null) ?? null,
+      project_id:              r.get("project_id") as string,
+      drift_alerts:            filterNull(r.get("raw_alerts") as Array<Record<string, unknown>>, "alert_id") as Array<{
+        alert_id: string; source: string; content: string; reason: string | null;
+        actor: string; timestamp: string; resolution: string;
+      }>,
+      follow_up_tasks:         filterNull(r.get("raw_tasks") as Array<Record<string, unknown>>, "task_id") as Array<{
+        task_id: string; title: string; description: string | null; status: string; created_at: string;
+      }>,
+    };
   } finally {
     await session.close();
   }

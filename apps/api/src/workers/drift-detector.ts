@@ -102,22 +102,25 @@ async function stageA(
 
 const DRIFT_SYSTEM_PROMPT = `You are a decision drift detector for software engineering teams.
 
-Given a new message/event and a list of existing project decisions, determine:
-1. Does the message CONTRADICT or CHALLENGE any of the listed decisions?
-2. A contradiction means the message suggests doing something different, reopening a closed question, or expressing doubt about a settled choice.
-
-Routine updates, bug fixes, or messages that are consistent with decisions are NOT drift.
+Given a new message/event and a list of existing project decisions, classify each related decision as one of:
+- "conflicts": the message contradicts or challenges the decision — suggests doing something different, reopens a closed question, or expresses doubt about a settled choice
+- "confirms": the message is consistent with or reinforces the decision — implements it, references it positively, or provides evidence it was the right call
+- neither: the message is unrelated or is a routine update with no bearing on the decision
 
 Respond with JSON only:
-{ "drifts": [{ "decision_id": "...", "reason": "one sentence describing the contradiction — state what conflicts with what, not what the message says" }] }
+{
+  "drifts": [{ "decision_id": "...", "reason": "one sentence — state what conflicts with what" }],
+  "confirms": [{ "decision_id": "...", "reason": "one sentence — state what the message confirms about the decision" }]
+}
 
-Example reason format: "Removes obfuscation step, contradicting the decision to ship obfuscated builds for IP protection."
-Bad format: "The message suggests removing obfuscation, which contradicts..."
+Example conflict reason: "Removes obfuscation step, contradicting the decision to ship obfuscated builds for IP protection."
+Example confirmation reason: "Implements the 3-pane layout as AppShell, consistent with the decision to adopt this layout pattern."
 
-Return { "drifts": [] } if no contradictions found.`;
+Return { "drifts": [], "confirms": [] } if no related decisions found.`;
 
 interface DriftConfirmation {
   drifts: Array<{ decision_id: string; reason: string }>;
+  confirms: Array<{ decision_id: string; reason: string }>;
 }
 
 async function stageC(
@@ -199,18 +202,21 @@ class DriftDetector extends StreamWorker {
       return;
     }
 
-    if (confirmation.drifts.length === 0) {
+    const drifts = confirmation.drifts ?? [];
+    const confirms = confirmation.confirms ?? [];
+
+    if (drifts.length === 0 && confirms.length === 0) {
       await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
       return;
     }
 
-    // Write confirmed DriftAlerts to Neo4j and publish to events:drift
-    for (const drift of confirmation.drifts) {
+    // Write conflict alerts
+    for (const drift of drifts) {
       const alert: DriftAlert = {
         alert_id: uuidv4(),
         decision_id: drift.decision_id,
         event_id: result.event_id,
-        source: inferSourceFromEventId(result.event_id),
+        source,
         content: result.raw_content.slice(0, 500),
         reason: drift.reason,
         actor: result.actor.name,
@@ -218,15 +224,34 @@ class DriftDetector extends StreamWorker {
         confirmed_by_llm: true,
         resolution: "pending",
       };
-
       try {
         await writeDriftAlert(alert);
         await writer.xadd(STREAMS.DRIFT, "*", "alert", JSON.stringify(alert));
-        console.log(
-          `[drift-detector] ⚡ DRIFT ALERT: event=${result.event_id} challenges decision=${drift.decision_id}: ${drift.reason}`
-        );
+        console.log(`[drift-detector] ⚡ CONFLICT: event=${result.event_id} challenges decision=${drift.decision_id}: ${drift.reason}`);
       } catch (e) {
-        console.error(`[drift-detector] failed to write alert for ${result.event_id}:`, e);
+        console.error(`[drift-detector] failed to write conflict for ${result.event_id}:`, e);
+      }
+    }
+
+    // Write confirmation alerts — stored as resolution "confirms" so UI can distinguish
+    for (const confirm of confirms) {
+      const alert: DriftAlert = {
+        alert_id: uuidv4(),
+        decision_id: confirm.decision_id,
+        event_id: result.event_id,
+        source,
+        content: result.raw_content.slice(0, 500),
+        reason: confirm.reason,
+        actor: result.actor.name,
+        timestamp: result.timestamp,
+        confirmed_by_llm: true,
+        resolution: "confirms",
+      };
+      try {
+        await writeDriftAlert(alert);
+        console.log(`[drift-detector] ✓ CONFIRMS: event=${result.event_id} confirms decision=${confirm.decision_id}: ${confirm.reason}`);
+      } catch (e) {
+        console.error(`[drift-detector] failed to write confirmation for ${result.event_id}:`, e);
       }
     }
 

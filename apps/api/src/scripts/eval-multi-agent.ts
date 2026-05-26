@@ -32,6 +32,7 @@
  */
 import "dotenv/config";
 import neo4j from "neo4j-driver";
+import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
@@ -917,6 +918,9 @@ async function main() {
   console.log(`  Failed:  ${failed}`);
   console.log(`  Skipped: ${skipped}${!API_KEY ? " (expected — no API key)" : ""}`);
   console.log(`  Total:   ${total}`);
+
+  console.log("\n  Cleaning up eval data...");
+  await cleanupEvalProjects([PROJECT_ID]);
 
   if (failed > 0) {
     console.error(`\n  FAIL — ${failed} check(s) failed.\n`);

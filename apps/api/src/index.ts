@@ -28,7 +28,15 @@ if (process.env.DEV_API_KEY && process.env.NODE_ENV === "production") {
 const app = Fastify({ logger: true });
 
 await app.register(cors, {
-  origin: process.env.UI_BASE_URL ?? "http://localhost:3000",
+  origin: (origin, cb) => {
+    const allowed = process.env.UI_BASE_URL ?? "http://localhost:3000";
+    // In dev, allow any localhost port so the Next.js dev server can run on any available port.
+    if (!origin || origin === allowed || (process.env.NODE_ENV !== "production" && /^http:\/\/localhost:\d+$/.test(origin))) {
+      cb(null, true);
+    } else {
+      cb(new Error("CORS: origin not allowed"), false);
+    }
+  },
   credentials: true,
 });
 

@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions } from "../lib/neo4j.js";
+import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions, listDecisions, getDecisionDetail } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
@@ -68,12 +68,12 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       const alertProjectId = await getAlertProjectId(id);
       if (!await assertProjectMember(req, reply, alertProjectId, "Alert")) return;
 
-      if (!["keep", "under_review", "reopen"].includes(resolution)) {
-        return reply.status(400).send({ error: "resolution must be keep | under_review | reopen" });
+      if (!["keep", "under_review", "reopen", "escalate"].includes(resolution)) {
+        return reply.status(400).send({ error: "resolution must be keep | under_review | reopen | escalate" });
       }
 
       try {
-        await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen", new Date().toISOString());
+        await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen" | "escalate", new Date().toISOString());
 
         // "reopen" means the decision is no longer valid — create a follow-up task
         // so the team has an actionable item to resolve the contradiction.
@@ -529,6 +529,47 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (e) {
         fastify.log.error(e);
         return reply.status(500).send({ error: "Failed to count recent decisions" });
+      }
+    }
+  );
+
+  // ── GET /brain/decisions ─────────────────────────────────────────────────
+  // Flat list of decisions for a project, reverse-chronological.
+  // Used by the decision feed in the project view (UI-5).
+  fastify.get<{ Querystring: { project_id: string; limit?: string } }>(
+    "/brain/decisions",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { project_id, limit } = req.query;
+      if (!project_id) {
+        return reply.status(400).send({ error: "project_id is required" });
+      }
+      try {
+        const decisions = await listDecisions(project_id, limit ? parseInt(limit, 10) : 50);
+        return { decisions, project_id, total: decisions.length };
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to list decisions" });
+      }
+    }
+  );
+
+  // ── GET /brain/decisions/:id ──────────────────────────────────────────────
+  // Full decision detail: rationale, source event, drift alerts, follow-up tasks.
+  fastify.get<{ Params: { id: string } }>(
+    "/brain/decisions/:id",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { id } = req.params;
+      try {
+        const decision = await getDecisionDetail(id);
+        if (!decision) {
+          return reply.status(404).send({ error: "Decision not found" });
+        }
+        return decision;
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to fetch decision detail" });
       }
     }
   );

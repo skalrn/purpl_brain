@@ -43,6 +43,7 @@ import { randomUUID } from "crypto";
 import { resolve as pathResolve } from "path";
 import neo4j from "neo4j-driver";
 import { Redis } from "ioredis";
+import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -914,6 +915,9 @@ async function main(): Promise<void> {
   console.log(`  Skipped : ${skipped}`);
   console.log(`  Elapsed : ${elapsedSec}s`);
   console.log(`${"═".repeat(64)}`);
+
+  console.log("\n  Cleaning up eval data...");
+  await cleanupEvalProjects([`e2e_trace_${E2E_RUN_ID}`, `e2e_mcp_${E2E_RUN_ID}`]);
 
   if (failed > 0) {
     console.log("\n  Failures:");

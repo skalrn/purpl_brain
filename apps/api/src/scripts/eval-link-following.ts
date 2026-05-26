@@ -18,6 +18,7 @@
  */
 import "dotenv/config";
 import { Redis } from "ioredis";
+import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
 
 const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";
@@ -302,4 +303,7 @@ if (failed === 0) {
   console.log("    3. Confirm extractor container was rebuilt: docker compose up -d --build extractor\n");
 }
 
-process.exit(failed > 0 ? 1 : 0);
+console.log("  Cleaning up eval data...");
+cleanupEvalProjects([PROJECT]).then(() => {
+  process.exit(failed > 0 ? 1 : 0);
+}).catch((e) => { console.error(e); process.exit(1); });

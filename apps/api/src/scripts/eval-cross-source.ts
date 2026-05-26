@@ -16,6 +16,7 @@
  * pipeline checks are skipped.
  */
 import "dotenv/config";
+import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";
@@ -171,6 +172,10 @@ async function main() {
   const total = passed + failed;
   console.log(`\n${"─".repeat(50)}`);
   console.log(`Result: ${passed}/${total} passed`);
+
+  console.log("\n  Cleaning up eval data...");
+  await cleanupEvalProjects([PROJECT_ID]);
+
   if (failed > 0) {
     console.error(`EVAL FAILED — ${failed} check(s) failed`);
     process.exit(1);

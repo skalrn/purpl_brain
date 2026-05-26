@@ -53,6 +53,7 @@
 import "dotenv/config";
 import neo4j from "neo4j-driver";
 import { createHmac } from "crypto";
+import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -1550,6 +1551,13 @@ async function main() {
   console.log(`  Failed:  ${failed}`);
   console.log(`  Skipped: ${skipped}${!API_KEY ? " (expected — no API key)" : ""}`);
   console.log(`  Total:   ${total}`);
+
+  console.log("\n  Cleaning up eval data...");
+  await cleanupEvalProjects([
+    TENANT_PLATFORM, TENANT_WAREHOUSE, TENANT_LASTMILE,
+    `eval_ent_fp_${RUN_ID}`,
+    `helix-eval_${RUN_ID}-warehouse`,
+  ]);
 
   if (failed > 0) {
     console.error(`\n  FAIL — ${failed} check(s) failed.\n`);
