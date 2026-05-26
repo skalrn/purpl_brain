@@ -68,6 +68,26 @@ Rejected. Unstructured summaries cannot be reliably parsed for entity extraction
 
 ## Future Enhancements
 
+### Relationship to A2A Protocols
+
+**A2A and purpl-brain are complementary, not competing.** A2A (Agent-to-Agent) defines a coordination protocol — task routing, handoff lifecycle (pending/working/completed), and asynchronous message passing over JSON-RPC or REST. It answers: *has this task been completed?* It does not answer: *why was this decision made, what alternatives were considered, and has anything since contradicted it?*
+
+The scenario that surfaces this distinction: Agent 1 takes decisions, logs them, and sleeps. Agent 2 wakes up and needs to check whether a specific decision has already been made. An A2A-aware system can confirm the task is `completed`. But it cannot surface the rationale, the alternatives considered, the signal trail (which PR, which Slack thread, which prior agent session informed the choice), or whether a newer signal has drifted against it. That is what `brain_query` returns.
+
+**The stack in a fully A2A-compatible deployment:**
+
+```
+A2A protocol layer     — task routing, handoff, lifecycle state
+purpl-brain            — semantic decision memory, rationale, citations, drift detection
+Vector DB (Qdrant)     — the retrieval infrastructure both layers can use
+```
+
+Agent 2 would use A2A to receive the handoff and confirm task state, then call `brain_query` to load the *why* behind decisions made in Agent 1's session. The two calls answer different questions.
+
+**Shared infrastructure (not duplication):** The response pattern "query a vector DB for similar reasoning logs" that A2A ecosystems describe is exactly what Qdrant does in this stack. purpl-brain is not adding a redundant retrieval layer — it is providing the structured schema, graph linking, citation grounding, and drift detection on top of that infrastructure that A2A does not specify.
+
+**The risk to watch:** If a major A2A runtime ships a first-party "shared decision memory" feature with rationale capture and drift detection, that would be direct overlap. Currently A2A is a protocol spec, not a product at that layer.
+
 ### A2A Notification Path for Live Agent Sessions
 
 The current model is pull-based: agents emit a log at session end, and the next session reads it. This leaves a gap for long-running agent sessions that span hours — they are unaware of `DriftAlert` nodes created after they started.
