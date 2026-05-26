@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-Project Brain — a shared working memory for human-agent software teams. It ingests signals from GitHub, Slack, Jira, meetings, and AI agent sessions, maintains a continuously updated knowledge graph, and serves context to humans and agents via a natural language query interface.
+Project Brain — a shared working memory for human-agent software teams. It ingests signals from GitHub, Slack, meetings, and AI agent sessions, maintains a continuously updated knowledge graph, and serves context to humans and agents via a natural language query interface.
 
 The core insight: AI agents are first-class actors that both read from and write to the brain. Agent decision trails are ingested and stored alongside human-generated signals.
 
@@ -17,7 +17,7 @@ docs/
     llm-cost-controls.md          # Prompt caching patterns, breakpoint placement, anti-patterns
     adrs/
       001-hybrid-brain-store.md        # Vector DB + Graph DB rationale
-      002-mcp-server-interface.md      # Why MCP over bespoke agent SDK; Python SDK for LangGraph/ADK
+      002-mcp-server-interface.md      # Why MCP over bespoke agent SDK
       003-event-driven-ingestion.md    # Webhook-first with Redis Streams queue
       004-agent-decision-trails.md     # Agent log schema and write-back design
       005-embedding-model.md           # Embedding model selection rationale
@@ -27,15 +27,15 @@ docs/
 
 - **Brain store:** Hybrid — Qdrant (vector) for semantic retrieval + Neo4j (graph) for causal/relational reasoning. See ADR-001.
 - **Ingestion:** Webhook-first, event-driven. Redis Streams pipeline: RAW → NORMALIZED → EXTRACTED. See ADR-003.
-- **Agent interface:** Three paths — (1) MCP server for Claude Code and Cursor; (2) Python SDK (`packages/python`) with LangGraph `@tool` wrappers and Google ADK callables; (3) REST API directly for any HTTP-capable agent. All four operations (query, log-decision, analyze-impact, log-signal) are available on every path. See ADR-002, ADR-004.
+- **Agent interface:** Two paths — (1) MCP server for Claude Code; (2) REST API directly for any HTTP-capable agent. All four operations (query, log-decision, analyze-impact, log-signal) are available on both paths. See ADR-002, ADR-004.
 - **Query:** RAG + graph traversal combined. Every answer is grounded with citations to source (URL, timestamp, actor).
 - **Drift detection:** Two-stage — Qdrant semantic similarity (Stage A) + LLM confirmation (Stage C). Writes `DriftAlert` nodes.
 
 ## Phase Status
 
 - **Phase 1** ✓ complete — GitHub ingestion → brain update → natural language query with citations
-- **Phase 2** ✓ complete — Multi-source ingestion (Slack, Jira, meetings, agent logs), drift detection, temporal diff, impact analysis, streaming LLM responses
-- **Phase 3** in progress — MCP server (M1 ✓), agent write-back (M2 ✓), MCP eval + docs (M3 in progress), beta setup polish (M4), identity resolution (M5), AWS packaging (M6)
+- **Phase 2** ✓ complete — Multi-source ingestion (Slack, meetings, agent logs), drift detection, temporal diff, impact analysis, streaming LLM responses
+- **Phase 3** in progress — MCP server (M1 ✓), agent write-back (M2 ✓), MCP eval (M3 ✓), beta setup polish (M4), identity resolution (M5)
 
 ## MCP Setup (Claude Code)
 
@@ -82,34 +82,7 @@ The purpl-brain MCP server exposes 4 tools to any agent connected to the brain:
 ```bash
 MCP_TRANSPORT=http MCP_PORT=3002 node apps/mcp/dist/index.js
 ```
-Set `BRAIN_API_URL` to your deployed brain URL. Required for AWS-hosted deployments (M6).
-
-**Cursor setup:** see `apps/mcp/cursor-config.example.json`.
-
-## Python SDK Setup (LangGraph / ADK)
-
-For agents built with LangGraph, Google ADK, or any Python orchestration framework, use `packages/python` instead of the MCP server.
-
-```bash
-pip install -e "packages/python[langgraph]"   # LangGraph / LangChain agents
-pip install -e "packages/python[adk]"          # Google ADK agents
-pip install -e "packages/python[all]"          # both
-```
-
-```python
-from purpl_brain import BrainClient, langgraph_tools, adk_tools
-
-client = BrainClient()  # reads BRAIN_API_URL + BRAIN_API_KEY from env
-
-# LangGraph
-tools = langgraph_tools(client)  # returns list of @tool instances
-
-# ADK
-from google.adk.tools import FunctionTool
-tools = [FunctionTool(fn) for fn in adk_tools(client)]
-```
-
-All four operations are available: `brain_query`, `brain_log_decision`, `brain_analyze_impact`, `brain_log_signal`. See `packages/python/examples/` for full session lifecycle examples.
+Set `BRAIN_API_URL` to your deployed brain URL.
 
 ## Brain Tool Usage Protocol
 
@@ -172,7 +145,7 @@ These tools are deferred — their schemas are not loaded by default. Use `ToolS
 
 **`brain_analyze_impact`** — required: `change_description` (string), `project_id` (string)
 
-**`brain_log_signal`** — required: `text` (string), `project_id` (string); optional: `source` (`"github"` | `"slack"` | `"jira"` | `"meeting"` | `"agent"` | `"document"`, default `"agent"`)
+**`brain_log_signal`** — required: `text` (string), `project_id` (string); optional: `source` (`"github"` | `"slack"` | `"meeting"` | `"agent"` | `"document"`, default `"agent"`)
 
 **`brain_log_decision`** — required:
 ```

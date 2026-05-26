@@ -1,6 +1,6 @@
 # purpl-brain Onboarding Guide
 
-**What this is:** A shared working memory for human-agent software teams. It ingests signals from GitHub, Slack, Jira, meetings, and AI agent sessions — extracts decisions, builds a knowledge graph, and serves grounded, cited answers to anyone who asks, including AI agents mid-session.
+**What this is:** A shared working memory for human-agent software teams. It ingests signals from GitHub, Slack, meetings, and AI agent sessions — extracts decisions, builds a knowledge graph, and serves grounded, cited answers to anyone who asks, including AI agents mid-session.
 
 **What you'll get from this doc:** a working local setup, a mental model of how the system works, and enough context to navigate the codebase confidently.
 
@@ -14,7 +14,6 @@ purpl_brain/
     api/          ← Fastify API server: all ingestion, extraction, query, auth
     mcp/          ← MCP server: 4 tools that expose the brain to AI agents
     web/          ← Next.js chat UI
-    cdk/          ← AWS CDK infra (Phase 3 M6 — not needed for local dev)
   packages/
     types/        ← Shared TypeScript types across apps
   docs/
@@ -101,7 +100,7 @@ The API key was printed at the end of `setup.sh`. Restart Claude Code. You shoul
 
 Every piece of knowledge enters via one of two paths and ends up in the same graph.
 
-### Path 1 — Inbound signals (GitHub, Slack, Jira, meetings)
+### Path 1 — Inbound signals (GitHub, Slack, meetings)
 
 ```
 Webhook or seed script
@@ -293,7 +292,7 @@ This wipes derived state (Neo4j nodes, Qdrant chunks) for the project and replay
 ## Phase status
 
 - **Phase 1** ✓ — GitHub ingestion → knowledge graph → natural language query with citations
-- **Phase 2** ✓ — Slack, Jira, meetings, agent logs, drift detection, temporal diff, streaming
+- **Phase 2** ✓ — Slack, meetings, agent logs, drift detection, temporal diff, streaming
 - **Phase 3** in progress — MCP server (M1 ✓), agent write-back (M2 ✓), MCP eval (M3 ✓), beta polish (M4), identity resolution (M5), AWS packaging (M6)
 
 All work merges to `main` after phase exit criteria are met.

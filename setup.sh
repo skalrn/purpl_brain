@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Purpl Brain — setup
 # Gets the agent memory loop working in ~5 minutes.
-# GitHub, Slack, and Jira can be connected afterwards.
+# GitHub and Slack can be connected afterwards.
 #
 # Usage: bash setup.sh
 
@@ -22,9 +22,9 @@ echo "This gets the agent memory loop working:"
 echo "  1. Collect your Anthropic API key and a project name"
 echo "  2. Build the MCP server"
 echo "  3. Start infrastructure (Redis, Neo4j, Qdrant)"
-echo "  4. Print the Claude Code / Cursor config to paste"
+echo "  4. Print the Claude Code MCP config to paste"
 echo ""
-echo -e "${YELLOW}GitHub, Slack, and Jira are optional — connect them later.${RESET}"
+echo -e "${YELLOW}GitHub and Slack are optional — connect them later.${RESET}"
 echo ""
 
 # ── Docker check ──────────────────────────────────────────────────────────────
@@ -92,10 +92,6 @@ DEFAULT_PROJECT_ID=${PROJECT_ID}
 # SLACK_BOT_TOKEN=xoxb-...
 # SLACK_APP_TOKEN=xapp-...
 # SLACK_CHANNEL_IDS=C01234,C05678
-
-# ── Jira (optional) ─────────────────────────────────────────────────────────
-# JIRA_BASE_URL=https://myorg.atlassian.net
-# JIRA_WEBHOOK_SECRET=...
 
 # ── Tuning ──────────────────────────────────────────────────────────────────
 DRIFT_SEMANTIC_THRESHOLD=0.55
@@ -188,9 +184,6 @@ cat << MCPCONFIG
 MCPCONFIG
 
 echo ""
-echo -e "${YELLOW}For Cursor: paste the same block into .cursor/mcp.json in your project root.${RESET}"
-echo -e "${YELLOW}Change BRAIN_AGENT_ID to \"cursor\" if using Cursor.${RESET}"
-
 # ── Print CLAUDE.md snippet ───────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
@@ -273,9 +266,6 @@ echo "           npm run seed:github -w apps/api -- --repo org/repo"
 echo ""
 echo "  Slack:   uncomment SLACK_* vars in apps/api/.env, then:"
 echo "           npm run worker:slack -w apps/api"
-echo ""
-echo "  Jira:    uncomment JIRA_* vars in apps/api/.env, then:"
-echo "           npm run seed:jira -w apps/api -- --project YOUR_PROJECT"
 echo ""
 echo "  Docs/transcripts: see README.md for the ingest API."
 echo ""

@@ -89,7 +89,7 @@ Query (brain_query)
 
 ## The four MCP tools
 
-Add purpl-brain to Claude Code or Cursor. Four tools become available in every session:
+Add purpl-brain to Claude Code. Four tools become available in every session:
 
 | Tool | When to call |
 |------|-------------|
@@ -164,8 +164,6 @@ Paste into `~/.claude/settings.json`:
   }
 }
 ```
-
-For Cursor: `apps/mcp/cursor-config.example.json`.
 
 **Make Claude call these automatically** — add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
 
