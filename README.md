@@ -142,6 +142,9 @@ Web UI: `http://localhost:3000` · API: `http://localhost:3001/health`
 | Avg query latency | ~7s | ~60–90s |
 | External keys | Anthropic + OpenAI | None |
 | Cost | ~$5–15/month active team | Free |
+| Test status | **Not yet verified end-to-end** | **Tested** |
+
+The Ollama path has been tested end-to-end. The Anthropic path is wired and the code paths exist, but has not been run through a full integration test. If you try it and hit issues, please open an issue.
 
 Both paths produce 768-dim vectors — the Qdrant collection is compatible between providers.
 
