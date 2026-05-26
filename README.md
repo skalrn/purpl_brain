@@ -224,16 +224,6 @@ npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
 
 ---
 
-## Snapshot and restore
-
-```bash
-bash brain-snapshot.sh my-project-v1.0          # creates brain_snapshot_my-project-v1.0.tar.gz
-bash brain-snapshot.sh my-project-v1.0 --push   # also creates a GitHub release
-bash brain-restore.sh brain_snapshot_my-project-v1.0.tar.gz
-```
-
----
-
 ## Architecture and design documents
 
 | Audience | Document |
@@ -258,19 +248,3 @@ npm run worker:drift -w apps/api
 npm run dev -w apps/web                   # web UI on :3000
 ```
 
----
-
-## Releasing
-
-Push a branch prefixed `release-` to trigger the GitHub Actions build:
-
-```bash
-git checkout -b release-beta-0.1.0
-git push
-```
-
-Builds and pushes Docker images to GHCR:
-- `ghcr.io/skalrn/purpl-brain-api:beta-latest`
-- `ghcr.io/skalrn/purpl-brain-web:beta-latest`
-
-Stable releases: `release-0.1.0` → tags `0.1.0` and `latest`.
