@@ -12,8 +12,8 @@
 #   Install: https://ollama.com
 #   Required models:
 #     ollama pull nomic-embed-text:v1.5   # embeddings — always required
-#     ollama pull gemma3:4b              # fast extraction  (LLM_PROVIDER=ollama)
-#     ollama pull gemma3:12b             # query answering  (LLM_PROVIDER=ollama)
+#     ollama pull qwen2.5:7b             # fast extraction  (LLM_PROVIDER=ollama)
+#     ollama pull llama3.1:8b            # query answering  (LLM_PROVIDER=ollama)
 #   Then set LLM_PROVIDER=ollama in .env (leave ANTHROPIC_API_KEY blank).
 
 services:
