@@ -61,10 +61,10 @@ Measured against manually labeled test cases. Self-measured, not independently v
 **Working:**
 - Cross-session recall: 5/5 decisions logged by different agent sessions, recalled correctly by a new session with no shared context
 - Decision extraction F1: 85.7% against 30 manually labeled GitHub PRs (precision 92.3%, recall 80.0%)
-- End-to-end answer recall: 95.5% (21/22 queries correct or partial) against the honojs/hono public corpus — cold ingestion of 50 PRs and 30 issues sorted by discussion volume, then queried with no curated hints
+- End-to-end answer recall: 95.5% (21/22 queries correct or partial). Corpus: top 50 PRs and 30 issues from honojs/hono sorted by comment count, minimum 3 comments, bots and trivial dependency bumps filtered out. Selection criterion was discussion volume — high-comment threads are where real decisions happen. No curated seed, no cherry-picked questions. 22 queries written before running the eval, covering router design choices, breaking change rationale, migration decisions, middleware rejections, and negatives (questions with no answer in the data). Graded by auto-scorer with word-overlap; partial credit for answers hitting some but not all expected facts.
 - Drift detection: known contradictions caught with less than 8% false positive rate on benign content
 - Citation faithfulness: zero fabricated source URLs or quoted text across all test cases
-- Query latency: ~14s p50 / ~28s p95 on local Ollama (llama3.1:8b); ~2s on cloud API
+- Query latency: ~14s p50 / ~28s p95 on local Ollama (llama3.1:8b); ~2s on cloud API. Latency scales with answer complexity — synthesis queries over many chunks are slower than point lookups.
 
 **Not yet validated:** multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis early access is designed to test.
 

@@ -126,7 +126,10 @@ The repo is open source at github.com/skalrn/purpl_brain. If you are managing a 
 - Reading time: ~8 minutes
 - Validated metrics (as of 2026-05-27, qwen2.5:7b + llama3.1:8b):
     Cross-session recall: 5/5 (100%)
-    End-to-end answer recall: 95.5% on honojs/hono public corpus
-    Query latency: ~14s p50 / ~28s p95 local Ollama; ~2s cloud API
+    End-to-end answer recall: 95.5% (21/22 queries) — corpus: top 50 PRs + 30 issues
+      from honojs/hono sorted by comment count (min 3, bots + trivial bumps filtered);
+      22 queries written before eval covering router design, breaking changes, migration
+      rationale, middleware rejections, and negatives; auto-graded with partial credit
+    Query latency: ~14s p50 / ~28s p95 local Ollama (llama3.1:8b); ~2s cloud API
     Citation faithfulness: 0 fabricated
 -->
