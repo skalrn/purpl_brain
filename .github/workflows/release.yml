@@ -12,7 +12,6 @@ on:
 env:
   REGISTRY: ghcr.io
   API_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain-api
-  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain-web
 
 jobs:
   build-and-push:
@@ -42,7 +41,6 @@ jobs:
           echo "channel=${CHANNEL}"   >> "$GITHUB_OUTPUT"
           echo "latest_tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
           echo "api_version_tag=${CHANNEL}-${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "web_version_tag=${CHANNEL}-${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Branch: $BRANCH | Channel: $CHANNEL | Version: $VERSION"
 
       - name: Log in to GHCR
@@ -67,32 +65,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push Web image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          build-args: |
-            NEXT_PUBLIC_API_URL=http://localhost:3001
-          tags: |
-            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.web_version_tag }}
-            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.latest_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # ── Security checks (C3, H3) ────────────────────────────────────────────
-
-      - name: "C3 — verify no API key baked into web bundle"
-        run: |
-          docker build -t brain-web-ci apps/web/ --build-arg NEXT_PUBLIC_API_URL=http://localhost:3001
-          result=$(docker run --rm brain-web-ci sh -c \
-            'grep -r "NEXT_PUBLIC_API_KEY" /app/.next 2>/dev/null && echo FOUND || echo CLEAN')
-          echo "Result: $result"
-          if [ "$result" = "FOUND" ]; then
-            echo "FAIL: NEXT_PUBLIC_API_KEY found in web bundle"
-            exit 1
-          fi
+      # ── Security checks (H3) ───────────────────────────────────────────────
 
       - name: "H3 — verify Neo4j ports not exposed in prod compose"
         run: |
@@ -111,7 +84,6 @@ jobs:
           echo "| Image | Tags |" >> "$GITHUB_STEP_SUMMARY"
           echo "|-------|------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| API | \`${{ steps.meta.outputs.api_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Web | \`${{ steps.meta.outputs.web_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Tester pull command:" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
