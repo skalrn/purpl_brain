@@ -12,7 +12,7 @@ The system works end-to-end for one developer plus AI agents. The open question 
 
 Your agents are starting cold on a codebase your team has been building for years.
 
-They don't know you chose PostgreSQL over MongoDB because of a compliance requirement. They don't know you rejected the microservices rewrite six months ago. They don't know the JWT expiry was shortened after a security audit, not arbitrarily. Every session, they rediscover or — worse — contradict decisions your team already made.
+They don't know the cache layer was bypassed for that one endpoint because it was returning stale data under load. They don't know the retry interval was set to 90 seconds after a staging failure nobody fully documented. They don't know the API field was renamed mid-sprint because a mobile client was already using the old name. Every session, they rediscover or — worse — contradict decisions your team already made.
 
 The deeper problem: humans and agents decide things in different places. A developer makes a choice in a Slack thread. An agent makes a choice in a coding session. Neither system knows what the other decided. CLAUDE.md files cap out at a few hundred lines and go stale. Session history captures noise, not signal.
 
