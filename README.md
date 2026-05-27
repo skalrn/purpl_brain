@@ -45,6 +45,12 @@ Validated end-to-end for one developer plus AI agents:
 
 Not yet validated: multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis early access is designed to test.
 
+**Known limitations:**
+
+- **Impact analysis risk tiers are LLM-only.** `brain_analyze_impact` asks an LLM to classify risk as `critical`, `high`, `medium`, or `low` against a natural-language rubric. The same change described differently can produce different tiers. Decision metadata (confidence level, downstream reference count, open drift alerts, age) is not used to enforce a minimum tier. Treat the result as a first signal requiring review, not a gate. See [ADR-006](docs/technical/adrs/006-impact-analysis-design.md) for what a rule-based floor would look like.
+- **Drift detection skips GitHub-sourced decisions** to reduce false positives from PR noise. Decisions extracted from GitHub PRs are not candidates for drift matching.
+- **Source coverage is partial.** Agent sessions and local documents are tested. GitHub webhook ingestion and Slack ingestion are implemented but not yet run through a full validation pass.
+
 ---
 
 ## Real numbers
@@ -240,6 +246,7 @@ npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
 | Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
 | Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
+| Impact analysis design and limits | [docs/technical/adrs/006-impact-analysis-design.md](docs/technical/adrs/006-impact-analysis-design.md) |
 
 ---
 

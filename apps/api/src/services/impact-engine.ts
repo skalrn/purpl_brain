@@ -1,3 +1,14 @@
+// Impact analysis — known design gap (see ADR-006):
+// Risk tiers (critical/high/medium/low) are assigned entirely by LLM judgment
+// against a vague rubric. The same change described differently can produce
+// different tiers. Decision metadata (confidence, downstream references, open
+// drift alerts, age) is not used to enforce a minimum tier floor.
+//
+// What needs improving: a hybrid model where rule-based pre-scoring sets a floor
+// (decision.confidence=high → floor medium; open DriftAlert → floor high) and
+// the LLM assessment adds nuance on top. overall_risk = max(rule_floor, llm_tier).
+// Until then, treat impact analysis as a first signal requiring human review,
+// not a gate that can be acted on automatically.
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { getDecisionsWithTicketsByEventIds } from "../lib/neo4j.js";
