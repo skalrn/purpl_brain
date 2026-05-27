@@ -2,9 +2,9 @@
 
 I built purpl-brain as a personal project to test a specific hypothesis: AI agents start every session cold, re-deriving context that previous sessions already settled. If you give them a shared decision memory, does that actually fix it? This is what I built, what the architecture looks like, and what I learned.
 
-The standard answer is better documentation: ADRs, runbooks, decision logs. That answer is partially right. ADRs are for decisions significant enough to warrant a formal record. Most decisions aren't, and shouldn't be — the bar exists for good reason. Those decisions live in a Slack thread that ended without a summary, a PR comment that closed without a follow-up, or an agent session nobody wrote up because it felt like an implementation detail. They are still the decisions that determine how the codebase behaves.
+The standard answer is better documentation: ADRs, runbooks, decision logs. That answer is partially right. ADRs are for decisions significant enough to warrant a formal record. Most decisions aren't, and shouldn't be. The bar exists for good reason. Those decisions live in a Slack thread that ended without a summary, a PR comment that closed without a follow-up, or an agent session nobody wrote up because it felt like an implementation detail. They are still the decisions that determine how the codebase behaves.
 
-Take the decisions that happen in the middle of a sprint: the API field renamed because a mobile client was already using that name in production; the cache layer bypassed for one endpoint because it was returning stale data during load testing; the background job retry interval set to 90 seconds after a staging failure nobody fully understood. None of those made it into an ADR. All of them matter when the next session touches those areas. None of them survive a session boundary.
+Take the decisions that accumulate on a real open-source project. Hono's `getPath()` function was modified to decode URL paths by default after a discussion about where URI decoding responsibility belongs in the router. A proposal to allow paths starting with `/` to be treated as absolute paths was rejected because it conflicted with the router's existing conventions. A digest middleware PR implemented only `generateDigest` and not the full spec because the scope cut was made for simplicity and performance reasons at the time. None of those made it into an ADR. All of them matter when the next session touches those areas. None of them survive a session boundary.
 
 The repo is open source at github.com/skalrn/purpl_brain.
 
@@ -66,7 +66,7 @@ Measured against manually labeled test cases. Self-measured, not independently v
 - Citation faithfulness: zero fabricated source URLs or quoted text across all test cases
 - Query latency: ~14s p50 / ~28s p95 on local Ollama (llama3.1:8b); ~2s on cloud API. Latency scales with answer complexity — synthesis queries over many chunks are slower than point lookups.
 
-**Not yet validated:** multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis early access is designed to test.
+**Not yet validated:** multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis I want to test with real teams.
 
 ## Observations and Limits
 
