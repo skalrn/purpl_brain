@@ -62,13 +62,13 @@ Measured against the builder's own eval suite and manually labeled test cases �
 |---|---|---|
 | Cross-session recall | **5/5 (100%)** | Decisions logged by 3 different agents over 3 weeks, recalled correctly by a new session with no prior context |
 | Decision extraction F1 | **85.7%** | Precision 92.3% / Recall 80.0% — against manually labeled ground truth on 30 real GitHub PRs |
-| End-to-end answer recall | **91%** | Cold ingestion of Backstage (Spotify) public ADRs — 11/12 ground-truth questions answered correctly |
+| End-to-end answer recall | **95.5%** | 21/22 queries answered correctly or partially against honojs/hono public corpus (qwen2.5:7b + llama3.1:8b) |
 | Pipeline correctness | **33/33 PASS** | Full pipeline: ingestion → extraction → graph integrity → query → drift detection |
 | MCP tool correctness | **8/8 PASS** | All 4 MCP tools verified against REST API equivalents |
 | Drift detection recall | **≥ 80%** | Known contradictions caught; < 8% false positive rate on benign content |
 | Citation faithfulness | **0 fabricated** | Every cited source_url and quoted_text verified against source documents |
 | Attribution accuracy | **5/5 (100%)** | actor.id, source type, and quote overlap correct across 5 agent_ids |
-| Query latency p50 / p95 | **4.7s / 9.8s** | Ollama (qwen2.5:7b + llama3.1:8b), cross-session queries |
+| Query latency p50 / p95 | **13.6s / 27.8s** | Ollama local (llama3.1:8b); ~2s on cloud API (Claude / Bedrock) |
 
 ---
 
@@ -144,7 +144,7 @@ API: `http://localhost:3001/health`
 |---|---|---|
 | LLM | qwen2.5:7b (extraction) + llama3.1:8b (query) | Claude Haiku |
 | Embeddings | nomic-embed-text:v1.5 | nomic-embed-text:v1.5 (Ollama still required) |
-| Avg query latency | ~60–90s | ~7s |
+| Avg query latency | ~14s (p50), ~28s (p95) | ~2s |
 | External keys | None | Anthropic API key |
 | Cost | Free | ~$5–15/month active team |
 | Test status | **Tested** | **Not yet verified end-to-end** |
