@@ -4,7 +4,7 @@
 
 I built this to find out whether the idea would actually hold up: a single graph where both humans and AI agents write what they decided and why, so neither has to re-derive what the other already figured out.
 
-The system works end-to-end for one developer plus AI agents. The open question — and the reason for early access — is whether the structured decision trail holds value when a second human joins the graph. If that problem resonates with your team, I'd like to hear from you.
+The system works end-to-end for one developer plus AI agents. The open question is whether the structured decision trail holds value when a second human joins the graph. If that problem resonates with your team, I'd like to hear from you.
 
 ---
 
@@ -38,10 +38,10 @@ Validated end-to-end for one developer plus AI agents:
 
 - Write-back, schema validation, and retry loop
 - Cross-session retrieval with citations: a decision logged by one agent session is correctly recalled by a later session with no shared context
-- Multi-source ingestion: GitHub, Slack, and meeting transcripts in the same graph as agent decisions
+- Multi-source ingestion: agent sessions, meeting transcripts, and local documents in the same graph
 - Drift detection: tested with contradictory inputs, surfaces alerts with correct context
 
-Not yet validated: multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the specific hypothesis early access is designed to test.
+Not yet validated: multiple developers writing to the same graph. Whether the structured decision trail holds value when a second human joins is the open question this project is designed to answer.
 
 **Known limitations:**
 
@@ -68,7 +68,7 @@ Measured against the builder's own eval suite and manually labeled test cases �
 | Drift detection recall | **≥ 80%** | Known contradictions caught; < 8% false positive rate on benign content |
 | Citation faithfulness | **0 fabricated** | Every cited source_url and quoted_text verified against source documents |
 | Attribution accuracy | **5/5 (100%)** | actor.id, source type, and quote overlap correct across 5 agent_ids |
-| Query latency p50 / p95 | **4.7s / 9.8s** | Anthropic Claude Haiku, cross-session queries |
+| Query latency p50 / p95 | **4.7s / 9.8s** | Ollama (qwen2.5:7b + llama3.1:8b), cross-session queries |
 
 ---
 
@@ -113,7 +113,7 @@ Add the CLAUDE.md snippet from `setup.sh` to your project repo and these calls h
 
 ## Quick start
 
-**Prerequisites:** Docker Desktop, Node.js 20+, Anthropic API key, OpenAI API key (embeddings)
+**Prerequisites:** Docker Desktop, Node.js 20+, [Ollama](https://ollama.ai) with `nomic-embed-text:v1.5`, `qwen2.5:7b`, and `llama3.1:8b` pulled
 
 ```bash
 git clone https://github.com/skalrn/purpl_brain
@@ -121,35 +121,33 @@ cd purpl_brain
 bash setup.sh
 ```
 
-`setup.sh` collects your keys, writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste MCP config and CLAUDE.md snippet.
+`setup.sh` writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste MCP config and CLAUDE.md snippet. Ollama runs on the host; the containers reach it via `host.docker.internal`.
 
-### Early access (pre-built images)
+### Pre-built images
 
-No source build needed. Requires Docker and a GitHub account with access to the GHCR images.
+No source build needed. Requires Docker and Ollama running on the host.
 
 ```bash
 docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
 cp .env.example .env
-# Fill in ANTHROPIC_API_KEY + OPENAI_API_KEY (or set LLM_PROVIDER=ollama)
+# Set LLM_PROVIDER=ollama (default) — no API keys required
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Web UI: `http://localhost:3000` · API: `http://localhost:3001/health`
-
-> **Note:** The web UI is under active development. Core flows (ingest, query, decisions, drift) work. Some views are incomplete or placeholder. The API and MCP server are stable — if you prefer a minimal setup, the API alone is fully functional without the web layer.
+API: `http://localhost:3001/health`
 
 ---
 
 ## LLM provider options
 
-| | Anthropic path | Ollama path |
+| | Ollama path (default) | Anthropic path |
 |---|---|---|
-| LLM | Claude Haiku (extraction + query) | gemma3n:e2b + gemma2:9b |
-| Embeddings | nomic-embed-text:v1.5 (Ollama) | nomic-embed-text:v1.5 (Ollama) |
-| Avg query latency | ~7s | ~60–90s |
-| External keys | Anthropic API key only | None |
-| Cost | ~$5–15/month active team | Free |
-| Test status | **Not yet verified end-to-end** | **Tested** |
+| LLM | qwen2.5:7b (extraction) + llama3.1:8b (query) | Claude Haiku |
+| Embeddings | nomic-embed-text:v1.5 | nomic-embed-text:v1.5 (Ollama still required) |
+| Avg query latency | ~60–90s | ~7s |
+| External keys | None | Anthropic API key |
+| Cost | Free | ~$5–15/month active team |
+| Test status | **Tested** | **Not yet verified end-to-end** |
 
 Both paths use Ollama for embeddings (`nomic-embed-text:v1.5` — always required). This keeps a single embedding space so you can switch LLM providers without re-indexing Qdrant.
 
@@ -262,6 +260,5 @@ npm run worker:normalizer -w apps/api
 npm run worker:extractor -w apps/api
 npm run worker:brain-writer -w apps/api
 npm run worker:drift -w apps/api
-npm run dev -w apps/web                   # web UI on :3000
 ```
 
