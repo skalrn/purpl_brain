@@ -1,12 +1,12 @@
 /**
- * M6 multi-source query accuracy eval — 22 queries spanning GitHub, Slack,
- * meetings, and Jira sources.
+ * Query accuracy eval — 22 queries spanning Hono open-source project decisions.
  *
+ * Corpus: honojs/hono GitHub PRs, issues, CONTRIBUTING.md, MIGRATION.md
  * Scoring: each query is graded correct / partial / incorrect / no-info
  * Target: > 80% correct or partially correct
  *
  * Usage:
- *   tsx src/scripts/eval-query.ts [--project encode_httpx] [--json]
+ *   tsx src/scripts/eval-query.ts [--project honojs_hono] [--json]
  *
  * Interactive mode (default): prints each answer and prompts for a grade.
  * JSON mode (--json): runs all queries, dumps results to eval/query-eval.json
@@ -31,158 +31,159 @@ interface TestQuery {
 }
 
 const TEST_QUERIES: TestQuery[] = [
-  // Compression policy
+  // Router architecture — core design decision
   {
     id: "Q01",
-    query: "What is the httpx 1.0 compression policy? What formats will be supported?",
-    expected_facts: ["gzip only", "zstd/zstandard deferred or not included"],
+    query: "Why does Hono use RegExpRouter instead of a trie-based router?",
+    expected_facts: ["performance", "regexp", "trie", "routing speed"],
     should_have_answer: true,
   },
+  // v4 breaking change rationale
   {
     id: "Q02",
-    query: "Was there a decision about Zstandard compression support in httpx?",
-    expected_facts: ["gzip only policy", "zstd not included in 1.0"],
+    query: "Why was app.head() changed to be implicit in Hono v4?",
+    expected_facts: ["implicit", "HEAD", "v4", "breaking"],
     should_have_answer: true,
   },
-  // URL credential handling
+  // Context extension decision
   {
     id: "Q03",
-    query: "What was decided about showing user credentials in URL string representation?",
-    expected_facts: ["rejected", "credentials preserved", "URL.__str__ unchanged"],
+    query: "What did the team decide about extending the Context object in Hono?",
+    expected_facts: ["context", "extend", "type"],
     should_have_answer: true,
   },
-  // Python version support
+  // URI decoding
   {
     id: "Q04",
-    query: "Which Python versions were dropped from the test matrix?",
-    expected_facts: ["Python 3.10 dropped"],
+    query: "What was decided about URI decoding behavior in the Hono router?",
+    expected_facts: ["URI", "decode", "router", "path"],
     should_have_answer: true,
   },
-  // asyncio / event loop
+  // Middleware rejections
   {
     id: "Q05",
-    query: "What asyncio changes were made for Python 3.14 compatibility?",
-    expected_facts: ["asyncio.get_event_loop() replaced", "explicit event loop creation", "background threads"],
+    query: "What middleware proposals were rejected in Hono and why?",
+    expected_facts: ["middleware", "rejected"],
     should_have_answer: true,
   },
-  // brotli warning
+  // JSR migration
   {
     id: "Q06",
-    query: "What happens when the brotli extra is missing but a server sends brotli-encoded content?",
-    expected_facts: ["explicit warning", "not silent", "brotli extra missing"],
+    query: "Why did Hono migrate from deno.land/x to JSR?",
+    expected_facts: ["JSR", "deno.land", "migration", "registry"],
     should_have_answer: true,
   },
-  // HTTPParser wait_ready
+  // TypeScript validator types
   {
     id: "Q07",
-    query: "What is the purpose of the .wait_ready() method added to HTTPParser?",
-    expected_facts: ["distinguish clean disconnect from protocol errors", "server disconnect"],
+    query: "What was decided about TypeScript type inference in Hono validators?",
+    expected_facts: ["TypeScript", "type", "validator", "inference"],
     should_have_answer: true,
   },
-  // Security / CVE
+  // Breaking changes policy
   {
     id: "Q08",
-    query: "What decision was made about enforcing minimum h11 or httpcore versions for the security fix?",
-    expected_facts: ["no constraint", "users can upgrade directly", "no minimum version enforced"],
+    query: "What is Hono's policy for introducing breaking changes?",
+    expected_facts: ["breaking", "semver", "major", "version"],
     should_have_answer: true,
   },
-  // MockTransport / deferred
+  // Most contested decision
   {
     id: "Q09",
-    query: "What is the status of the MockTransport elapsed time feature?",
-    expected_facts: ["deferred", "pending design decision", "closed"],
+    query: "What has been the most contested design decision in Hono's history?",
+    expected_facts: [],
     should_have_answer: true,
   },
-  // FunctionAuth
+  // Runtime support scope
   {
     id: "Q10",
-    query: "Is FunctionAuth part of the public httpx API?",
-    expected_facts: ["yes", "public API", "__all__", "httpx.FunctionAuth"],
+    query: "What runtimes does Hono officially support and how was that scope decided?",
+    expected_facts: ["runtime", "Cloudflare", "Deno", "Bun", "Node"],
     should_have_answer: true,
   },
-  // Query param merging
+  // v3 to v4 API changes
   {
     id: "Q11",
-    query: "How does httpx handle merging query parameters in Request.__init__?",
-    expected_facts: ["copy_merge_params", "URL constructor unchanged"],
+    query: "What changed in Hono's API design between v3 and v4?",
+    expected_facts: ["v3", "v4", "breaking", "API"],
     should_have_answer: true,
   },
-  // Weakref / memory management
+  // Contributor architecture decisions
   {
     id: "Q12",
-    query: "How does httpx prevent SSL context reference cycles from blocking garbage collection?",
-    expected_facts: ["weakref", "reference cycle", "SSL context"],
+    query: "What architectural decisions has yusukebe made about Hono's core?",
+    expected_facts: ["yusukebe", "architecture", "core"],
     should_have_answer: true,
   },
-  // CVE-2025-43859 phrasing variation
+  // Middleware bundling
   {
     id: "Q13",
-    query: "What did the team do in response to CVE-2025-43859?",
-    expected_facts: ["no action required", "no constraint change", "h11 or httpcore"],
+    query: "How does Hono decide what goes into the core package vs external middleware?",
+    expected_facts: ["core", "middleware", "package", "bundled"],
     should_have_answer: true,
   },
-  // Temporal / "what changed recently" style
+  // Testing approach
   {
     id: "Q14",
-    query: "What design decisions are currently deferred or pending?",
-    expected_facts: ["MockTransport", "elapsed time", "deferred"],
+    query: "What testing approach does Hono use and why was it chosen?",
+    expected_facts: ["test", "vitest", "jest"],
     should_have_answer: true,
   },
-  // Negative: out-of-scope question
+  // Negative: out-of-scope
   {
     id: "Q15",
-    query: "What is the httpx 1.0 release date?",
+    query: "What is the Hono v5 release date?",
     expected_facts: [],
-    should_have_answer: false,  // not in data — expect "no info" or honest uncertainty
+    should_have_answer: false,  // not in data — expect "no info"
   },
-  // Slack-sourced signal
+  // c.json vs Response
   {
     id: "Q16",
-    query: "Is there any team discussion challenging the httpx compression policy?",
-    expected_facts: ["gzip", "zstd", "reconsider"],
+    query: "What was decided about c.json() helper vs returning raw Response objects?",
+    expected_facts: ["c.json", "Response", "helper"],
     should_have_answer: true,
+  },
+  // Bundler / build tooling
+  {
+    id: "Q17",
+    query: "What build tooling decisions were made for Hono's multi-runtime output?",
+    expected_facts: ["build", "bundle", "tsup", "ESM"],
+    should_have_answer: true,
+  },
+  // Error handling
+  {
+    id: "Q18",
+    query: "How does Hono handle errors and what decisions shaped the error API?",
+    expected_facts: ["error", "handler", "HTTPException"],
+    should_have_answer: true,
+  },
+  // Hono client (hc)
+  {
+    id: "Q19",
+    query: "What was the rationale behind adding the Hono client (hc)?",
+    expected_facts: ["hc", "client", "type", "RPC"],
+    should_have_answer: true,
+  },
+  // Streaming
+  {
+    id: "Q20",
+    query: "What decisions were made about streaming response support in Hono?",
+    expected_facts: ["stream", "streaming", "response"],
+    should_have_answer: true,
+  },
+  // Negative: GraphQL
+  {
+    id: "Q21",
+    query: "Does Hono have a built-in GraphQL server and what was decided about it?",
+    expected_facts: [],
+    should_have_answer: false,
   },
   // Broad summary
   {
-    id: "Q17",
-    query: "What are the most significant architectural decisions made in the httpx project?",
-    expected_facts: ["compression", "asyncio", "URL credentials", "Python versions"],
-    should_have_answer: true,
-  },
-  // Actor-scoped
-  {
-    id: "Q18",
-    query: "What decisions did the httpx maintainers make about closing or deferring PRs?",
-    expected_facts: ["deferred", "MockTransport", "closed"],
-    should_have_answer: true,
-  },
-  // Jira-sourced: authentication API decision
-  {
-    id: "Q19",
-    query: "What decision was made about the httpx public authentication API surface?",
-    expected_facts: ["synchronous", "sync", "authentication"],
-    should_have_answer: true,
-  },
-  // Jira-sourced: retry policy
-  {
-    id: "Q20",
-    query: "Where should retry logic live in httpx — in the core client or elsewhere?",
-    expected_facts: ["middleware", "transport", "not part of the core"],
-    should_have_answer: true,
-  },
-  // Cross-source drift awareness
-  {
-    id: "Q21",
-    query: "Are there signals suggesting the asyncio.get_event_loop decision should be revisited?",
-    expected_facts: ["compatibility", "third-party", "revisit"],
-    should_have_answer: true,
-  },
-  // Negative: no data from future events
-  {
     id: "Q22",
-    query: "What decisions were made about GraphQL support in httpx?",
-    expected_facts: [],
-    should_have_answer: false,
+    query: "What are the most significant architectural decisions made in the Hono project?",
+    expected_facts: ["router", "middleware", "TypeScript", "runtime"],
+    should_have_answer: true,
   },
 ];
 
@@ -255,7 +256,7 @@ async function promptGrade(rl: ReturnType<typeof createInterface>, row: EvalRow)
 async function run() {
   const args = process.argv.slice(2);
   const projectIdx = args.indexOf("--project");
-  const projectId  = projectIdx !== -1 ? args[projectIdx + 1] : "encode_httpx";
+  const projectId  = projectIdx !== -1 ? args[projectIdx + 1] : "honojs_hono";
   const jsonMode   = args.includes("--json");
 
   console.log(`[eval-query] project: ${projectId}, mode: ${jsonMode ? "json" : "interactive"}`);

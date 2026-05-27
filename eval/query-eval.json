@@ -1,298 +1,310 @@
 [
   {
     "id": "Q01",
-    "query": "What is the httpx 1.0 compression policy? What formats will be supported?",
+    "query": "Why does Hono use RegExpRouter instead of a trie-based router?",
     "expected_facts": [
-      "gzip only",
-      "zstd/zstandard deferred or not included"
+      "performance",
+      "regexp",
+      "trie",
+      "routing speed"
     ],
     "should_have_answer": true,
-    "answer": "The project's decision regarding the httpx 1.0 compression policy was to support only gzip compression [9][10][12]. This policy was adopted for the 1.0 release, with the rationale being simplicity and avoiding further complexity [10][12]. Although there were discussions suggesting the inclusion of zstd support, citing its stability in CPython 3.13 [5][6][7][8][13], the project ultimately decided to exclude zstd support for the 1.0 release [9][12].\n\nRegarding supported formats, the primary format confirmed",
-    "citations": 8,
-    "latency_ms": 49369,
+    "answer": "Hono uses RegExpRouter instead of a trie-based router because it is not mentioned in the provided chunks that Hono uses or plans to use a trie-based router. However, the decision to keep Proxy Helper as a helper rather than middleware due to its simplicity and safety concerns [3] suggests that Hono's architecture prioritizes simplicity and safety.\n\nThe context does not provide information on why RegExpRouter is chosen over other routing methods. It only mentions breaking changes and migration guides for specific versions of Hono, but it does not discuss the underlying routing mechanism used by the framework.",
+    "citations": 1,
+    "latency_ms": 5245,
     "grade": "correct"
   },
   {
     "id": "Q02",
-    "query": "Was there a decision about Zstandard compression support in httpx?",
+    "query": "Why was app.head() changed to be implicit in Hono v4?",
     "expected_facts": [
-      "gzip only policy",
-      "zstd not included in 1.0"
+      "implicit",
+      "HEAD",
+      "v4",
+      "breaking"
     ],
     "should_have_answer": true,
-    "answer": "Discussions regarding Zstandard (zstd) compression support in httpx show conflicting decisions. At one point, there was a suggestion to replace the `zstandard` library with `backports.zstd` for Python versions 3.9 through 3.13 [5]. Furthermore, some team members argued that the gzip-only compression policy should be reconsidered and that zstd support should be added, especially since zstd became stable in CPython 3.13 via the compression module [6][7][8][9].\n\nConversely, other decisions established that the project would adopt a policy of supporting only gzip compression for the 1.0 release [10][11][12]. These decisions advised against spending further time on zstd implementation, deeming it a sensible policy to focus solely on gzip for the 1.0 release [10][11][12]. However, the team was also advised to revisit the decision to exclude zstd support before the 1.0 release, citing the inclusion of zstd in the CPython 3.13 stdlib [13].",
-    "citations": 9,
-    "latency_ms": 39983,
+    "answer": "Unfortunately, there is no information provided about why `app.head()` was changed to be implicit in Hono v4. The migration guide for Hono v2.0.9 to v2.1.0 does not mention any changes related to `app.head()`. \n\nHowever, it's worth noting that the migration guide only covers breaking changes up to version 2.1.0 and does not provide information about version 4. If you need information about Hono v4, you may want to check the official documentation or GitHub repository for more recent updates.\n\nIf you have any further questions or if there's anything else I can help with, please let me know!",
+    "citations": 0,
+    "latency_ms": 11163,
     "grade": "correct"
   },
   {
     "id": "Q03",
-    "query": "What was decided about showing user credentials in URL string representation?",
+    "query": "What did the team decide about extending the Context object in Hono?",
     "expected_facts": [
-      "rejected",
-      "credentials preserved",
-      "URL.__str__ unchanged"
+      "context",
+      "extend",
+      "type"
     ],
     "should_have_answer": true,
-    "answer": "The decision was made that the default behavior for the library should be to remove user and password credentials from URL string representations to prevent leakage [1]. This is because credentials are passed as headers in reality, and including them in the URL string poses a risk of leakage [1]. Furthermore, the most secure implementation determined was to prevent user credentials (username and password) from being exposed in either the string representation (`str`) or the debugging representation (`repr`) of the URL object [2].",
-    "citations": 2,
-    "latency_ms": 26788,
-    "grade": "partial"
+    "answer": "The team decided not to extend the Context object in Hono. Instead, they added a new utility function called `cloneRawRequest` to the repository, which can be used as a helper for cloning raw requests.\n\nAccording to chunk [3], the decision was made to add `cloneRawRequest` to the `src/request.ts` file in the Hono repository, and it will be merged into the `next` branch for the upcoming v4.10.0 release.\n\nThere is no mention of extending the Context object in any of the provided chunks. The changes mentioned are related to the `parseBody` method and the generics for the `new Hono` constructor, but these do not involve extending the Context object.",
+    "citations": 1,
+    "latency_ms": 12852,
+    "grade": "correct"
   },
   {
     "id": "Q04",
-    "query": "Which Python versions were dropped from the test matrix?",
+    "query": "What was decided about URI decoding behavior in the Hono router?",
     "expected_facts": [
-      "Python 3.10 dropped"
+      "URI",
+      "decode",
+      "router",
+      "path"
     ],
     "should_have_answer": true,
-    "answer": "Python 3.10 was removed from the supported test matrix [1]. The project made a specific decision to drop Python 3.10 from the supported test matrix [1].\n\nAdditionally, Python 3.11 was scheduled to be dropped from the CI matrix during the next release cycle [3][4][5]. This decision was made to ensure the test matrix remained manageable [3][4][5].",
-    "citations": 4,
-    "latency_ms": 37363,
+    "answer": "The decision about URI decoding behavior in the Hono router was to decode the path outside the router for better developer experience (DX). This decision was made because the current implementation does not decode the path, and improving DX is a priority [1].\n\nHowever, it's worth noting that there are plans to improve the performance of path decoding, as mentioned in another issue [2]. But this specific decision about URI decoding behavior remains unchanged.\n\nIt's also important to note that the Hono team has made other decisions regarding middleware and helper functions, such as keeping the Proxy Helper as a helper rather than middleware due to its simplicity and safety concerns [4].",
+    "citations": 3,
+    "latency_ms": 12493,
     "grade": "correct"
   },
   {
     "id": "Q05",
-    "query": "What asyncio changes were made for Python 3.14 compatibility?",
+    "query": "What middleware proposals were rejected in Hono and why?",
     "expected_facts": [
-      "asyncio.get_event_loop() replaced",
-      "explicit event loop creation",
-      "background threads"
+      "middleware",
+      "rejected"
     ],
     "should_have_answer": true,
-    "answer": "The provided context indicates that efforts were made to add support for Python 3.14 by updating the CI test matrix and classifiers [1][2][5]. However, the sources do not specify any particular `asyncio` changes that were made *for* Python 3.14 compatibility.\n\nThe context does detail general updates to `asyncio` usage, such as replacing the deprecated `asyncio.get_event_loop()` pattern with `asyncio.create_task()` when creating tasks within an asynchronous context [3]. Additionally, event loop management was modified to handle websockets 14+ due to changes in asyncio implementation, including manually managing the event loop in background threads and removing the `loop=\"asyncio\"` setting from the `Config()` fixture [3].",
-    "citations": 4,
-    "latency_ms": 37560,
+    "answer": "Based on the provided source chunks, it appears that there were two middleware proposals rejected in Hono.\n\nFirstly, the Proxy Helper was considered for implementation as a middleware but ultimately decided against due to its simplicity and safety concerns [3]. The author of the pull request, usualoma, suggested keeping it as a helper rather than middleware because it doesn't always require `c.req.raw` or a Context. This decision was confirmed by yusukebe.\n\nSecondly, a JSON path-like function in the validator was considered but ultimately decided against being implemented as a utility function [4]. The reason for this decision was that the function was not essential for core features and didn't require any specific features to be implemented.\n\nIt's worth noting that there is no explicit mention of middleware proposals being rejected in the first chunk, which appears to be a contributing guide. However, based on the information provided in chunks [3] and [4], it can be inferred that these two proposals were rejected.",
+    "citations": 2,
+    "latency_ms": 13381,
     "grade": "correct"
   },
   {
     "id": "Q06",
-    "query": "What happens when the brotli extra is missing but a server sends brotli-encoded content?",
+    "query": "Why did Hono migrate from deno.land/x to JSR?",
     "expected_facts": [
-      "explicit warning",
-      "not silent",
-      "brotli extra missing"
+      "JSR",
+      "deno.land",
+      "migration",
+      "registry"
     ],
     "should_have_answer": true,
-    "answer": "The proposed change suggests adding an explicit warning if a server sends content with `Content-Encoding: br` but the necessary `brotli` support is absent [1]. Furthermore, the proposal recommends exposing the availability of decoders via optional feature flags and ensuring that the resulting behavior is covered by tests [1].",
-    "citations": 1,
-    "latency_ms": 21412,
+    "answer": "Hono migrated from deno.land/x to JSR because they no longer publish the module from `deno.land/x` [1][2]. This change was made in version 4.3.11, and users are encouraged to use JSR instead of deno.land/x for Hono on Deno [1][2].\n\nTo migrate, users need to replace the path `deno.land/x` with JSR's, as shown in the example code:\n```ts\n// From\nimport { Hono } from 'https://deno.land/x/hono/mod.ts'\n\n// To\nimport { Hono } from 'jsr:@hono/hono'\n```\nThis change is not a breaking change, but rather a change in how to import Hono on Deno [1][2].",
+    "citations": 2,
+    "latency_ms": 12627,
     "grade": "partial"
   },
   {
     "id": "Q07",
-    "query": "What is the purpose of the .wait_ready() method added to HTTPParser?",
+    "query": "What was decided about TypeScript type inference in Hono validators?",
     "expected_facts": [
-      "distinguish clean disconnect from protocol errors",
-      "server disconnect"
+      "TypeScript",
+      "type",
+      "validator",
+      "inference"
     ],
     "should_have_answer": true,
-    "answer": "The `.wait_ready()` method is being added to `HTTPParser` [1]. This addition is necessary to differentiate between clean disconnects that happen at the start of a new request/response cycle [1]. By doing this, the method helps prevent the occurrence of false `ProtocolError` exceptions [1].",
-    "citations": 1,
-    "latency_ms": 20248,
+    "answer": "There is no mention of TypeScript type inference in Hono validators in the provided chunks.\n\nHowever, based on the information about breaking changes in Hono version 2.1.0 [3][4], it seems that there are some changes related to parsing JSON and ArrayBuffer in the request body. According to [3] and [4], `c.req.parseBody` no longer parses JSON, text, or ArrayBuffer, but instead only parses FormData with content type `multipart/form` or `application/x-www-form-urlencoded`. If you want to parse JSON, text, or ArrayBuffer, use `c.req.json()`, `c.req.text()`, or `c.req.arrayBuffer()`.\n\nIt's worth noting that the provided chunks do not contain any information about TypeScript type inference in Hono validators.",
+    "citations": 2,
+    "latency_ms": 13872,
     "grade": "correct"
   },
   {
     "id": "Q08",
-    "query": "What decision was made about enforcing minimum h11 or httpcore versions for the security fix?",
+    "query": "What is Hono's policy for introducing breaking changes?",
     "expected_facts": [
-      "no constraint",
-      "users can upgrade directly",
-      "no minimum version enforced"
+      "breaking",
+      "semver",
+      "major",
+      "version"
     ],
     "should_have_answer": true,
-    "answer": "The decision was made not to change the minimum required version for users in order to ensure they can receive the security fix [1]. Furthermore, it was determined that HTTPX does not need to actively enforce this specific behavior [2]. The context notes that the problematic behavior would only occur if HTTPX were to prevent the installation of the safe `h11` version [2].",
-    "citations": 2,
-    "latency_ms": 24224,
-    "grade": "partial"
+    "answer": "Hono's policy for introducing breaking changes is to deprecate them before removing them in a future major version. This can be seen in the migration guide where it states that \"At the next major version, Validator Middleware will be changed with 'breaking changes'\" [2].\n\nThe decision to introduce breaking changes is not taken lightly and requires careful consideration of their impact on users. As mentioned in issue comment 1968905487, benchmark results are used to determine whether a change is worth merging [3]. If the benchmark doesn't show a significant improvement, the pull request may be rejected.\n\nAdditionally, performance-improving changes should be broken down into smaller PRs to ensure that their impact can be accurately measured and understood [4].\n\nIt's worth noting that Hono's approach to breaking changes is to provide clear guidance on how to migrate from the old behavior to the new one. For example, in the case of the `serveStatic` function for Cloudflare Workers, it is recommended to use \"Module Worker\" mode with `export default app` instead [1]. Similarly, the migration guide provides examples of how to use 3rd-party Validator libraries such as Zod or TypeBox to replace the deprecated Validator Middleware [2].\n\nOverall, Hono's policy on breaking changes emphasizes the importance of careful consideration and testing before introducing significant changes to the library.",
+    "citations": 4,
+    "latency_ms": 17943,
+    "grade": "correct"
   },
   {
     "id": "Q09",
-    "query": "What is the status of the MockTransport elapsed time feature?",
-    "expected_facts": [
-      "deferred",
-      "pending design decision",
-      "closed"
-    ],
+    "query": "What has been the most contested design decision in Hono's history?",
+    "expected_facts": [],
     "should_have_answer": true,
-    "answer": "Based on the provided context, there is no information regarding the status of the MockTransport elapsed time feature.",
-    "citations": 0,
-    "latency_ms": 35793,
+    "answer": "Based on the provided context, it appears that there are several design decisions that were contested in Hono's history. However, one of the most contested design decisions was related to authentication.\n\nAccording to [1], a pending design decision around authentication needed to be settled first before other changes could be made. This suggests that authentication was a critical and contentious issue in Hono's development.\n\nAnother example is the decision to reject a pull request due to lack of performance improvement in benchmarks, as mentioned in [2] and [3]. The author of the pull request, usualoma, stated that if the benchmark didn't show a change, then they couldn't merge the pull. This suggests that performance was a major concern for Hono's development team.\n\nHowever, upon closer inspection, it seems that the most contested design decision in Hono's history is actually related to authentication, as mentioned in [1]. The fact that this issue was pending and needed to be settled first before other changes could be made suggests that it was a highly contentious and critical issue for the development team.\n\nIt's worth noting that while there were other design decisions that were contested, such as the decision to reject a pull request due to lack of performance improvement in benchmarks [2][3], these issues do not seem to have been as critical or contentious as the authentication issue mentioned in [1].",
+    "citations": 3,
+    "latency_ms": 18263,
     "grade": "incorrect"
   },
   {
     "id": "Q10",
-    "query": "Is FunctionAuth part of the public httpx API?",
+    "query": "What runtimes does Hono officially support and how was that scope decided?",
     "expected_facts": [
-      "yes",
-      "public API",
-      "__all__",
-      "httpx.FunctionAuth"
+      "runtime",
+      "Cloudflare",
+      "Deno",
+      "Bun",
+      "Node"
     ],
     "should_have_answer": true,
-    "answer": "Based on the provided context, there is no information regarding whether `FunctionAuth` is part of the public `httpx` API. The sources discuss general requirements for the public API's authentication flow, stating that it must be synchronous regardless of the underlying transport being asynchronous [9][10][11]. However, the specific component name `FunctionAuth` is not mentioned in any of the retrieved chunks.",
-    "citations": 3,
-    "latency_ms": 35196,
+    "answer": "Hono officially supports the JSR (JavaScript Runtime) runtime [1]. The scope of supported runtimes was decided by adding type annotations to reduce Slow Types and implementing the `jsr-dry-run` command in CI [1].\n\nIn addition to JSR, Hono also supports WebSockets [2], which can be used on Cloudflare [2]. However, it's up to users to configure WebSocket connection upgrades on their own, as it's not enforced by the library level [2].\n\nThere is no information provided about other supported runtimes or how that scope was decided.\n\nThe `cloneRawRequest` utility function has been added to the Hono repository and will be included in the upcoming v4.10.0 release [3]. \n\nHono also underwent breaking changes, including updates to middleware usage and request parsing methods [4].",
+    "citations": 4,
+    "latency_ms": 14805,
     "grade": "partial"
   },
   {
     "id": "Q11",
-    "query": "How does httpx handle merging query parameters in Request.__init__?",
+    "query": "What changed in Hono's API design between v3 and v4?",
     "expected_facts": [
-      "copy_merge_params",
-      "URL constructor unchanged"
+      "v3",
+      "v4",
+      "breaking",
+      "API"
     ],
     "should_have_answer": true,
-    "answer": "The handling of query parameter merging is achieved by leveraging the existing `copy_merge_params()` method within `Request.__init__` [2]. This specific approach was adopted because it is considered less invasive than modifying the `URL` constructor [2]. The purpose of this fix is to ensure that when a URL already contains query parameters and additional `params` are passed, the original parameters are merged with the new ones, rather than being dropped [1]. When a key is present in both the original URL and the new parameters, the new value will override the old one during the merge process [1].",
-    "citations": 2,
-    "latency_ms": 34176,
-    "grade": "correct"
+    "answer": "Between v3 and v4, Hono's API design changed significantly due to the removal of deprecated features [1][2]. Some of the breaking changes include:\n\n* The `AWS Lambda Adapter` now uses `ApiGatewayRequestContextV2` instead of `LambdaFunctionUrlRequestContext` [1].\n* The `Next.js Adapter` is obsolete and should be replaced with `hono/vercel` [1].\n* In the context, methods like `c.jsonT()`, `c.stream()`, `c.streamText()`, and `c.env()` are no longer supported and should be replaced with their respective alternatives in other modules [1].\n* The `app.showRoutes()` method is obsolete and should be replaced with `showRoutes()` in the `hono/dev` module [1].\n* The `app.head()` method is no longer used, as `app.get()` implicitly handles the HEAD method [1].\n\nAdditionally, Hono's support for JSR (JavaScript Runtime) was added in PR #2662 [3], which enabled Hono to be published on the JSR. This change involved modifying various files and removing deprecated features like `deno_dist` and `denoify`.",
+    "citations": 3,
+    "latency_ms": 18740,
+    "grade": "partial"
   },
   {
     "id": "Q12",
-    "query": "How does httpx prevent SSL context reference cycles from blocking garbage collection?",
+    "query": "What architectural decisions has yusukebe made about Hono's core?",
     "expected_facts": [
-      "weakref",
-      "reference cycle",
-      "SSL context"
+      "yusukebe",
+      "architecture",
+      "core"
     ],
     "should_have_answer": true,
-    "answer": "The issue of SSL context reference cycles was addressed by modifying the implementation to use `weakref.ref` [2]. Previously, the use of a strong reference created a reference cycle between the response and the stream [2]. This original strong reference was the cause of the problem, as it prevented the timely garbage collection of SSL contexts, leading to excessive memory usage [2]. By implementing `weakref.ref`, the reference cycle was successfully broken [2].",
-    "citations": 1,
-    "latency_ms": 30745,
+    "answer": "Based on the provided source chunks, it appears that yusukebe has made several architectural decisions about Hono's core.\n\nFirstly, yusukebe decided not to implement a JSON path-like function in the validator as a utility function, considering it similar to 'flattenObject' but not essential for core features [1]. This decision was confirmed and marked as high priority.\n\nAdditionally, yusukebe has stated that third-party middleware is not part of Hono's core, and developers are allowed to depend on other libraries or work only in specific environments [2].\n\nRegarding the architecture of Hono, there seems to be a pending design decision around authentication that needs to settle first before implementing certain changes [3]. This decision was deferred until the authentication design decision is resolved.\n\nIt's also worth noting that yusukebe prefers a particular approach for SSG dynamic param handling from @nakasyou's PR and has decided to create a Vite plugin named @hono/vite-ssg-build after merging this PR [5].\n\nOverall, these decisions suggest that yusukebe is focused on keeping Hono's core lightweight and efficient, while also allowing for flexibility and customization through third-party middleware.",
+    "citations": 4,
+    "latency_ms": 15142,
     "grade": "correct"
   },
   {
     "id": "Q13",
-    "query": "What did the team do in response to CVE-2025-43859?",
+    "query": "How does Hono decide what goes into the core package vs external middleware?",
     "expected_facts": [
-      "no action required",
-      "no constraint change",
-      "h11 or httpcore"
+      "core",
+      "middleware",
+      "package",
+      "bundled"
     ],
     "should_have_answer": true,
-    "answer": "Based on the provided context, there is no information regarding any actions taken by the team in response to CVE-2025-43859.",
-    "citations": 0,
-    "latency_ms": 34454,
-    "grade": "partial"
+    "answer": "Hono decides what goes into the core package versus external middleware based on its architecture and design principles. According to the contributing guide [1], third-party middleware is not included in the core package, but rather managed by a separate monorepo [1]. This suggests that Hono's core team focuses on maintaining and improving the core functionality, while external middleware can be developed and maintained separately.\n\nThe contributing guide also states that developers are encouraged to create their own third-party middleware [2], which implies that Hono's core team does not intend to include all possible middleware in the core package. Instead, they provide a framework for developers to build and share their own middleware.\n\nIn terms of decision-making, it appears that Hono's core team uses a combination of community feedback, issue discussions, and pull requests to determine what features or middleware should be included in the core package [4]. For example, the discussion around adding a new built-in middleware for body limit [4] involved reviewing code changes, testing, and discussing potential issues with other developers.\n\nOverall, Hono's approach to deciding what goes into the core package versus external middleware seems to prioritize community involvement, flexibility, and maintainability. By separating core functionality from external middleware, Hono allows its users to customize their applications while still benefiting from a robust and well-maintained core framework [1][2].",
+    "citations": 3,
+    "latency_ms": 18061,
+    "grade": "correct"
   },
   {
     "id": "Q14",
-    "query": "What design decisions are currently deferred or pending?",
+    "query": "What testing approach does Hono use and why was it chosen?",
     "expected_facts": [
-      "MockTransport",
-      "elapsed time",
-      "deferred"
+      "test",
+      "vitest",
+      "jest"
     ],
     "should_have_answer": true,
-    "answer": "",
-    "citations": 0,
-    "latency_ms": 40364,
-    "grade": "incorrect"
+    "answer": "Hono uses a testing approach that involves considering whether a feature is essential for core functionality before implementing it as a utility function. This decision was made to avoid unnecessary complexity and ensure that the library remains focused on its primary goals.\n\nAccording to [1], Hono decided not to implement a JSON path-like function in the validator as a utility function because it was deemed similar to 'flattenObject' but not essential for core features. This suggests that Hono's testing approach involves evaluating the importance of each feature and prioritizing those that are critical to its core functionality.\n\nAdditionally, [2] and [3] provide information on Hono's middleware architecture, which includes breaking changes in version 2.1.0. However, these sections do not directly address the question of what testing approach Hono uses.\n\n[4] discusses a specific feature related to HTTP streaming responses, but it does not provide general information about Hono's testing approach.\n\nTherefore, based on [1], we can conclude that Hono's testing approach involves evaluating the importance of each feature and prioritizing those that are critical to its core functionality.",
+    "citations": 4,
+    "latency_ms": 16460,
+    "grade": "partial"
   },
   {
     "id": "Q15",
-    "query": "What is the httpx 1.0 release date?",
+    "query": "What is the Hono v5 release date?",
     "expected_facts": [],
     "should_have_answer": false,
-    "answer": "The provided source chunks discuss various decisions and features planned for the httpx 1.0 release, such as supporting only gzip compression [18] and changing the connection pool default behavior [17]. However, none of the retrieved context chunks specify the actual release date for httpx 1.0.",
+    "answer": "Unfortunately, I couldn't find any information about the Hono v5 release date in the provided chunks.\n\nHowever, I can tell you that there is a mention of a new feature being planned for the next minor release, `v4.4`, in chunk [2] and another PR mentioning merging into the `next` branch for the next minor release `v4.10.0` in chunk [3]. But these are not related to the v5 release date.\n\nIf you need more information or context about Hono's versioning, I'd be happy to help with that!",
     "citations": 2,
-    "latency_ms": 30649,
+    "latency_ms": 11976,
     "grade": "incorrect"
   },
   {
     "id": "Q16",
-    "query": "Is there any team discussion challenging the httpx compression policy?",
+    "query": "What was decided about c.json() helper vs returning raw Response objects?",
     "expected_facts": [
-      "gzip",
-      "zstd",
-      "reconsider"
+      "c.json",
+      "Response",
+      "helper"
     ],
     "should_have_answer": true,
-    "answer": "Yes, there were multiple team discussions challenging the existing policy of supporting only gzip compression [6][7][8][9]. Specifically, contributors suggested that the team should reconsider the current gzip-only compression policy and add support for zstd [6][7][8][9]. This challenge was based on the fact that zstd had become stable in CPython 3.13 through the compression module [6][7][8][9]. Furthermore, another discussion urged revisiting the decision to exclude zstd support before the 1.0 release, noting",
-    "citations": 4,
-    "latency_ms": 40558,
+    "answer": "The decision about c.json() helper vs returning raw Response objects is not explicitly mentioned in the provided chunks. However, based on the information in [1], it seems that the Proxy Helper was considered to be a simple wrapper around `fetch` and was decided to be kept as a helper rather than middleware due to its simplicity and safety concerns.\n\nThere is no direct mention of c.json() helper or returning raw Response objects in the provided chunks.",
+    "citations": 1,
+    "latency_ms": 9738,
     "grade": "correct"
   },
   {
     "id": "Q17",
-    "query": "What are the most significant architectural decisions made in the httpx project?",
+    "query": "What build tooling decisions were made for Hono's multi-runtime output?",
     "expected_facts": [
-      "compression",
-      "asyncio",
-      "URL credentials",
-      "Python versions"
+      "build",
+      "bundle",
+      "tsup",
+      "ESM"
     ],
     "should_have_answer": true,
-    "answer": "Several significant architectural and policy decisions have been made for the `httpx` project.\n\nRegarding core functionality, the project decided that retry logic should be excluded from the core client and instead implemented in a middleware or transport layer, advising users to utilize dedicated libraries like tenacity [6]. Furthermore, a fix was implemented to ensure that when additional parameters are passed, the original URL query parameters are merged rather than being replaced, which improves consistency with the `requests` library behavior [19].\n\nIn terms of API stability and compatibility, a policy was established requiring a minimum one-major-version warning period for all deprecations [12][13][14]. Additionally, the low-level transport API was decided to remain public, though a stability warning must be added to the documentation to accommodate third-party transport authors who require a stable surface [20].\n\nSeveral decisions related to tooling and environment management were also made. The project adopted Semantic Versioning (semver) for httpx 1.x, officially closing the discussion regarding CalVer [1][2][3]. For testing, the project decided to adopt `pytest-asyncio` in strict mode to eliminate implicit async markers [9][10][11]. Finally, the project adjusted its supported Python versions",
-    "citations": 12,
-    "latency_ms": 41196,
+    "answer": "Based on the provided source chunks, I found that there are no build tooling decisions mentioned specifically for Hono's multi-runtime output.\n\nHowever, chunk [4] mentions that in PR #2662, the `deno.json` file was modified to export each helper, middleware, and adapter following @nakasyou's comment. This suggests that some changes were made to the build process or configuration files related to Deno support.\n\nAdditionally, chunk [3] discusses a new built-in middleware called `bodyLimit`, which is implemented in PR #2077. The discussion mentions running tests and using `yarn denoify` to generate files for Deno, but it does not explicitly mention any build tooling decisions.\n\nIt's worth noting that the provided chunks do not contain enough information to answer the question comprehensively. If you have more context or source code related to Hono's multi-runtime output, I may be able to provide a more detailed response.",
+    "citations": 2,
+    "latency_ms": 15187,
     "grade": "partial"
   },
   {
     "id": "Q18",
-    "query": "What decisions did the httpx maintainers make about closing or deferring PRs?",
+    "query": "How does Hono handle errors and what decisions shaped the error API?",
     "expected_facts": [
-      "deferred",
-      "MockTransport",
-      "closed"
+      "error",
+      "handler",
+      "HTTPException"
     ],
     "should_have_answer": true,
-    "answer": "",
-    "citations": 0,
-    "latency_ms": 41303,
-    "grade": "incorrect"
+    "answer": "Hono does not have a built-in custom error handling mechanism, as mentioned in [1] where it was decided not to implement custom error handling in a specific pull request, but it's considered a desired feature.\n\nThe current implementation of Hono handles errors through its existing mechanisms, which are sufficient for the core features. As stated in [3], if a feature does not require any additional functionality, it is not implemented as a utility function.\n\nIn terms of error handling, there is no specific decision or mechanism mentioned in the provided context that describes how Hono handles errors. However, it can be inferred from [1] and [7] that the current implementation is sufficient for the core features, and any changes would require benchmarking to show improvement.\n\nThe Proxy Helper, as described in [4], is a helper function that does not need to be middleware due to its simplicity and safety concerns. This decision was made to keep the codebase clean and avoid unnecessary dependencies.\n\nThere is no specific information about how Hono handles errors or what decisions shaped the error API, but it can be inferred from the provided context that any changes would require careful consideration of performance implications and benchmarking to show improvement.",
+    "citations": 4,
+    "latency_ms": 16521,
+    "grade": "partial"
   },
   {
     "id": "Q19",
-    "query": "What decision was made about the httpx public authentication API surface?",
+    "query": "What was the rationale behind adding the Hono client (hc)?",
     "expected_facts": [
-      "synchronous",
-      "sync",
-      "authentication"
+      "hc",
+      "client",
+      "type",
+      "RPC"
     ],
     "should_have_answer": true,
-    "answer": "The decision was made that the authentication flow within the public API must be synchronous [5][6][7]. This requirement must be maintained regardless of whether the underlying transport mechanism is asynchronous [5][6][7]. The primary motivation for this decision was to simplify the user's code [5][6][7].",
-    "citations": 3,
-    "latency_ms": 27236,
-    "grade": "correct"
+    "answer": "The rationale behind adding the Hono client (hc) is not explicitly stated in the provided chunks. However, based on the discussions and decisions made in the referenced pull requests and issues, it can be inferred that the addition of utility functions or helpers to the Hono repository is a common practice.\n\nIn [1], the author decides to add `cloneRawRequest` to the Hono repository as a helper function, citing the importance of keeping the structure simple. Similarly, in [3], the ConnInfo helper/adapter is introduced for Bun, Deno, and CF Workers, providing a way to get client IP addresses without requiring runtime-specific code.\n\nIn [4], it's stated that utility functions should not be implemented if they don't require any features, which suggests that the addition of `hc` might be justified by its potential use cases or benefits. However, this is purely speculative and not directly related to the addition of `hc`.\n\nThe most relevant discussion is in [5], where it's decided that `c.stream()` should be a simple function for HTTP streaming responses, without handling other cases like SSE. This decision might have implications for how the Hono client (hc) is designed or implemented.\n\nIn summary, while there isn't a clear rationale provided for adding the Hono client (hc), the discussions and decisions made in the referenced chunks suggest that utility functions and helpers are valuable additions to the Hono repository, and their implementation should be guided by simplicity and feature requirements.",
+    "citations": 4,
+    "latency_ms": 18844,
+    "grade": "partial"
   },
   {
     "id": "Q20",
-    "query": "Where should retry logic live in httpx — in the core client or elsewhere?",
+    "query": "What decisions were made about streaming response support in Hono?",
     "expected_facts": [
-      "middleware",
-      "transport",
-      "not part of the core"
+      "stream",
+      "streaming",
+      "response"
     ],
     "should_have_answer": true,
-    "answer": "Retry logic should not be included as part of the core `httpx` client [1][2][3][4]. Instead, the functionality is better suited for implementation within a middleware or transport layer [1][2][3][4]. Furthermore, users who require retry capabilities are advised to utilize dedicated libraries, such as `tenacity`, or an equivalent tool [1].",
-    "citations": 4,
-    "latency_ms": 25475,
+    "answer": "The decisions made about streaming response support in Hono were:\n\nInitially, it was decided that `c.stream()` should be a simple function for HTTP streaming responses and not handle other cases like Server-Sent Events (SSE) [1][2]. However, there was also a suggestion to consider naming `c.stream()` as `streamText()` and adding a `wait` method [1].\n\nLater on, the decision to add support for JSR (Java Specification Request) in Hono was made, which included changes to the project's structure and exports [3]. This PR did not directly address streaming response support.\n\nThere is no mention of any decisions related to streaming response support in the other provided chunks.",
+    "citations": 3,
+    "latency_ms": 12134,
     "grade": "correct"
   },
   {
     "id": "Q21",
-    "query": "Are there signals suggesting the asyncio.get_event_loop decision should be revisited?",
-    "expected_facts": [
-      "compatibility",
-      "third-party",
-      "revisit"
-    ],
-    "should_have_answer": true,
-    "answer": "The context indicates that the decision regarding the use of `asyncio.get_event_loop()` was revisited by replacing the deprecated pattern [1]. Specifically, the pattern was replaced with `asyncio.create_task()`, which is noted as the modern way to create tasks when already within an asynchronous context [1]. To manage event loop conflicts, the test server's `TestServer.serve()` method was updated to use `asyncio.create_task()` instead of the deprecated `asyncio.get_event_loop()` pattern [1]. Furthermore, the team manually managed the event loop in the background thread using `asyncio.new_event_loop()` and `asyncio.set_event_loop()`, and the `Config()` fixture was updated to remove the `loop=\"asyncio\"` setting to prevent conflicts [1].",
-    "citations": 1,
-    "latency_ms": 38672,
-    "grade": "partial"
+    "query": "Does Hono have a built-in GraphQL server and what was decided about it?",
+    "expected_facts": [],
+    "should_have_answer": false,
+    "answer": "Hono does not have a built-in GraphQL server. There is no mention of a GraphQL server in any of the provided chunks.\n\nHowever, it's worth noting that Hono has a Vite plugin named `@hono/vite-ssg-build` which was decided to be created after merging PR #1904 [1]. This plugin might support some kind of static site generation (SSG) functionality, but there is no direct mention of GraphQL.\n\nIt's also worth mentioning that Hono has a feature for WebSockets, which was implemented in PR #1153 [2] and can be supported on Cloudflare. However, this does not relate to GraphQL either.",
+    "citations": 2,
+    "latency_ms": 11653,
+    "grade": "no-info"
   },
   {
     "id": "Q22",
-    "query": "What decisions were made about GraphQL support in httpx?",
-    "expected_facts": [],
-    "should_have_answer": false,
-    "answer": "Based on the provided source chunks, there is no information regarding any decisions made about GraphQL support in `httpx`.",
-    "citations": 0,
-    "latency_ms": 26866,
-    "grade": "no-info"
+    "query": "What are the most significant architectural decisions made in the Hono project?",
+    "expected_facts": [
+      "router",
+      "middleware",
+      "TypeScript",
+      "runtime"
+    ],
+    "should_have_answer": true,
+    "answer": "The most significant architectural decisions made in the Hono project are:\n\n1. **Authentication Design Decision**: The authentication design decision is still pending and has been deferred until it is resolved [1].\n2. **JSON Path-like Function in Validator**: A JSON path-like function was considered but decided against being implemented as a utility function, as it was not essential for core features [2].\n3. **Vector Store Selection**: Although there are multiple documents related to Vector Store Selection, the actual decision or outcome is unclear from the provided context.\n4. **Benchmarking and Performance Improvement**: The project has strict guidelines regarding performance improvement, with pull requests being rejected if they do not show a change in benchmark results [4][5].\n5. **Adding `cloneRawRequest` Utility Function**: The utility function `cloneRawRequest` was added to the Hono repository, specifically to `src/request.ts`, as part of the PR #4382 [6].\n\nThese decisions demonstrate the project's focus on performance, simplicity, and adherence to established guidelines.",
+    "citations": 5,
+    "latency_ms": 14721,
+    "grade": "incorrect"
   }
 ]

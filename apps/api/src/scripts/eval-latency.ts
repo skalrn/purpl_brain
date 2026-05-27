@@ -6,7 +6,7 @@
  *       Run with LLM_PROVIDER=anthropic or bedrock to meet the target.
  *
  * Usage:
- *   tsx src/scripts/eval-latency.ts [--project encode_httpx] [--runs 36]
+ *   tsx src/scripts/eval-latency.ts [--project honojs_hono] [--runs 36]
  */
 
 import "dotenv/config";
@@ -17,24 +17,24 @@ import { resolve } from "path";
 const REPO_ROOT = resolve(import.meta.dirname, "../../../..");
 
 const SAMPLE_QUERIES = [
-  "What is the httpx 1.0 compression policy?",
-  "Was there a decision about Zstandard compression?",
-  "What was decided about URL credential representation?",
-  "Which Python versions were dropped?",
-  "What asyncio changes were made for Python 3.14?",
-  "What happens when brotli extra is missing?",
-  "What is the purpose of .wait_ready() in HTTPParser?",
-  "What decision was made about minimum h11 versions?",
-  "What is the status of MockTransport elapsed time?",
-  "How does httpx merge query parameters?",
-  "How does httpx prevent SSL context reference cycles?",
-  "What did the team do about CVE-2025-43859?",
-  "What design decisions are currently deferred?",
-  "What are the most significant httpx architectural decisions?",
-  "What decisions were made about closing or deferring PRs?",
-  "What is the httpx authentication model?",
-  "How is httpx structured for async vs sync?",
-  "What breaking changes were made in recent httpx versions?",
+  "Why does Hono use RegExpRouter instead of a trie-based router?",
+  "Why was app.head() changed to be implicit in Hono v4?",
+  "What did the team decide about extending the Context object?",
+  "What was decided about URI decoding behavior in the router?",
+  "What middleware proposals were rejected in Hono and why?",
+  "Why did Hono migrate from deno.land/x to JSR?",
+  "What was decided about TypeScript type inference in validators?",
+  "What is Hono's policy for introducing breaking changes?",
+  "What runtimes does Hono officially support?",
+  "What changed in Hono's API design between v3 and v4?",
+  "How does Hono decide what goes into core vs external middleware?",
+  "What testing approach does Hono use and why?",
+  "What was decided about c.json() vs returning raw Response objects?",
+  "What build tooling decisions were made for multi-runtime output?",
+  "How does Hono handle errors and what shaped the error API?",
+  "What was the rationale behind adding the Hono client (hc)?",
+  "What decisions were made about streaming response support?",
+  "What are the most significant architectural decisions in Hono?",
 ];
 
 interface LatencyRow {
@@ -48,7 +48,7 @@ interface LatencyRow {
 async function run() {
   const args = process.argv.slice(2);
   const projectIdx = args.indexOf("--project");
-  const projectId = projectIdx !== -1 ? args[projectIdx + 1] : "encode_httpx";
+  const projectId = projectIdx !== -1 ? args[projectIdx + 1] : "honojs_hono";
   const runsIdx = args.indexOf("--runs");
   const targetRuns = runsIdx !== -1 ? parseInt(args[runsIdx + 1]) : 36;
   const provider = process.env.LLM_PROVIDER ?? "ollama";

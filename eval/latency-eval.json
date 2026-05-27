@@ -1,227 +1,227 @@
 {
   "provider": "ollama",
-  "p50": 41337,
-  "p75": 61308,
-  "p95": 73980,
-  "avg": 46043,
+  "p50": 13633,
+  "p75": 18170,
+  "p95": 19014,
+  "avg": 14801,
   "runs": 36,
   "errors": 0,
   "rows": [
     {
       "run": 1,
-      "query": "What is the httpx 1.0 compression policy?",
-      "latency_ms": 35912,
+      "query": "Why does Hono use RegExpRouter instead of a trie-based router?",
+      "latency_ms": 13104,
       "citation_count": 3
     },
     {
       "run": 2,
-      "query": "Was there a decision about Zstandard compression?",
-      "latency_ms": 41337,
-      "citation_count": 5
+      "query": "Why was app.head() changed to be implicit in Hono v4?",
+      "latency_ms": 11190,
+      "citation_count": 0
     },
     {
       "run": 3,
-      "query": "What was decided about URL credential representation?",
-      "latency_ms": 35018,
-      "citation_count": 2
+      "query": "What did the team decide about extending the Context object?",
+      "latency_ms": 15278,
+      "citation_count": 3
     },
     {
       "run": 4,
-      "query": "Which Python versions were dropped?",
-      "latency_ms": 29539,
-      "citation_count": 2
+      "query": "What was decided about URI decoding behavior in the router?",
+      "latency_ms": 13696,
+      "citation_count": 3
     },
     {
       "run": 5,
-      "query": "What asyncio changes were made for Python 3.14?",
-      "latency_ms": 73773,
-      "citation_count": 4
-    },
-    {
-      "run": 6,
-      "query": "What happens when brotli extra is missing?",
-      "latency_ms": 61308,
-      "citation_count": 1
-    },
-    {
-      "run": 7,
-      "query": "What is the purpose of .wait_ready() in HTTPParser?",
-      "latency_ms": 52762,
-      "citation_count": 1
-    },
-    {
-      "run": 8,
-      "query": "What decision was made about minimum h11 versions?",
-      "latency_ms": 56467,
-      "citation_count": 1
-    },
-    {
-      "run": 9,
-      "query": "What is the status of MockTransport elapsed time?",
-      "latency_ms": 58102,
-      "citation_count": 0
-    },
-    {
-      "run": 10,
-      "query": "How does httpx merge query parameters?",
-      "latency_ms": 28258,
+      "query": "What middleware proposals were rejected in Hono and why?",
+      "latency_ms": 13469,
       "citation_count": 2
     },
     {
+      "run": 6,
+      "query": "Why did Hono migrate from deno.land/x to JSR?",
+      "latency_ms": 12890,
+      "citation_count": 2
+    },
+    {
+      "run": 7,
+      "query": "What was decided about TypeScript type inference in validators?",
+      "latency_ms": 10649,
+      "citation_count": 2
+    },
+    {
+      "run": 8,
+      "query": "What is Hono's policy for introducing breaking changes?",
+      "latency_ms": 18170,
+      "citation_count": 4
+    },
+    {
+      "run": 9,
+      "query": "What runtimes does Hono officially support?",
+      "latency_ms": 13011,
+      "citation_count": 3
+    },
+    {
+      "run": 10,
+      "query": "What changed in Hono's API design between v3 and v4?",
+      "latency_ms": 18654,
+      "citation_count": 3
+    },
+    {
       "run": 11,
-      "query": "How does httpx prevent SSL context reference cycles?",
-      "latency_ms": 29317,
-      "citation_count": 1
+      "query": "How does Hono decide what goes into core vs external middleware?",
+      "latency_ms": 18892,
+      "citation_count": 3
     },
     {
       "run": 12,
-      "query": "What did the team do about CVE-2025-43859?",
-      "latency_ms": 54668,
-      "citation_count": 0
+      "query": "What testing approach does Hono use and why?",
+      "latency_ms": 19132,
+      "citation_count": 4
     },
     {
       "run": 13,
-      "query": "What design decisions are currently deferred?",
-      "latency_ms": 62268,
+      "query": "What was decided about c.json() vs returning raw Response objects?",
+      "latency_ms": 12406,
       "citation_count": 2
     },
     {
       "run": 14,
-      "query": "What are the most significant httpx architectural decisions?",
-      "latency_ms": 65795,
-      "citation_count": 5
+      "query": "What build tooling decisions were made for multi-runtime output?",
+      "latency_ms": 14084,
+      "citation_count": 1
     },
     {
       "run": 15,
-      "query": "What decisions were made about closing or deferring PRs?",
-      "latency_ms": 75901,
+      "query": "How does Hono handle errors and what shaped the error API?",
+      "latency_ms": 17855,
       "citation_count": 4
     },
     {
       "run": 16,
-      "query": "What is the httpx authentication model?",
-      "latency_ms": 68974,
-      "citation_count": 2
+      "query": "What was the rationale behind adding the Hono client (hc)?",
+      "latency_ms": 18876,
+      "citation_count": 4
     },
     {
       "run": 17,
-      "query": "How is httpx structured for async vs sync?",
-      "latency_ms": 40274,
-      "citation_count": 1
+      "query": "What decisions were made about streaming response support?",
+      "latency_ms": 11895,
+      "citation_count": 2
     },
     {
       "run": 18,
-      "query": "What breaking changes were made in recent httpx versions?",
-      "latency_ms": 73980,
-      "citation_count": 0
+      "query": "What are the most significant architectural decisions in Hono?",
+      "latency_ms": 13319,
+      "citation_count": 8
     },
     {
       "run": 19,
-      "query": "What is the httpx 1.0 compression policy?",
-      "latency_ms": 60409,
+      "query": "Why does Hono use RegExpRouter instead of a trie-based router?",
+      "latency_ms": 12520,
       "citation_count": 3
     },
     {
       "run": 20,
-      "query": "Was there a decision about Zstandard compression?",
-      "latency_ms": 67819,
-      "citation_count": 5
+      "query": "Why was app.head() changed to be implicit in Hono v4?",
+      "latency_ms": 11341,
+      "citation_count": 0
     },
     {
       "run": 21,
-      "query": "What was decided about URL credential representation?",
-      "latency_ms": 69813,
-      "citation_count": 2
+      "query": "What did the team decide about extending the Context object?",
+      "latency_ms": 15482,
+      "citation_count": 3
     },
     {
       "run": 22,
-      "query": "Which Python versions were dropped?",
-      "latency_ms": 59792,
-      "citation_count": 2
+      "query": "What was decided about URI decoding behavior in the router?",
+      "latency_ms": 13633,
+      "citation_count": 3
     },
     {
       "run": 23,
-      "query": "What asyncio changes were made for Python 3.14?",
-      "latency_ms": 41851,
-      "citation_count": 4
-    },
-    {
-      "run": 24,
-      "query": "What happens when brotli extra is missing?",
-      "latency_ms": 29739,
-      "citation_count": 1
-    },
-    {
-      "run": 25,
-      "query": "What is the purpose of .wait_ready() in HTTPParser?",
-      "latency_ms": 23103,
-      "citation_count": 1
-    },
-    {
-      "run": 26,
-      "query": "What decision was made about minimum h11 versions?",
-      "latency_ms": 20671,
-      "citation_count": 1
-    },
-    {
-      "run": 27,
-      "query": "What is the status of MockTransport elapsed time?",
-      "latency_ms": 27968,
-      "citation_count": 0
-    },
-    {
-      "run": 28,
-      "query": "How does httpx merge query parameters?",
-      "latency_ms": 28160,
+      "query": "What middleware proposals were rejected in Hono and why?",
+      "latency_ms": 13587,
       "citation_count": 2
     },
     {
+      "run": 24,
+      "query": "Why did Hono migrate from deno.land/x to JSR?",
+      "latency_ms": 12748,
+      "citation_count": 2
+    },
+    {
+      "run": 25,
+      "query": "What was decided about TypeScript type inference in validators?",
+      "latency_ms": 10601,
+      "citation_count": 2
+    },
+    {
+      "run": 26,
+      "query": "What is Hono's policy for introducing breaking changes?",
+      "latency_ms": 18018,
+      "citation_count": 4
+    },
+    {
+      "run": 27,
+      "query": "What runtimes does Hono officially support?",
+      "latency_ms": 12909,
+      "citation_count": 3
+    },
+    {
+      "run": 28,
+      "query": "What changed in Hono's API design between v3 and v4?",
+      "latency_ms": 18645,
+      "citation_count": 3
+    },
+    {
       "run": 29,
-      "query": "How does httpx prevent SSL context reference cycles?",
-      "latency_ms": 29294,
-      "citation_count": 1
+      "query": "How does Hono decide what goes into core vs external middleware?",
+      "latency_ms": 19014,
+      "citation_count": 3
     },
     {
       "run": 30,
-      "query": "What did the team do about CVE-2025-43859?",
-      "latency_ms": 22725,
-      "citation_count": 0
+      "query": "What testing approach does Hono use and why?",
+      "latency_ms": 18935,
+      "citation_count": 4
     },
     {
       "run": 31,
-      "query": "What design decisions are currently deferred?",
-      "latency_ms": 30578,
+      "query": "What was decided about c.json() vs returning raw Response objects?",
+      "latency_ms": 12354,
       "citation_count": 2
     },
     {
       "run": 32,
-      "query": "What are the most significant httpx architectural decisions?",
-      "latency_ms": 39955,
-      "citation_count": 5
+      "query": "What build tooling decisions were made for multi-runtime output?",
+      "latency_ms": 14334,
+      "citation_count": 1
     },
     {
       "run": 33,
-      "query": "What decisions were made about closing or deferring PRs?",
-      "latency_ms": 41107,
+      "query": "How does Hono handle errors and what shaped the error API?",
+      "latency_ms": 17865,
       "citation_count": 4
     },
     {
       "run": 34,
-      "query": "What is the httpx authentication model?",
-      "latency_ms": 38706,
-      "citation_count": 2
+      "query": "What was the rationale behind adding the Hono client (hc)?",
+      "latency_ms": 18786,
+      "citation_count": 4
     },
     {
       "run": 35,
-      "query": "How is httpx structured for async vs sync?",
-      "latency_ms": 40214,
-      "citation_count": 1
+      "query": "What decisions were made about streaming response support?",
+      "latency_ms": 11977,
+      "citation_count": 2
     },
     {
       "run": 36,
-      "query": "What breaking changes were made in recent httpx versions?",
-      "latency_ms": 41997,
-      "citation_count": 0
+      "query": "What are the most significant architectural decisions in Hono?",
+      "latency_ms": 13499,
+      "citation_count": 8
     }
   ]
 }
