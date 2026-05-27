@@ -50,7 +50,7 @@ Claude Code supports lifecycle hooks: shell scripts that fire at specific points
 
 Reliable logging only matters if the stored decisions do active work later.
 
-Before any significant change, the system can query what existing decisions it conflicts with. **Drift detection** runs in two stages: Qdrant finds semantically related decisions by cosine similarity, then an LLM confirmation pass eliminates false positives before surfacing an alert. For example, a decision made three months ago about JWT expiry scope flags when a new session proposes widening it, with the original rationale and the actor who made the call attached.
+Before any significant change, the system can query what existing decisions it conflicts with. **Drift detection** runs in two stages: Qdrant finds semantically related decisions by cosine similarity, then an LLM confirmation pass eliminates false positives before surfacing an alert. In the Hono corpus: a proposal to use the `VoidMiddlewarePath` approach in the router was adopted, then reverted to `CurrentPath` after further discussion. A new session proposing `VoidMiddlewarePath` again would surface that revert — with the rationale and the contributor who made the call attached — before any code was written.
 
 That is not retrieval. That is the graph doing work the agent cannot do from session context alone.
 
