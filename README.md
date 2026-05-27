@@ -2,8 +2,6 @@
 
 **A shared decision log for human-agent software teams.**
 
-![purpl-brain project view — drift alerts surfaced from real decision history](docs/assets/screenshot-project.png)
-
 I built this to find out whether the idea would actually hold up: a single graph where both humans and AI agents write what they decided and why, so neither has to re-derive what the other already figured out.
 
 The system works end-to-end for one developer plus AI agents. The open question — and the reason for early access — is whether the structured decision trail holds value when a second human joins the graph. If that problem resonates with your team, I'd like to hear from you.
@@ -24,7 +22,7 @@ The deeper problem: humans and agents decide things in different places. A devel
 
 **Decision extraction, not session capture.** purpl-brain reads GitHub PRs, Slack threads, meeting transcripts, and ADRs and extracts concluded decisions — the choices your team settled, with rationale and attribution. A developer debugging for three hours is not a decision. Choosing `jose` over `jsonwebtoken` because of Edge compatibility is. Signal, not noise.
 
-**The decisions that matter aren't in your ADRs.** ADRs capture the decisions someone thought to document. Most decisions live in a PR comment thread, a Slack debate that ended without a summary, or an agent session that nobody wrote up. purpl-brain ingests those sources and puts agent decisions in the same graph — so a new session can query across all of them, not just the docs someone remembered to write.
+**The decisions that matter aren't in your ADRs.** ADRs solve this for decisions someone had the discipline to write up. Most decisions don't get an ADR. They live in a Slack thread that ended without a summary, a PR comment that closed without a follow-up, or an agent session nobody wrote up because it felt like an implementation detail. The gap isn't discipline; it's coverage. purpl-brain ingests those sources and puts agent decisions in the same graph — so a new session can query across all of them, not just the docs someone remembered to write.
 
 **Why, not just what.** "Team uses Redis" is a fact. "Chose Redis over Postgres because TTL-native eviction matched the access pattern and Postgres would have required a background job" is reasoning. The next agent can apply reasoning to a new decision. It cannot apply a fact. purpl-brain stores the rationale alongside the choice, and requires it at write time.
 
@@ -50,6 +48,9 @@ Not yet validated: multiple developers writing to the same graph. Whether the st
 - **Impact analysis risk tiers are LLM-only.** `brain_analyze_impact` asks an LLM to classify risk as `critical`, `high`, `medium`, or `low` against a natural-language rubric. The same change described differently can produce different tiers. Decision metadata (confidence level, downstream reference count, open drift alerts, age) is not used to enforce a minimum tier. Treat the result as a first signal requiring review, not a gate. See [ADR-006](docs/technical/adrs/006-impact-analysis-design.md) for what a rule-based floor would look like.
 - **Drift detection skips GitHub-sourced decisions** to reduce false positives from PR noise. Decisions extracted from GitHub PRs are not candidates for drift matching.
 - **Source coverage is partial.** Agent sessions and local documents are tested. GitHub webhook ingestion and Slack ingestion are implemented but not yet run through a full validation pass.
+- **The Stop hook catches sessions that close cleanly.** If a session crashes or is force-killed, the hook doesn't fire. Decisions from interrupted sessions are not recovered by this mechanism.
+- **Mid-session compaction is an open problem.** A decision made three hours into a long session and then compacted before close is lost even with a working Stop hook. The hook solves the boundary case; the mid-session case is still open.
+- **Logged decision quality depends on timing.** A decision logged at the moment it's made, when context is richest, is more complete than one reconstructed from a hook prompt at session close.
 
 ---
 
@@ -177,6 +178,8 @@ Paste into `~/.claude/settings.json`:
 ```
 
 **Make Claude call these automatically** by adding the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
+
+**CLAUDE.md instructions are aspirational. Hooks are deterministic.** Under context pressure — long sessions, compaction events — agents make judgment calls about what counts as significant, and those calls degrade with less context. The Stop hook in `.claude/hooks/` solves this at the boundary: it checks the brain API for decisions logged in the last two hours, and if none are found, returns exit code 2 to block the session from closing. The agent reads the message, calls `brain_log_decision`, and the hook clears. CLAUDE.md shapes behavior during the session. The hook enforces the invariant at the boundary. Both layers are necessary.
 
 > **Note:** The example hook scripts in `.claude/hooks/` use `skalrn_purpl_brain` as the project ID. If you copy them manually, change `PROJECT_ID` at the top of each script to match your own project. Running `setup.sh` does this automatically.
 
