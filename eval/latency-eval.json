@@ -1,227 +1,227 @@
 {
   "provider": "ollama",
-  "p50": 13633,
-  "p75": 18170,
-  "p95": 19014,
-  "avg": 14801,
+  "p50": 13626,
+  "p75": 17685,
+  "p95": 27820,
+  "avg": 14804,
   "runs": 36,
   "errors": 0,
   "rows": [
     {
       "run": 1,
       "query": "Why does Hono use RegExpRouter instead of a trie-based router?",
-      "latency_ms": 13104,
+      "latency_ms": 13829,
       "citation_count": 3
     },
     {
       "run": 2,
       "query": "Why was app.head() changed to be implicit in Hono v4?",
-      "latency_ms": 11190,
-      "citation_count": 0
+      "latency_ms": 11270,
+      "citation_count": 1
     },
     {
       "run": 3,
       "query": "What did the team decide about extending the Context object?",
-      "latency_ms": 15278,
-      "citation_count": 3
+      "latency_ms": 9154,
+      "citation_count": 4
     },
     {
       "run": 4,
       "query": "What was decided about URI decoding behavior in the router?",
-      "latency_ms": 13696,
-      "citation_count": 3
+      "latency_ms": 11904,
+      "citation_count": 2
     },
     {
       "run": 5,
       "query": "What middleware proposals were rejected in Hono and why?",
-      "latency_ms": 13469,
-      "citation_count": 2
+      "latency_ms": 14845,
+      "citation_count": 3
     },
     {
       "run": 6,
       "query": "Why did Hono migrate from deno.land/x to JSR?",
-      "latency_ms": 12890,
-      "citation_count": 2
+      "latency_ms": 14777,
+      "citation_count": 1
     },
     {
       "run": 7,
       "query": "What was decided about TypeScript type inference in validators?",
-      "latency_ms": 10649,
-      "citation_count": 2
+      "latency_ms": 13423,
+      "citation_count": 3
     },
     {
       "run": 8,
       "query": "What is Hono's policy for introducing breaking changes?",
-      "latency_ms": 18170,
-      "citation_count": 4
+      "latency_ms": 12989,
+      "citation_count": 2
     },
     {
       "run": 9,
       "query": "What runtimes does Hono officially support?",
-      "latency_ms": 13011,
-      "citation_count": 3
+      "latency_ms": 9585,
+      "citation_count": 1
     },
     {
       "run": 10,
       "query": "What changed in Hono's API design between v3 and v4?",
-      "latency_ms": 18654,
-      "citation_count": 3
+      "latency_ms": 19795,
+      "citation_count": 2
     },
     {
       "run": 11,
       "query": "How does Hono decide what goes into core vs external middleware?",
-      "latency_ms": 18892,
+      "latency_ms": 17656,
       "citation_count": 3
     },
     {
       "run": 12,
       "query": "What testing approach does Hono use and why?",
-      "latency_ms": 19132,
+      "latency_ms": 18951,
       "citation_count": 4
     },
     {
       "run": 13,
       "query": "What was decided about c.json() vs returning raw Response objects?",
-      "latency_ms": 12406,
-      "citation_count": 2
+      "latency_ms": 16424,
+      "citation_count": 5
     },
     {
       "run": 14,
       "query": "What build tooling decisions were made for multi-runtime output?",
-      "latency_ms": 14084,
+      "latency_ms": 11010,
       "citation_count": 1
     },
     {
       "run": 15,
       "query": "How does Hono handle errors and what shaped the error API?",
-      "latency_ms": 17855,
-      "citation_count": 4
+      "latency_ms": 13482,
+      "citation_count": 2
     },
     {
       "run": 16,
       "query": "What was the rationale behind adding the Hono client (hc)?",
-      "latency_ms": 18876,
-      "citation_count": 4
+      "latency_ms": 28058,
+      "citation_count": 3
     },
     {
       "run": 17,
       "query": "What decisions were made about streaming response support?",
-      "latency_ms": 11895,
-      "citation_count": 2
+      "latency_ms": 11436,
+      "citation_count": 3
     },
     {
       "run": 18,
       "query": "What are the most significant architectural decisions in Hono?",
-      "latency_ms": 13319,
-      "citation_count": 8
+      "latency_ms": 18219,
+      "citation_count": 3
     },
     {
       "run": 19,
       "query": "Why does Hono use RegExpRouter instead of a trie-based router?",
-      "latency_ms": 12520,
+      "latency_ms": 13626,
       "citation_count": 3
     },
     {
       "run": 20,
       "query": "Why was app.head() changed to be implicit in Hono v4?",
-      "latency_ms": 11341,
-      "citation_count": 0
+      "latency_ms": 11251,
+      "citation_count": 1
     },
     {
       "run": 21,
       "query": "What did the team decide about extending the Context object?",
-      "latency_ms": 15482,
-      "citation_count": 3
+      "latency_ms": 9124,
+      "citation_count": 4
     },
     {
       "run": 22,
       "query": "What was decided about URI decoding behavior in the router?",
-      "latency_ms": 13633,
-      "citation_count": 3
+      "latency_ms": 11627,
+      "citation_count": 2
     },
     {
       "run": 23,
       "query": "What middleware proposals were rejected in Hono and why?",
-      "latency_ms": 13587,
-      "citation_count": 2
+      "latency_ms": 14875,
+      "citation_count": 3
     },
     {
       "run": 24,
       "query": "Why did Hono migrate from deno.land/x to JSR?",
-      "latency_ms": 12748,
-      "citation_count": 2
+      "latency_ms": 14752,
+      "citation_count": 1
     },
     {
       "run": 25,
       "query": "What was decided about TypeScript type inference in validators?",
-      "latency_ms": 10601,
-      "citation_count": 2
+      "latency_ms": 13345,
+      "citation_count": 3
     },
     {
       "run": 26,
       "query": "What is Hono's policy for introducing breaking changes?",
-      "latency_ms": 18018,
-      "citation_count": 4
+      "latency_ms": 12769,
+      "citation_count": 2
     },
     {
       "run": 27,
       "query": "What runtimes does Hono officially support?",
-      "latency_ms": 12909,
-      "citation_count": 3
+      "latency_ms": 9452,
+      "citation_count": 1
     },
     {
       "run": 28,
       "query": "What changed in Hono's API design between v3 and v4?",
-      "latency_ms": 18645,
-      "citation_count": 3
+      "latency_ms": 19855,
+      "citation_count": 2
     },
     {
       "run": 29,
       "query": "How does Hono decide what goes into core vs external middleware?",
-      "latency_ms": 19014,
+      "latency_ms": 17685,
       "citation_count": 3
     },
     {
       "run": 30,
       "query": "What testing approach does Hono use and why?",
-      "latency_ms": 18935,
+      "latency_ms": 18778,
       "citation_count": 4
     },
     {
       "run": 31,
       "query": "What was decided about c.json() vs returning raw Response objects?",
-      "latency_ms": 12354,
-      "citation_count": 2
+      "latency_ms": 16478,
+      "citation_count": 5
     },
     {
       "run": 32,
       "query": "What build tooling decisions were made for multi-runtime output?",
-      "latency_ms": 14334,
+      "latency_ms": 11379,
       "citation_count": 1
     },
     {
       "run": 33,
       "query": "How does Hono handle errors and what shaped the error API?",
-      "latency_ms": 17865,
-      "citation_count": 4
+      "latency_ms": 13426,
+      "citation_count": 2
     },
     {
       "run": 34,
       "query": "What was the rationale behind adding the Hono client (hc)?",
-      "latency_ms": 18786,
-      "citation_count": 4
+      "latency_ms": 27820,
+      "citation_count": 3
     },
     {
       "run": 35,
       "query": "What decisions were made about streaming response support?",
-      "latency_ms": 11977,
-      "citation_count": 2
+      "latency_ms": 11465,
+      "citation_count": 3
     },
     {
       "run": 36,
       "query": "What are the most significant architectural decisions in Hono?",
-      "latency_ms": 13499,
-      "citation_count": 8
+      "latency_ms": 18443,
+      "citation_count": 3
     }
   ]
 }
