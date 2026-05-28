@@ -1590,3 +1590,74 @@ export async function getDecisionDetail(decisionId: string): Promise<{
     await session.close();
   }
 }
+
+export interface CorpusStats {
+  project_id: string;
+  total_events: number;
+  events_with_decisions: number;
+  events_without_decisions: number;
+  yield_rate: number;           // fraction 0–1: events_with_decisions / total_events
+  total_decisions: number;
+  avg_decisions_per_event: number; // across events that have at least one decision
+  sources: Record<string, number>; // event count per source type
+  last_event_at: string | null;
+}
+
+export async function getCorpusStats(projectId: string): Promise<CorpusStats> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (e:Event {project_id: $project_id})
+       OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(e)
+       WITH e, count(d) AS decision_count
+       WITH
+         count(e)                                                              AS total_events,
+         sum(CASE WHEN decision_count > 0 THEN 1 ELSE 0 END)                  AS events_with_decisions,
+         sum(CASE WHEN decision_count = 0 THEN 1 ELSE 0 END)                  AS events_without_decisions,
+         sum(decision_count)                                                   AS total_decisions,
+         max(e.timestamp)                                                      AS last_event_at,
+         collect({source: e.source, has_decisions: decision_count > 0})        AS event_meta
+       RETURN total_events, events_with_decisions, events_without_decisions,
+              total_decisions, last_event_at, event_meta`,
+      { project_id: projectId }
+    );
+
+    if (result.records.length === 0) {
+      return {
+        project_id: projectId,
+        total_events: 0, events_with_decisions: 0, events_without_decisions: 0,
+        yield_rate: 0, total_decisions: 0, avg_decisions_per_event: 0,
+        sources: {}, last_event_at: null,
+      };
+    }
+
+    const r = result.records[0];
+    const totalEvents       = toNum(r.get("total_events"));
+    const eventsWithDec     = toNum(r.get("events_with_decisions"));
+    const eventsWithoutDec  = toNum(r.get("events_without_decisions"));
+    const totalDecisions    = toNum(r.get("total_decisions"));
+    const lastEventAt       = (r.get("last_event_at") as string | null) ?? null;
+    const eventMeta         = (r.get("event_meta") as Array<{ source: string; has_decisions: boolean }>) ?? [];
+
+    // Tally events per source
+    const sources: Record<string, number> = {};
+    for (const m of eventMeta) {
+      const src = m.source ?? "unknown";
+      sources[src] = (sources[src] ?? 0) + 1;
+    }
+
+    return {
+      project_id: projectId,
+      total_events: totalEvents,
+      events_with_decisions: eventsWithDec,
+      events_without_decisions: eventsWithoutDec,
+      yield_rate: totalEvents > 0 ? Math.round((eventsWithDec / totalEvents) * 1000) / 1000 : 0,
+      total_decisions: totalDecisions,
+      avg_decisions_per_event: eventsWithDec > 0 ? Math.round((totalDecisions / eventsWithDec) * 10) / 10 : 0,
+      sources,
+      last_event_at: lastEventAt,
+    };
+  } finally {
+    await session.close();
+  }
+}

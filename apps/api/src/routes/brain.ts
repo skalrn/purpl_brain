@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions, listDecisions, getDecisionDetail } from "../lib/neo4j.js";
+import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions, listDecisions, getDecisionDetail, getCorpusStats } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
@@ -573,4 +573,52 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   );
+
+  // ── GET /brain/corpus-stats ───────────────────────────────────────────────
+  // Extraction yield report for a project: how many events yielded decisions
+  // vs how many yielded nothing. Useful for diagnosing thin corpora before
+  // running evals or relying on brain_query for orchestration context.
+  fastify.get<{ Querystring: { project_id: string } }>(
+    "/brain/corpus-stats",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { project_id } = req.query;
+      if (!project_id) {
+        return reply.status(400).send({ error: "project_id is required" });
+      }
+      try {
+        const [neo4jStats, qdrantCount] = await Promise.all([
+          getCorpusStats(project_id),
+          fetch(
+            `${process.env.QDRANT_URL ?? "http://localhost:6333"}/collections/${process.env.QDRANT_COLLECTION ?? "brain_chunks"}/points/count`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ filter: { must: [{ key: "project_id", match: { value: project_id } }] } }),
+            }
+          )
+            .then(r => r.json())
+            .then((r: { result?: { count: number } }) => r.result?.count ?? 0)
+            .catch(() => 0),
+        ]);
+
+        return {
+          ...neo4jStats,
+          qdrant_chunks: qdrantCount,
+          corpus_quality: corpusQualityLabel(neo4jStats.yield_rate, neo4jStats.total_events, qdrantCount),
+        };
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to fetch corpus stats" });
+      }
+    }
+  );
 };
+
+function corpusQualityLabel(yieldRate: number, totalEvents: number, chunks: number): string {
+  if (totalEvents === 0) return "empty — ingest events first";
+  if (chunks === 0)      return "ingested but not yet indexed — pipeline still processing";
+  if (yieldRate < 0.20)  return "thin — most events yielded no decisions; seed decision-rich content";
+  if (yieldRate < 0.40)  return "moderate — consider seeding more decision-rich PRs or discussions";
+  return "healthy";
+}
