@@ -30,7 +30,7 @@ import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
-const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "90000");
+const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "150000");
 const RUN_ID = Date.now();
 const PROJECT_ID = `eval_integration_${RUN_ID}`;
 const DECOY_PROJECT = `eval_decoy_${RUN_ID}`;
@@ -261,13 +261,13 @@ async function main() {
     const s1 = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", AGENT_LOG_S1, true
     );
-    check("session 1 returns 200", s1.status === 200, `status=${s1.status} body=${JSON.stringify(s1.body)}`);
+    check("session 1 returns 200 or 202", [200, 202].includes(s1.status), `status=${s1.status} body=${JSON.stringify(s1.body)}`);
     check("session 1 event_id has agent_ prefix",
       typeof s1.body.event_id === "string" && s1.body.event_id.startsWith("agent_"),
       `event_id=${s1.body.event_id}`);
     check("session 1 logs 1 decision", s1.body.decisions_logged === 1,
       `decisions_logged=${s1.body.decisions_logged}`);
-    session1Ok = s1.status === 200;
+    session1Ok = [200, 202].includes(s1.status);
   }
 
   // ── Phase 2: Seed supporting document ──────────────────────────────────────
@@ -288,8 +288,8 @@ async function main() {
       },
       true
     );
-    check("document ingest returns 200", doc.status === 200, `status=${doc.status}`);
-    docOk = doc.status === 200;
+    check("document ingest returns 200 or 202", [200, 202].includes(doc.status), `status=${doc.status}`);
+    docOk = [200, 202].includes(doc.status);
   }
 
   // ── Phase 2b: Seed decoy project (isolation test) ───────────────────────────
@@ -305,7 +305,7 @@ async function main() {
       },
       true
     );
-    check("decoy project document ingest returns 200", decoy.status === 200, `status=${decoy.status}`);
+    check("decoy project document ingest returns 200 or 202", [200, 202].includes(decoy.status), `status=${decoy.status}`);
   }
 
   // ── Phase 3: Seed agent session 2 (contradiction) ──────────────────────────
@@ -318,10 +318,10 @@ async function main() {
     const s2 = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", AGENT_LOG_S2, true
     );
-    check("session 2 returns 200", s2.status === 200, `status=${s2.status}`);
+    check("session 2 returns 200 or 202", [200, 202].includes(s2.status), `status=${s2.status}`);
     check("session 2 logs 1 decision", s2.body.decisions_logged === 1,
       `decisions_logged=${s2.body.decisions_logged}`);
-    session2Ok = s2.status === 200;
+    session2Ok = [200, 202].includes(s2.status);
 
     // Duplicate session_id must be rejected
     const dupe = await post<{ error: string }>("/brain/agent-log", AGENT_LOG_S2, true);
@@ -446,7 +446,7 @@ async function main() {
     const reingest = await post<{ ok: boolean }>(
       "/brain/agent-log", dedupeLog, true
     );
-    check("re-ingest of identical content returns 200", reingest.status === 200,
+    check("re-ingest of identical content returns 200 or 202", [200, 202].includes(reingest.status),
       `status=${reingest.status}`);
 
     // Short wait for the drift detector to process

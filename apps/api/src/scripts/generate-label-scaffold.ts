@@ -89,7 +89,7 @@ async function readAllEvents(redis: Redis, projectId: string): Promise<RawEvent[
 async function run() {
   const args = process.argv.slice(2);
   const projectIdx = args.indexOf("--project");
-  const projectId = projectIdx !== -1 ? args[projectIdx + 1] : "encode_httpx";
+  const projectId = projectIdx !== -1 ? args[projectIdx + 1] : "honojs_hono";
 
   const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 
@@ -138,7 +138,7 @@ async function run() {
 
   // Write markdown for reading
   const mdLines: string[] = [
-    "# Labeling Scaffold — encode/httpx PRs",
+    `# Labeling Scaffold — ${projectId} PRs`,
     "",
     "For each PR below, decide:",
     "1. Does the PR (or its reviews/comments) contain a **decision**?",
