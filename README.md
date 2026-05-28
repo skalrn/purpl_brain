@@ -45,7 +45,7 @@ Not yet validated: multiple developers writing to the same graph. Whether the st
 
 **Known limitations:**
 
-- **Impact analysis risk tiers are LLM-only.** `brain_analyze_impact` asks an LLM to classify risk as `critical`, `high`, `medium`, or `low` against a natural-language rubric. The same change described differently can produce different tiers. Decision metadata (confidence level, downstream reference count, open drift alerts, age) is not used to enforce a minimum tier. Treat the result as a first signal requiring review, not a gate. See [ADR-006](docs/technical/adrs/006-impact-analysis-design.md) for what a rule-based floor would look like.
+- **Impact analysis risk tiers are LLM-only.** `brain_analyze_impact` asks an LLM to classify risk as `critical`, `high`, `medium`, or `low` against a natural-language rubric. The same change described differently can produce different tiers. Decision metadata (confidence level, downstream reference count, open drift alerts, age) is not used to enforce a minimum tier. Treat the result as a first signal requiring review, not a gate.
 - **Drift detection skips GitHub-sourced decisions** to reduce false positives from PR noise. Decisions extracted from GitHub PRs are not candidates for drift matching.
 - **Source coverage is partial.** Agent sessions and local documents are tested. GitHub webhook ingestion is implemented but not yet run through a full validation pass. Slack ingestion is implemented and includes thread context — when a message in a monitored channel is identified as a decision, the prior thread replies are fetched and prepended so the extractor sees the full discussion, not just the conclusion.
 - **The Stop hook catches sessions that close cleanly.** If a session crashes or is force-killed, the hook doesn't fire. Decisions from interrupted sessions are not recovered by this mechanism.
@@ -89,7 +89,7 @@ Query (brain_query)
   └──▶  embed → Qdrant ANN search → Neo4j graph expand → LLM answer with citations
 ```
 
-**Why two databases:** Qdrant finds semantically related chunks. Neo4j expands from those entry points to full causal context — who decided what, which tickets it affected, what drift it triggered. Neither alone answers both types of query. See [ADR-001](docs/technical/adrs/001-hybrid-brain-store.md).
+**Why two databases:** Qdrant finds semantically related chunks. Neo4j expands from those entry points to full causal context — who decided what, which tickets it affected, what drift it triggered. Neither alone answers both types of query.
 
 ---
 
@@ -99,12 +99,14 @@ Add purpl-brain to Claude Code. Four tools become available in every session:
 
 | Tool | When to call |
 |------|-------------|
-| `brain_query` | Session start — recall prior decisions and open drift alerts before touching anything |
-| `brain_log_decision` | Mid-session or end — log what you decided, what you rejected, and why |
-| `brain_analyze_impact` | Before any architectural change — check which decisions your change affects |
-| `brain_log_signal` | When you find something unexpected — report findings that may contradict existing decisions |
+| `brain_query` | **Session start — every session.** Recall prior decisions, open drift alerts, and what prior agents already figured out. This is where the cross-session memory value is felt immediately. |
+| `brain_log_decision` | **When a decision is made — mid-session, not just at close.** Log what you decided, what you rejected, and why. The rationale is what makes the next session's query useful. |
+| `brain_log_signal` | When you find something unexpected — report a finding that may contradict an existing decision. |
+| `brain_analyze_impact` | Before a significant architectural change — check which prior decisions your change affects. **Requires a critical mass of decisions in the brain to return useful results. On Ollama, expect 30–60s latency; Claude may proceed without waiting if the call is slow.** Most valuable after the first week of active use. |
 
 Four tools, not fifty-three. The discipline is the product. If decisions are logged explicitly, they are precise, attributed, and queryable. If everything is captured automatically, you get a session dump — not a decision trail.
+
+**The core loop that delivers value immediately:** log decisions in session one → start session two cold → run `brain_query` → Claude already knows what was decided and why, without you telling it. Everything else builds on top of that.
 
 Add the CLAUDE.md snippet from `setup.sh` to your project repo and these calls happen automatically, not by model judgment.
 
@@ -268,12 +270,11 @@ npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
 | Audience | Document |
 |----------|----------|
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
-| Why Qdrant + Neo4j | [docs/technical/adrs/001-hybrid-brain-store.md](docs/technical/adrs/001-hybrid-brain-store.md) |
-| Why MCP | [docs/technical/adrs/002-mcp-server-interface.md](docs/technical/adrs/002-mcp-server-interface.md) |
-| Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
-| Impact analysis design and limits | [docs/technical/adrs/006-impact-analysis-design.md](docs/technical/adrs/006-impact-analysis-design.md) |
+| Embedding model selection | [docs/technical/adrs/005-embedding-model.md](docs/technical/adrs/005-embedding-model.md) |
 | Drift coordination flow (sequence diagrams) | [docs/technical/drift-flow.md](docs/technical/drift-flow.md) |
+| LLM cost controls and prompt caching | [docs/technical/llm-cost-controls.md](docs/technical/llm-cost-controls.md) |
+| Design tradeoffs | [docs/technical/architecture-tradeoffs.md](docs/technical/architecture-tradeoffs.md) |
 
 ---
 
