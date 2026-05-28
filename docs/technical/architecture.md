@@ -113,13 +113,13 @@ The persistent knowledge state. Hybrid architecture: a vector store for semantic
 **Vector Store**
 - Stores: embedded chunks with metadata (source, timestamp, project_id, actor, url)
 - Used for: semantic similarity search, natural language query grounding
-- Technology choice: see [ADR-001](adrs/001-hybrid-brain-store.md)
+
 
 **Graph Database (Neo4j)**
 - Nodes: Event, Decision, Ticket, DriftAlert, FollowUpTask, Person
 - Edge types: `AUTHORED_BY`, `EXTRACTED_FROM`, `REFERENCES`, `CHALLENGES`, `INFORMS`, `ADDRESSES`
 - Used for: impact analysis (INFORMS traversal from Decision → Ticket), drift alert linking, person identity resolution
-- Technology choice: see [ADR-001](adrs/001-hybrid-brain-store.md)
+
 
 **Temporal Index**
 - Every node and edge carries a `valid_from` / `valid_to` timestamp
@@ -221,8 +221,8 @@ See ADRs for rationale on key decisions.
 | Layer | Technology | Notes |
 |---|---|---|
 | API server | Node.js (Fastify) | TypeScript; monorepo with `apps/api` |
-| Vector store | Qdrant (self-hosted) | See ADR-001 |
-| Graph database | Neo4j 5 Community | See ADR-001; uniqueness constraints on all primary keys |
+| Vector store | Qdrant (self-hosted) | |
+| Graph database | Neo4j 5 Community | Uniqueness constraints on all primary keys |
 | Embedding model | `text-embedding-3-small` (OpenAI) via Anthropic-compatible endpoint | Evaluated in Phase 1 |
 | LLM (query + extraction) | Claude Haiku 4.5 (extraction/intent), Claude Sonnet 4.6 (query answers) | Prompt caching on all calls; see llm-cost-controls.md |
 | Event queue | Redis 7 Streams (consumer groups, SIGTERM-safe workers) | `StreamWorker` base class in `apps/api/src/lib/stream-worker.ts` |
