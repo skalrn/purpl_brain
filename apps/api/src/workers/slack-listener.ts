@@ -37,6 +37,27 @@ function mightBeDecision(text: string): boolean {
   return COMMITMENT_RE.test(text);
 }
 
+// Fetch up to 6 earlier messages from a thread for context.
+// Returns them as "actor: text" lines prepended to the decision message,
+// so the extractor sees the full discussion, not just the conclusion.
+async function fetchThreadContext(
+  client: InstanceType<typeof App>["client"],
+  channel: string,
+  threadTs: string,
+  currentTs: string
+): Promise<string | null> {
+  try {
+    const res = await client.conversations.replies({ channel, ts: threadTs, limit: 20 });
+    const prior = (res.messages ?? [])
+      .filter((m) => m.ts !== currentTs && !("bot_id" in m && m.bot_id) && m.text)
+      .slice(-6)
+      .map((m) => m.text as string);
+    return prior.length > 0 ? prior.join("\n") : null;
+  } catch {
+    return null;
+  }
+}
+
 async function publishToRaw(event: CanonicalEvent): Promise<void> {
   // Dedup by source_id
   const already = await redis.sismember(PROCESSED_SET, event.source_id);
@@ -48,6 +69,11 @@ async function publishToRaw(event: CanonicalEvent): Promise<void> {
 }
 
 async function run() {
+  if (process.env.SLACK_ENABLED !== "true") {
+    console.log("[slack-listener] SLACK_ENABLED is not set to true — exiting. Set SLACK_ENABLED=true in .env to activate.");
+    process.exit(0);
+  }
+
   if (!process.env.SLACK_BOT_TOKEN || !process.env.SLACK_APP_TOKEN) {
     console.error("[slack-listener] SLACK_BOT_TOKEN and SLACK_APP_TOKEN are required");
     process.exit(1);
@@ -99,6 +125,15 @@ async function run() {
     const sourceId = `slack_${msg.channel}_${msg.ts}`;
     const projectId = projectForChannel(msg.channel);
 
+    // If this message is a thread reply, prepend earlier thread messages so the
+    // extractor sees the full discussion — rationale and alternatives, not just
+    // the conclusion.
+    let rawContent = msg.text;
+    if (msg.thread_ts && msg.thread_ts !== msg.ts) {
+      const threadContext = await fetchThreadContext(client, msg.channel, msg.thread_ts, msg.ts);
+      if (threadContext) rawContent = `${threadContext}\n${msg.text}`;
+    }
+
     const event: CanonicalEvent = {
       event_id: `slack_${uuidv4()}`,
       source: "slack",
@@ -107,7 +142,7 @@ async function run() {
       actor: { type: "human", id: actorId, name: actorName },
       timestamp: new Date(parseFloat(msg.ts) * 1000).toISOString(),
       event_type: "slack_message",
-      raw_content: msg.text,
+      raw_content: rawContent,
       url: `https://slack.com/archives/${msg.channel}/p${msg.ts.replace(".", "")}`,
       slack_channel: msg.channel,
       slack_thread_ts: msg.thread_ts,

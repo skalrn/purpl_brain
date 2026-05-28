@@ -61,7 +61,6 @@ Measured against the builder's own eval suite and manually labeled test cases �
 | Eval | Result | What it measures |
 |---|---|---|
 | Cross-session recall | **5/5 (100%)** | Decisions logged by 3 different agents over 3 weeks, recalled correctly by a new session with no prior context |
-| Decision extraction F1 | **85.7%** | Precision 92.3% / Recall 80.0% — against manually labeled ground truth on 30 real GitHub PRs |
 | End-to-end answer recall | **95.5%** | 21/22 queries answered correctly or partially against honojs/hono public corpus (qwen2.5:7b + llama3.1:8b) |
 | Pipeline correctness | **33/33 PASS** | Full pipeline: ingestion → extraction → graph integrity → query → drift detection |
 | MCP tool correctness | **8/8 PASS** | All 4 MCP tools verified against REST API equivalents |

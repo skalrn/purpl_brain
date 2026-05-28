@@ -16,7 +16,7 @@ import { ingestRoutes } from "./routes/ingest.js";
 import { identityRoutes } from "./routes/identity.js";
 import { checkEmbeddingModel } from "./lib/qdrant.js";
 import { currentEmbeddingModel } from "./lib/embed.js";
-import { ensureBotPerson } from "./lib/neo4j.js";
+import { ensureBotPerson, addPersonToProject, getPersonByApiKey } from "./lib/neo4j.js";
 
 // DEV_API_KEY bypasses all project membership checks — must never be set in
 // production. Fail fast rather than silently running without tenant isolation.
@@ -110,6 +110,18 @@ if (process.env.BRAIN_API_KEY) {
   try {
     await ensureBotPerson(process.env.BRAIN_API_KEY, agentId);
     app.log.info({ agentId }, "Bot Person ensured for BRAIN_API_KEY");
+
+    // Auto-add Bot Person to DEFAULT_PROJECT_ID so the initial ingest works
+    // without a separate project-setup step. Idempotent — MERGE is safe to
+    // run every restart.
+    const defaultProject = process.env.DEFAULT_PROJECT_ID;
+    if (defaultProject) {
+      const person = await getPersonByApiKey(process.env.BRAIN_API_KEY);
+      if (person) {
+        await addPersonToProject(person.person_id, defaultProject);
+        app.log.info({ agentId, project_id: defaultProject }, "Bot Person added to default project");
+      }
+    }
   } catch (e) {
     app.log.warn({ err: (e as Error).message }, "Failed to register BRAIN_API_KEY as Bot Person — check Neo4j connectivity");
   }

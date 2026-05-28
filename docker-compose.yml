@@ -166,6 +166,22 @@ services:
     command: ["node", "dist/workers/drift-detector.js"]
     stop_grace_period: 30s
 
+  slack-listener:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - apps/api/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "dist/workers/slack-listener.js"]
+    restart: on-failure
+
   # ── Web UI ─────────────────────────────────────────────────────────────────
   web:
     build:
