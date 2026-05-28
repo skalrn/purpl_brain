@@ -169,6 +169,70 @@ API: `http://localhost:3001/health`
 
 ---
 
+## First 10 minutes
+
+After `setup.sh` completes, run through this sequence to confirm the core loop works. Use the `BRAIN_API_KEY` printed by setup.sh.
+
+**1. Check everything is running (30 seconds)**
+
+```bash
+curl http://localhost:3001/health
+# → {"status":"ok"}
+```
+
+**2. Log a decision (30 seconds)**
+
+```bash
+curl -X POST http://localhost:3001/brain/agent-log \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <your-key>" \
+  -d '{
+    "session_id": "first-test",
+    "project_id": "<your-project-id>",
+    "agent_id": "me",
+    "work_completed": "Chose Redis over Memcached for the session cache layer",
+    "decisions": [{
+      "id": "session-cache-choice",
+      "description": "Use Redis for session cache, not Memcached",
+      "rationale": "Redis supports TTL-native eviction and pub/sub which we need for cache invalidation. Memcached requires a separate eviction job.",
+      "alternatives_considered": ["Memcached", "in-memory LRU"],
+      "confidence": "high"
+    }]
+  }'
+# → {"ok":true,"event_id":"...","decisions_logged":1}
+```
+
+**3. Wait for the pipeline (Ollama: ~90s, Anthropic: ~15s)**
+
+The decision flows through: normalizer → extractor → brain-writer → Qdrant + Neo4j.
+
+```bash
+# Watch the chunk count grow:
+watch -n 5 'curl -s -X POST http://localhost:6333/collections/brain_chunks/points/count \
+  -H "Content-Type: application/json" \
+  -d "{\"filter\":{\"must\":[{\"key\":\"project_id\",\"match\":{\"value\":\"<your-project-id>\"}}]}}" \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)[\"result\"][\"count\"], \"chunks\")"'
+# Stop when count reaches 1+
+```
+
+**4. Query it back (the payoff)**
+
+```bash
+curl -s -X POST http://localhost:3001/brain/query \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <your-key>" \
+  -d '{
+    "query": "what was decided about the cache layer and why?",
+    "project_id": "<your-project-id>"
+  }' | python3 -m json.tool
+```
+
+You should get an answer citing Redis, the rationale about TTL-native eviction, and the alternatives considered — sourced from what you logged in step 2. This is the core loop: **log once, recall from any future session**.
+
+> **Ollama latency:** the query step takes 14–28s on Ollama. That is normal — not a hang. The answer arrives when the LLM finishes.
+
+---
+
 ## LLM provider options
 
 | | Ollama path (default) | Anthropic path |
