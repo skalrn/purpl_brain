@@ -12,8 +12,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "eval:mcp": "tsx src/eval-mcp.ts",
-    "eval:mcp-conflict": "tsx src/eval-mcp-conflict.ts"
+    "eval:mcp": "tsx src/eval/eval-mcp.ts",
+    "eval:mcp-conflict": "tsx src/eval/eval-mcp-conflict.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
