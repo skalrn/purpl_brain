@@ -47,7 +47,7 @@ Not yet validated: multiple developers writing to the same graph. Whether the st
 
 - **Impact analysis risk tiers are LLM-only.** `brain_analyze_impact` asks an LLM to classify risk as `critical`, `high`, `medium`, or `low` against a natural-language rubric. The same change described differently can produce different tiers. Decision metadata (confidence level, downstream reference count, open drift alerts, age) is not used to enforce a minimum tier. Treat the result as a first signal requiring review, not a gate. See [ADR-006](docs/technical/adrs/006-impact-analysis-design.md) for what a rule-based floor would look like.
 - **Drift detection skips GitHub-sourced decisions** to reduce false positives from PR noise. Decisions extracted from GitHub PRs are not candidates for drift matching.
-- **Source coverage is partial.** Agent sessions and local documents are tested. GitHub webhook ingestion and Slack ingestion are implemented but not yet run through a full validation pass.
+- **Source coverage is partial.** Agent sessions and local documents are tested. GitHub webhook ingestion is implemented but not yet run through a full validation pass. Slack ingestion is implemented and includes thread context — when a message in a monitored channel is identified as a decision, the prior thread replies are fetched and prepended so the extractor sees the full discussion, not just the conclusion.
 - **The Stop hook catches sessions that close cleanly.** If a session crashes or is force-killed, the hook doesn't fire. Decisions from interrupted sessions are not recovered by this mechanism.
 - **Mid-session compaction is an open problem.** A decision made three hours into a long session and then compacted before close is lost even with a working Stop hook. The hook solves the boundary case; the mid-session case is still open.
 - **Logged decision quality depends on timing.** A decision logged at the moment it's made, when context is richest, is more complete than one reconstructed from a hook prompt at session close.
@@ -211,6 +211,32 @@ npm run seed:local-docs -w apps/api -- \
 
 Attribution resolved from git history. Linked GitHub PR threads are automatically followed and ingested.
 
+### Drift notifications
+
+When a drift alert is confirmed, the drift-detector can POST to any HTTP endpoint — a Slack incoming webhook, a coordinator agent, a custom URL:
+
+```bash
+# In .env:
+DRIFT_WEBHOOK_URL=https://hooks.slack.com/services/...
+```
+
+Payload:
+
+```json
+{
+  "alert_id": "...",
+  "project_id": "...",
+  "risk": "high",
+  "challenged_decision_summary": "Use stateless JWT — no server-side token store",
+  "challenging_content": "Decision: Store tokens in Redis with TTL 24h...",
+  "reason": "Introduces server-side token persistence, contradicting the JWT-only decision.",
+  "actor": "claude-code",
+  "timestamp": "..."
+}
+```
+
+Leave `DRIFT_WEBHOOK_URL` unset to disable. Only LLM-confirmed conflict alerts fire the webhook — confirmations do not.
+
 ### Meeting transcripts
 
 ```bash
@@ -247,6 +273,7 @@ npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
 | Why Redis Streams | [docs/technical/adrs/003-event-driven-ingestion.md](docs/technical/adrs/003-event-driven-ingestion.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
 | Impact analysis design and limits | [docs/technical/adrs/006-impact-analysis-design.md](docs/technical/adrs/006-impact-analysis-design.md) |
+| Drift coordination flow (sequence diagrams) | [docs/technical/drift-flow.md](docs/technical/drift-flow.md) |
 
 ---
 
