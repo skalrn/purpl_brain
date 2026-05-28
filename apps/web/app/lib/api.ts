@@ -112,12 +112,32 @@ export interface AgentSessionDetail {
   brain_query_distinct_sessions_count: number | null;
 }
 
+export interface Decision {
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  confidence: string;
+  alternatives_considered: string[];
+  valid_from: string;
+  agent_id: string;
+  operator_name: string | null;
+  event_id: string;
+  event_source: string;
+}
+
+export interface DecisionsResponse {
+  decisions: Decision[];
+  project_id: string;
+  total: number;
+}
+
 export interface FollowUpTask {
   task_id: string;
   project_id: string;
   title: string;
   description: string;
   suggested_owner?: string;
+  codegen_prompt?: string | null;
   requires_approval: boolean;
   source: string;
   status: string;
@@ -145,7 +165,7 @@ export function fetchDriftAlerts(projectId?: string): Promise<DriftAlertsRespons
 
 export function resolveDriftAlert(
   alertId: string,
-  resolution: "keep" | "under_review" | "reopen"
+  resolution: "keep" | "under_review" | "reopen" | "escalate"
 ): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(`/brain/drift-alerts/${alertId}/resolve`, {
     method: "POST",
@@ -191,11 +211,129 @@ export function logSeedDecision(
   });
 }
 
+export function fetchDecisions(projectId: string, limit = 50): Promise<DecisionsResponse> {
+  return apiFetch<DecisionsResponse>(
+    `/brain/decisions?project_id=${encodeURIComponent(projectId)}&limit=${limit}`
+  );
+}
+
+export interface DecisionDriftAlert {
+  alert_id: string;
+  source: string;
+  content: string;
+  reason: string | null;
+  actor: string;
+  timestamp: string;
+  resolution: string;
+}
+
+export interface DecisionFollowUpTask {
+  task_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+  suggested_owner?: string;
+  codegen_prompt?: string | null;
+}
+
+export interface DecisionFull {
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  alternatives_considered: string[];
+  confidence: string;
+  status: string;
+  valid_from: string;
+  event_id: string;
+  event_source: string;
+  event_url: string | null;
+  event_timestamp: string;
+  agent_id: string;
+  operator_name: string | null;
+  project_id: string;
+  codegen_prompt?: string | null;
+  drift_alerts: DecisionDriftAlert[];
+  follow_up_tasks: DecisionFollowUpTask[];
+}
+
+// ── Impact analysis ──────────────────────────────────────────────────────────
+
+export interface ImpactTask {
+  ticket_ref: string;
+  jira_summary?: string;
+  jira_status?: string;
+  jira_assignee?: string;
+  jira_url?: string;
+  risk_tier: "critical" | "high" | "medium" | "low";
+  reason: string;
+}
+
+export interface ImpactDecision {
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  status: string;
+  affected_tickets: ImpactTask[];
+}
+
+export interface ImpactResponse {
+  change_description: string;
+  overall_risk: "critical" | "high" | "medium" | "low";
+  summary: string;
+  affected_decisions: ImpactDecision[];
+  latency_ms: number;
+}
+
+export function fetchDecisionDetail(decisionId: string): Promise<DecisionFull> {
+  return apiFetch<DecisionFull>(`/brain/decisions/${encodeURIComponent(decisionId)}`);
+}
+
 export function fetchTasks(projectId: string, status?: string): Promise<TasksResponse> {
   const qs = status
     ? `?project_id=${encodeURIComponent(projectId)}&status=${encodeURIComponent(status)}`
     : `?project_id=${encodeURIComponent(projectId)}`;
   return apiFetch<TasksResponse>(`/brain/tasks${qs}`);
+}
+
+export function analyzeImpact(projectId: string, changeDescription: string): Promise<ImpactResponse> {
+  return apiFetch<ImpactResponse>("/query", {
+    method: "POST",
+    body: JSON.stringify({
+      query: changeDescription,
+      project_id: projectId,
+      mode: "impact",
+      change_description: changeDescription,
+    }),
+  });
+}
+
+export function ingestTranscript(params: {
+  project_id: string;
+  text: string;
+  title?: string;
+  occurred_at?: string;
+  source_url?: string;
+}): Promise<{ ok: boolean; chunks_queued: number; format: string; speakers: string[]; message: string }> {
+  return apiFetch("/brain/ingest/transcript", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function submitSignal(params: {
+  project_id: string;
+  text: string;
+  source: string;
+  actor_id: string;
+  actor_name: string;
+  url?: string;
+  occurred_at?: string;
+}): Promise<{ ok: boolean; drift_alerts_created: number; matched_decisions: number; message: string }> {
+  return apiFetch("/brain/signals", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
 }
 
 // ── Utilities ───────────────────────────────────────────────────────────────

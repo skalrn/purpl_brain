@@ -4,7 +4,7 @@ import type { Project } from "../lib/api";
 import ProjectCard from "./ProjectCard";
 import EmptyBrainState from "./EmptyBrainState";
 
-export default function ProjectGrid({ projects }: { projects: Project[] }) {
+export default function ProjectGrid({ projects, windowLabel }: { projects: Project[]; windowLabel: string }) {
   if (projects.length === 0) return <EmptyBrainState />;
 
   const sorted = [...projects].sort(
@@ -15,7 +15,7 @@ export default function ProjectGrid({ projects }: { projects: Project[] }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       {sorted.map((p) => (
-        <ProjectCard key={p.project_id} project={p} />
+        <ProjectCard key={p.project_id} project={p} windowLabel={windowLabel} />
       ))}
     </div>
   );

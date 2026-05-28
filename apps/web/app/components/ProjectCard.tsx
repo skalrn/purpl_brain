@@ -6,7 +6,7 @@ import { relativeTime } from "../lib/api";
 import DriftBadge from "./DriftBadge";
 import BrainHealthBadge from "./BrainHealthBadge";
 
-export default function ProjectCard({ project }: { project: Project }) {
+export default function ProjectCard({ project, windowLabel }: { project: Project; windowLabel: string }) {
   const {
     project_id,
     pending_drift_count,
@@ -21,7 +21,7 @@ export default function ProjectCard({ project }: { project: Project }) {
     decision_count,
   } = project;
 
-  const hasOvernight = sessions_since > 0 || pending_drift_count > 0;
+  const hasDelta = sessions_since > 0 || decisions_since > 0;
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-3 hover:border-gray-700 transition-colors">
@@ -67,10 +67,13 @@ export default function ProjectCard({ project }: { project: Project }) {
         </div>
       )}
 
-      {/* Overnight delta */}
-      {hasOvernight && (
+      {/* Activity delta for selected window */}
+      {hasDelta && (
         <p className="text-xs text-gray-400">
-          ↑ {sessions_since} session{sessions_since !== 1 ? "s" : ""} · {decisions_since} decision{decisions_since !== 1 ? "s" : ""} overnight
+          ↑ <span className="text-gray-200">{sessions_since}</span> session{sessions_since !== 1 ? "s" : ""}
+          {" · "}
+          <span className="text-gray-200">{decisions_since}</span> decision{decisions_since !== 1 ? "s" : ""}
+          <span className="text-gray-600"> — {windowLabel}</span>
         </p>
       )}
 

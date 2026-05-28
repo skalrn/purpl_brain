@@ -3,7 +3,6 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import UserMenu from "../../../../components/UserMenu";
 import AgentTypeBadge from "../../../../components/AgentTypeBadge";
 import OperatorTag from "../../../../components/OperatorTag";
 import RiskBadge from "../../../../components/RiskBadge";
@@ -30,21 +29,17 @@ export default function SessionDetailView({
   ).length ?? 0;
 
   return (
-    <main className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight shrink-0">
-          purpl<span className="text-purple-400">_brain</span>
-        </Link>
-        <span className="text-gray-600">/</span>
-        <Link href={`/p/${project_id}`} className="text-sm font-mono text-gray-400 hover:text-gray-200 transition-colors">
+    <div className="flex flex-col min-h-full">
+      {/* Breadcrumb */}
+      <div className="border-b border-gray-800 px-6 py-3 flex items-center gap-2 text-sm shrink-0">
+        <Link href="/" className="text-gray-500 hover:text-gray-300 transition-colors">Projects</Link>
+        <span className="text-gray-700">/</span>
+        <Link href={`/p/${project_id}`} className="font-mono text-gray-400 hover:text-gray-200 transition-colors">
           {projectId}
         </Link>
-        <span className="text-gray-600">/</span>
-        <span className="text-sm font-mono text-gray-600 truncate">{eventId.slice(0, 16)}…</span>
-        <div className="ml-auto">
-          <UserMenu />
-        </div>
-      </header>
+        <span className="text-gray-700">/</span>
+        <span className="font-mono text-gray-600 truncate">{eventId.slice(0, 16)}…</span>
+      </div>
 
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
@@ -180,7 +175,7 @@ export default function SessionDetailView({
           <RawLog content={session.raw_content} />
         </div>
       )}
-    </main>
+    </div>
   );
 }
 
