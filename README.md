@@ -154,6 +154,8 @@ bash setup.sh
 
 `setup.sh` writes `.env`, builds the MCP server, starts all services via `docker compose`, and prints a ready-to-paste MCP config and CLAUDE.md snippet. Ollama runs on the host; the containers reach it via `host.docker.internal`.
 
+> **Ollama latency:** queries take ~14s (p50) to ~28s (p95). This is normal — the LLM is running locally. If you need faster responses, switch to `LLM_PROVIDER=anthropic` in `apps/api/.env`.
+
 ### Pre-built images
 
 No source build needed. Requires Docker and Ollama running on the host.
@@ -279,6 +281,16 @@ Paste into `~/.claude/settings.json`:
 ---
 
 ## Connect signal sources
+
+### What makes a good first corpus
+
+The brain's value depends on what you seed. Two things matter more than volume:
+
+**Choose an internal project, not a public one.** If you seed a well-known public framework (React, Next.js, Hono), the LLM already knows those decisions from training data. The brain's marginal value shrinks because the agent doesn't need it. Seed a private repo — your team's auth service, your data pipeline, your API — where the decisions are novel to the model.
+
+**Decision-rich events beat raw activity.** PRs with long review threads, Slack channels where architecture is debated, meeting transcripts from design reviews — these yield decisions the extractor can find. Routine merge commits and trivial fixes yield nothing. The seeder filters by comment count (default: `MIN_COMMENTS=3`) to surface signal over noise automatically.
+
+A corpus with 20 well-chosen decisions from your internal project will outperform 200 events from a public repo the model already knows.
 
 ### GitHub
 
