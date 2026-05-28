@@ -200,15 +200,9 @@ services:
     command: ["node", "dist/workers/drift-detector.js"]
     stop_grace_period: 30s
 
-  web:
-    image: ghcr.io/skalrn/purpl-brain-web:beta-latest
-    ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-    depends_on:
-      api:
-        condition: service_healthy
+  # web: not yet released — API-only beta
+  # Query the brain via: curl http://localhost:3001/brain/query ...
+  # or connect Claude Code via MCP (see README).
 
   # Runs once on startup, seeds the Orion Commerce demo dataset, then exits.
   # The restart:no policy ensures Docker does not restart it after completion.

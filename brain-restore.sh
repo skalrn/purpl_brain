@@ -27,7 +27,15 @@ fi
 
 NEO4J_URL="${NEO4J_HTTP_URL:-http://localhost:7474}"
 NEO4J_USER="${NEO4J_USER:-neo4j}"
-NEO4J_PASSWORD="${NEO4J_PASSWORD:-password}"
+
+# Load NEO4J_PASSWORD from .env if not already in environment
+if [[ -z "${NEO4J_PASSWORD:-}" && -f .env ]]; then
+  NEO4J_PASSWORD="$(grep '^NEO4J_PASSWORD=' .env | cut -d= -f2-)"
+fi
+if [[ -z "${NEO4J_PASSWORD:-}" ]]; then
+  echo -e "${RED}❌  NEO4J_PASSWORD is not set. Run: source .env  or export NEO4J_PASSWORD=...${RESET}"
+  exit 1
+fi
 QDRANT_URL="${QDRANT_URL:-http://localhost:6333}"
 COLLECTION="${QDRANT_COLLECTION:-brain_chunks}"
 
