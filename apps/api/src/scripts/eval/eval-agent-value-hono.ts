@@ -1,22 +1,27 @@
 /**
- * eval-agent-value-hono.ts — Real-data A/B eval against the honojs/hono corpus
+ * eval-agent-value-hono.ts — Corpus-driven A/B eval against the honojs/hono corpus
  *
  * Unlike eval-agent-value.ts (controlled scenario with hand-crafted seed data),
  * this eval uses the real honojs/hono corpus ingested from GitHub PRs and issues.
- * The brain has ~80 events covering actual design discussions, feature debates,
- * and architectural decisions made by the Hono maintainers.
  *
- * Key differences from the controlled eval:
- *   - No seeding — uses existing honojs_hono project data
- *   - Tasks are drawn from real Hono contributor scenarios, not crafted to hit
- *     specific known decisions
- *   - Brain must retrieve relevant context from a noisy 80-event corpus; not every
- *     retrieved chunk will be relevant
- *   - Cold agent may already "know" some Hono conventions from training data,
- *     so the delta is expected to be smaller than the controlled scenario
+ * Key design principle (EVAL-4 fix):
+ *   Ground truth signals are derived from what brain_query ACTUALLY returns for each
+ *   task, not from external knowledge of the project. This tests whether brain context
+ *   injection causes the agent to align with the brain's own signals — not whether the
+ *   brain has captured the "right" decisions about Hono.
  *
- * This tests the realistic value-add: does brain context improve agent decisions
- * on a real open-source project where the brain has genuine signal mixed with noise?
+ * Flow per task:
+ *   1. Run brain_query(task) → get brain context
+ *   2. If brain returns no context, skip task (brain has no signal here)
+ *   3. LLM extracts 2-3 specific claims from the brain context → ground truth signals
+ *   4. Run cold agent on task (no context)
+ *   5. Run brain-assisted agent on task (context injected)
+ *   6. Judge: does brain agent align with the signals extracted from brain context?
+ *      Cold agent should align less, having never seen the brain context.
+ *
+ * This cleanly separates two concerns:
+ *   - Extraction coverage (did the brain capture the right decisions?) — tested elsewhere
+ *   - Injection quality (does injected context change agent behaviour?) — what this tests
  *
  * Requires:
  *   ANTHROPIC_API_KEY — OR Ollama running (auto-detected via LLM_PROVIDER)
@@ -85,12 +90,10 @@ async function llmComplete(model: string, system: string, user: string, maxToken
 
 // ── Real-world tasks ──────────────────────────────────────────────────────────
 //
-// These tasks are drawn from real Hono contributor scenarios based on the actual
-// PR and issue content seeded from honojs/hono. Each task is something a real
-// contributor might ask before opening a PR.
-//
-// The "ground truth" is what the Hono maintainers actually decided, discoverable
-// from the brain corpus. The cold agent must guess; the brain agent has the signal.
+// Tasks are drawn from real Hono contributor scenarios. Ground truth signals are
+// NOT pre-specified here — they are derived at runtime from what brain_query
+// actually returns for each task (see extractSignals below).
+// Tasks where the brain returns no context are skipped automatically.
 
 const TASKS = [
   {
@@ -100,11 +103,6 @@ const TASKS = [
       "and design constraints should I follow? Specifically: how should the middleware " +
       "be structured, what should its TypeScript signature look like, and what are the " +
       "common reasons past middleware PRs were revised or rejected?",
-    ground_truth_signals: [
-      "middleware should work across runtimes without runtime-specific code",
-      "TypeScript types must be inferred, not manually declared by the user",
-      "middleware should use the standard handler signature (c, next) pattern",
-    ],
   },
   {
     label: "T2 — URI decoding in router",
@@ -113,11 +111,6 @@ const TASKS = [
       "For example, a route matching `/users/:id` doesn't behave the same way for " +
       "`/users/foo%20bar` vs `/users/foo bar`. What has been decided about URI decoding " +
       "in Hono's router, and what approach should I take when implementing a fix?",
-    ground_truth_signals: [
-      "URI decoding was deliberately deferred to the application layer, not done in the router",
-      "there was debate about whether the router should decode or pass through encoded URIs",
-      "the decision affects RegExpRouter and LinearRouter differently",
-    ],
   },
   {
     label: "T3 — Extending Context object",
@@ -126,11 +119,6 @@ const TASKS = [
       "data across middleware (e.g., the authenticated user, a request ID, feature flags). " +
       "What is the recommended approach? What has been decided about extending Context, " +
       "and what patterns were considered but rejected?",
-    ground_truth_signals: [
-      "use c.set() / c.get() with typed variables, not class extension",
-      "extending Context via TypeScript generics was the accepted approach",
-      "monkey-patching or subclassing Context was rejected",
-    ],
   },
   {
     label: "T4 — TypeScript type inference in validators",
@@ -138,11 +126,6 @@ const TASKS = [
       "I'm building a validator integration for Hono. How should TypeScript types flow " +
       "from the validator schema through to the route handler and the RPC client? " +
       "What decisions have been made about type inference and what were the tradeoffs?",
-    ground_truth_signals: [
-      "validator types must be inferred automatically, not require manual type annotations",
-      "the validator should integrate with Hono's typed route system so RPC clients get correct types",
-      "Zod and other schema libraries are supported via an adapter pattern",
-    ],
   },
 ];
 
@@ -164,6 +147,35 @@ async function brainQuery(taskDescription: string): Promise<{ context: string; t
     tokens: Math.round(context.length / 4),
     citations: (body.citations ?? []).length,
   };
+}
+
+// ── Signal extraction from brain context ─────────────────────────────────────
+//
+// Derives 2-3 specific, testable claims from the brain's answer.
+// These become the ground truth — what we expect a brain-assisted agent to align
+// with, and what a cold agent should miss more often.
+
+const EXTRACTOR_SYSTEM =
+  "You extract specific, concrete claims from a knowledge base answer. " +
+  "Each claim must be testable: an agent either agrees with it, ignores it, or contradicts it. " +
+  "Respond only with a JSON array of strings.";
+
+async function extractSignals(brainAnswer: string): Promise<string[]> {
+  const prompt =
+    `From this knowledge base answer, extract 2-3 specific, concrete claims that a software ` +
+    `engineer giving advice should either agree with or contradict. Each claim should be ` +
+    `a single clear statement (not a question). Prefer claims about specific technical ` +
+    `decisions, patterns, or constraints — not generic observations.\n\n` +
+    `Answer:\n${brainAnswer}\n\n` +
+    `Respond with a JSON array only: ["claim 1", "claim 2", ...]`;
+
+  try {
+    const text = await llmComplete(JUDGE_MODEL, EXTRACTOR_SYSTEM, prompt, 300);
+    const clean = text.replace(/```json\n?|\n?```/g, "").trim();
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 3);
+  } catch { /* fall through */ }
+  return [];
 }
 
 // ── Agent ─────────────────────────────────────────────────────────────────────
@@ -221,7 +233,7 @@ interface TaskMetrics {
 }
 
 async function main() {
-  console.log("eval-agent-value-hono: real-data A/B against honojs/hono corpus\n");
+  console.log("eval-agent-value-hono: corpus-driven A/B (signals derived from brain context)\n");
   console.log(`Project:   ${PROJECT_ID}`);
   console.log(`Agent:     ${AGENT_MODEL}   Judge: ${JUDGE_MODEL}`);
   console.log(`Tasks:     ${TASKS.length}`);
@@ -248,23 +260,44 @@ async function main() {
     console.warn(`    WARNING: only ${count} chunks — pipeline may still be processing. Results may be incomplete.`);
   }
 
-  // Phase 1: Run A/B tasks
-  phase(1, "A/B task runs");
+  // Phase 1: Discover signals from brain, then run A/B tasks
+  phase(1, "Signal discovery + A/B task runs");
   const results: TaskMetrics[] = [];
+  let skipped = 0;
 
   for (const task of TASKS) {
     console.log(`\n  ${task.label}`);
-    const signals = task.ground_truth_signals;
 
-    console.log("    [A] cold start...");
-    const coldOutput = await runAgent(task.description, "");
-
-    console.log("    [B] querying brain...");
+    // Step 1: query brain to get context and derive ground truth signals
+    console.log("    [brain] discovering signals...");
     const { context: brainContext, tokens: ctxTokens, citations: brainCitations } = await brainQuery(task.description);
     const hasCtx = brainContext.trim().length > 100;
-    console.log(`    [B] context: ${hasCtx ? `~${ctxTokens} tokens, ${brainCitations} citations` : "none returned"}`);
+
+    if (!hasCtx) {
+      console.log(`    SKIP  brain returned no context for this task — cannot derive signals`);
+      skipped++;
+      continue;
+    }
+    console.log(`    [brain] context: ~${ctxTokens} tokens, ${brainCitations} citations`);
+
+    // Step 2: extract specific testable claims from brain context
+    // These become the ground truth — derived from what the brain actually knows
+    const signals = await extractSignals(brainContext);
+    if (signals.length === 0) {
+      console.log(`    SKIP  could not extract testable signals from brain context`);
+      skipped++;
+      continue;
+    }
+    console.log(`    [signals] derived ${signals.length} ground truth signals from brain context:`);
+    signals.forEach((s, i) => console.log(`      ${i + 1}. ${s.slice(0, 80)}${s.length > 80 ? "…" : ""}`));
+
+    // Step 3: run cold agent (no context) and brain-assisted agent
+    console.log("    [A] cold start...");
+    const coldOutput = await runAgent(task.description, "");
+    console.log("    [B] brain-assisted...");
     const brainOutput = await runAgent(task.description, brainContext);
 
+    // Step 4: judge both outputs against the brain-derived signals
     const cold  = { alignment: 0, citations: 0, contradictions: 0, total: signals.length };
     const brain = { alignment: 0, citations: 0, contradictions: 0, total: signals.length, context_tokens: ctxTokens, brain_citations: brainCitations };
 
@@ -289,6 +322,15 @@ async function main() {
     }
 
     results.push({ label: task.label, cold, brain });
+  }
+
+  if (skipped > 0) {
+    console.log(`\n  ${skipped} task(s) skipped — brain had no context for those queries.`);
+  }
+  if (results.length === 0) {
+    console.error("\n  No tasks produced results. Brain may have too little signal on this corpus.");
+    console.error("  Check corpus quality: GET /brain/corpus-stats?project_id=" + PROJECT_ID);
+    process.exit(1);
   }
 
   // Phase 2: Summary
@@ -333,29 +375,31 @@ async function main() {
   console.log(`  Alignment rate      cold: ${pct(totals.cold.alignment, ct).padEnd(6)} brain: ${pct(totals.brain.alignment, bt).padEnd(6)} delta: ${totals.brain.alignment - totals.cold.alignment > 0 ? "+" : ""}${totals.brain.alignment - totals.cold.alignment}`);
   console.log(`  Citation rate       cold: ${pct(totals.cold.citations, ct).padEnd(6)} brain: ${pct(totals.brain.citations, bt).padEnd(6)} delta: ${totals.brain.citations - totals.cold.citations > 0 ? "+" : ""}${totals.brain.citations - totals.cold.citations}`);
   console.log(`  Contradiction rate  cold: ${pct(totals.cold.contradictions, ct).padEnd(6)} brain: ${pct(totals.brain.contradictions, bt).padEnd(6)} delta: ${totals.brain.contradictions - totals.cold.contradictions}`);
-  console.log(`  Avg context tokens  brain: ~${Math.round(totals.brain.ctx_tokens / TASKS.length)} per task`);
+  console.log(`  Avg context tokens  brain: ~${Math.round(totals.brain.ctx_tokens / results.length)} per task`);
+  console.log(`  Tasks with results: ${results.length}/${TASKS.length} (${skipped} skipped — no brain context)`);
 
-  // Assertions — looser thresholds than the controlled eval because real data is noisier
-  check("Brain alignment rate ≥ 40%", brainAlignRate >= 0.40, `Got ${pct(totals.brain.alignment, bt)}`);
-  check("Brain alignment rate ≥ cold rate", brainAlignRate >= coldAlignRate,
+  // Assertions — signals are corpus-derived so alignment expectations are higher than
+  // the previous version (the brain agent has literally seen the signal source)
+  check("Brain alignment rate ≥ 50%", brainAlignRate >= 0.50, `Got ${pct(totals.brain.alignment, bt)}`);
+  check("Brain alignment rate > cold rate", brainAlignRate > coldAlignRate,
     `Brain: ${pct(totals.brain.alignment, bt)}, Cold: ${pct(totals.cold.alignment, ct)}`);
   check("Brain contradiction rate ≤ cold rate",
     totals.brain.contradictions <= totals.cold.contradictions,
     `Brain: ${totals.brain.contradictions}, Cold: ${totals.cold.contradictions}`);
-  check("Brain returned context for ≥ 3 of 4 tasks",
-    results.filter(r => r.brain.context_tokens > 100).length >= 3,
-    `${results.filter(r => r.brain.context_tokens > 100).length}/4 tasks had context`);
+  check("At least 1 task produced results", results.length >= 1,
+    `All ${TASKS.length} tasks were skipped — corpus may be too thin`);
 
   console.log(`\n── Result: ${passed} passed, ${failed} failed ──`);
 
   // Context quality note
-  const avgCtx = Math.round(totals.brain.ctx_tokens / TASKS.length);
+  const avgCtx = results.length > 0 ? Math.round(totals.brain.ctx_tokens / results.length) : 0;
   if (avgCtx > 2000) {
     console.log(`\n  NOTE: average context is ~${avgCtx} tokens — brain may be returning too much noise.`);
-    console.log(`  Consider lowering QUERY_CONTEXT_BUDGET or QUERY_TOP_K in .env.`);
-  } else if (avgCtx === 0) {
-    console.log(`\n  WARNING: no brain context retrieved. Is the pipeline done?`);
-    console.log(`  Check: curl -s -X POST http://localhost:6333/collections/brain_chunks/points/count ...`);
+    console.log(`  Consider raising QUERY_MIN_SCORE or lowering QUERY_TOP_K in .env.`);
+  }
+  if (skipped > 0) {
+    console.log(`\n  ${skipped} task(s) had no brain context — corpus signal is thin for those queries.`);
+    console.log(`  Corpus quality: curl -s "http://localhost:3001/brain/corpus-stats?project_id=${PROJECT_ID}" -H "X-API-Key: <key>"`);
   }
 
   process.exit(failed > 0 ? 1 : 0);
