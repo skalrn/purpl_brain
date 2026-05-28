@@ -148,6 +148,7 @@ export interface Citation {
   actor: Actor;
   timestamp: string;
   quoted_text: string;
+  score?: number; // cosine similarity from Qdrant (0–1); omitted when below QUERY_MIN_SCORE (those chunks are filtered out)
 }
 
 export interface QueryResponse {

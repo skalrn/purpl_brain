@@ -9,6 +9,12 @@ import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
 const TOP_K = parseInt(process.env.QUERY_TOP_K ?? (PROVIDER === "ollama" ? "8" : "20"));
 const CONTEXT_BUDGET_CHARS = parseInt(process.env.QUERY_CONTEXT_BUDGET ?? (PROVIDER === "ollama" ? "6000" : "12000"));
 
+// Minimum cosine similarity score for a chunk to be included in context.
+// Chunks below this threshold are dropped before the LLM sees them.
+// Real-data eval showed noisy low-score chunks actively hurt agent alignment.
+// Default 0.50 — conservative start; raise to 0.60-0.65 if results stay noisy.
+const QUERY_MIN_SCORE = parseFloat(process.env.QUERY_MIN_SCORE ?? "0.50");
+
 const ANSWER_SYSTEM_PROMPT = `You are a precise knowledge assistant for software engineering teams.
 Answer questions using ONLY the provided source chunks. Every claim must be cited with [N] where N is the chunk number.
 
@@ -237,7 +243,13 @@ async function prepareContext(request: QueryRequest): Promise<PreparedContext | 
 
   if (vectorResults.length === 0) return null;
 
-  const chunks: ContextChunk[] = vectorResults
+  // Drop chunks below the minimum score threshold before they reach the LLM.
+  // Low-score chunks are semantically distant from the query — injecting them
+  // confuses the agent more than helping (validated in eval-agent-value-hono).
+  const aboveThreshold = vectorResults.filter((r) => r.score >= QUERY_MIN_SCORE);
+  if (aboveThreshold.length === 0) return null;
+
+  const chunks: ContextChunk[] = aboveThreshold
     .filter((r) => r.payload)
     .map((r, i) => ({
       index: i + 1,
@@ -321,6 +333,7 @@ function buildCitations(answer: string, chunks: ContextChunk[]): { citations: Ci
       actor: { type: "human" as const, id: c.actor_name, name: c.actor_name },
       timestamp: c.timestamp,
       quoted_text: c.content.slice(0, 200),
+      score: Math.round(c.score * 1000) / 1000, // 3 decimal places
     }));
   return { citations, citationWarning };
 }
