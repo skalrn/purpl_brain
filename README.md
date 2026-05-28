@@ -72,6 +72,20 @@ Without context the agent picked the wrong validation library (Joi instead of Zo
 
 To reproduce: `npm run eval:agent-value -w apps/api` (requires Ollama running with `llama3.1:8b` and `qwen2.5:7b`).
 
+### Real-data scenario ([`eval:agent-value-hono`](apps/api/src/scripts/eval/eval-agent-value-hono.ts))
+
+Same A/B structure run against the real honojs/hono corpus (59 chunks from 80 ingested PRs and issues — no hand-crafted seed data). Tasks are drawn from genuine contributor scenarios: middleware conventions, URI decoding, Context extension, TypeScript validator inference.
+
+| Metric | Cold | Brain | Delta |
+|---|---|---|---|
+| Alignment rate | 17% | 25% | +1 |
+| Citation rate | **50%** | **67%** | +2 |
+| Contradiction rate | 0% | 17% | +2 |
+
+The brain improved alignment and citations on tasks where the corpus had clear signal (middleware conventions). It hurt on tasks where the retrieved context was close-but-not-exact — the agent followed noisy context into contradictions rather than relying on its own knowledge. Two constraints surfaced: (1) `llama3.1:8b` already knows Hono conventions from training, shrinking the marginal value of retrieval; (2) 59 chunks is a thin corpus for a project this well-documented publicly. The brain's value is higher on internal/novel projects where the model has no prior knowledge to fall back on.
+
+To reproduce: seed the corpus first (`npm run seed:hono -w apps/api`, wait ~60min for Ollama pipeline), then `npm run eval:agent-value-hono -w apps/api`.
+
 ### Pipeline and retrieval
 
 | Eval | Result | What it measures |
