@@ -22,8 +22,10 @@
  * Summary across all tasks:
  *   cold vs brain delta on each metric — this is the value-add signal.
  *
- * Requires:
- *   ANTHROPIC_API_KEY — agent calls and judge calls
+ * Requires (one of):
+ *   ANTHROPIC_API_KEY — use Claude Haiku for agent + judge
+ *   OLLAMA_BASE_URL   — use Ollama (defaults to http://localhost:11434/v1)
+ *                       Models: OLLAMA_SMART_MODEL (agent), OLLAMA_FAST_MODEL (judge)
  *   BRAIN_API_KEY / DEV_API_KEY — brain REST API auth
  *   API_BASE — defaults to http://localhost:3001
  *
@@ -32,6 +34,7 @@
 
 import "dotenv/config";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -41,13 +44,48 @@ const API_KEY     = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const RUN_ID      = Date.now();
 const PROJECT_ID  = `eval_agent_value_${RUN_ID}`;
 const SESSION_ID  = `eval-ab-seed-${RUN_ID}`;
-const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "90000");
+const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "150000");
 
-// Use Haiku for both agent and judge — keeps eval cheap, isolates the effect
-// of context rather than model capability.
-const MODEL = "claude-haiku-4-5-20251001";
+// ── Provider detection ────────────────────────────────────────────────────────
+// Respects LLM_PROVIDER (same as the rest of the project).
+// Falls back to key-format check: a real Anthropic key starts with sk-ant-api.
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const _apiKey = process.env.ANTHROPIC_API_KEY ?? "";
+const _validKey = _apiKey.startsWith("sk-ant-api") && _apiKey.length > 30;
+const USE_ANTHROPIC = (process.env.LLM_PROVIDER === "anthropic" || (!process.env.LLM_PROVIDER && _validKey));
+const OLLAMA_BASE   = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1";
+const AGENT_MODEL   = USE_ANTHROPIC
+  ? "claude-haiku-4-5-20251001"
+  : (process.env.OLLAMA_SMART_MODEL ?? "llama3.1:8b");
+const JUDGE_MODEL   = USE_ANTHROPIC
+  ? "claude-haiku-4-5-20251001"
+  : (process.env.OLLAMA_FAST_MODEL ?? "qwen2.5:7b");
+
+const anthropic = USE_ANTHROPIC
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
+
+const ollama = !USE_ANTHROPIC
+  ? new OpenAI({ baseURL: OLLAMA_BASE, apiKey: "ollama" })
+  : null;
+
+async function llmComplete(model: string, system: string, user: string, maxTokens: number): Promise<string> {
+  if (anthropic) {
+    const res = await anthropic.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] as unknown as Anthropic.Messages.TextBlockParam[],
+      messages: [{ role: "user", content: user }],
+    });
+    return res.content.find(b => b.type === "text")?.text ?? "";
+  }
+  const res = await ollama!.chat.completions.create({
+    model,
+    max_tokens: maxTokens,
+    messages: [{ role: "system", content: system }, { role: "user", content: user }],
+  });
+  return res.choices[0]?.message?.content ?? "";
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -211,30 +249,16 @@ async function brainQuery(taskDescription: string): Promise<{ context: string; t
 
 // ── Agent calls ───────────────────────────────────────────────────────────────
 
-const AGENT_SYSTEM = [
-  {
-    type: "text" as const,
-    text:
-      "You are a senior software engineer advising on API design. " +
-      "Answer concisely. Focus on concrete implementation choices and the " +
-      "reasoning behind them. Be specific about technologies and patterns.",
-    cache_control: { type: "ephemeral" as const },
-  },
-];
+const AGENT_SYSTEM =
+  "You are a senior software engineer advising on API design. " +
+  "Answer concisely. Focus on concrete implementation choices and the " +
+  "reasoning behind them. Be specific about technologies and patterns.";
 
 async function runAgent(task: string, brainContext: string): Promise<string> {
   const userContent = brainContext
     ? `Prior decisions from the project brain that are relevant to this task:\n\n${brainContext}\n\n---\n\nTask: ${task}`
     : `Task: ${task}`;
-
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 600,
-    system: AGENT_SYSTEM,
-    messages: [{ role: "user", content: userContent }],
-  });
-
-  return response.content.find(b => b.type === "text")?.text ?? "";
+  return llmComplete(AGENT_MODEL, AGENT_SYSTEM, userContent, 600);
 }
 
 // ── LLM judge ─────────────────────────────────────────────────────────────────
@@ -246,15 +270,9 @@ interface Judgement {
   reasoning: string;
 }
 
-const JUDGE_SYSTEM = [
-  {
-    type: "text" as const,
-    text:
-      "You are an impartial evaluator assessing whether an agent's design output " +
-      "is consistent with a prior architectural decision. Respond only with valid JSON.",
-    cache_control: { type: "ephemeral" as const },
-  },
-];
+const JUDGE_SYSTEM =
+  "You are an impartial evaluator assessing whether an agent's design output " +
+  "is consistent with a prior architectural decision. Respond only with valid JSON.";
 
 async function judge(decision: typeof PRIOR_DECISIONS[0], agentOutput: string): Promise<Judgement> {
   const prompt =
@@ -267,13 +285,7 @@ async function judge(decision: typeof PRIOR_DECISIONS[0], agentOutput: string): 
     `Respond with JSON only: {"consistent": bool, "cited": bool, "contradicted": bool, "reasoning": "one sentence"}`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 200,
-      system: JUDGE_SYSTEM,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const text = response.content.find(b => b.type === "text")?.text ?? "{}";
+    const text = await llmComplete(JUDGE_MODEL, JUDGE_SYSTEM, prompt, 200);
     const clean = text.replace(/```json\n?|\n?```/g, "").trim();
     return JSON.parse(clean) as Judgement;
   } catch {
@@ -292,14 +304,19 @@ interface TaskMetrics {
 async function main() {
   console.log("eval-agent-value: A/B — brain-assisted vs cold-start agent\n");
   console.log(`Project:    ${PROJECT_ID}`);
-  console.log(`Model:      ${MODEL}`);
+  console.log(`Agent:      ${AGENT_MODEL}  Judge: ${JUDGE_MODEL}`);
   console.log(`Tasks:      ${TEST_TASKS.length}`);
   console.log(`Decisions:  ${PRIOR_DECISIONS.length}`);
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("\nANTHROPIC_API_KEY is required for this eval (agent + judge calls).");
-    console.error("Set it in .env or export it and re-run.");
-    process.exit(1);
+  const provider = USE_ANTHROPIC ? `Anthropic (${AGENT_MODEL})` : `Ollama (agent: ${AGENT_MODEL}, judge: ${JUDGE_MODEL})`;
+  console.log(`Provider:   ${provider}`);
+
+  if (!USE_ANTHROPIC) {
+    const ollamaOk = await fetch(`${OLLAMA_BASE}/models`).then(r => r.ok).catch(() => false);
+    if (!ollamaOk) {
+      console.error(`\nOllama not reachable at ${OLLAMA_BASE}. Is Ollama running?`);
+      process.exit(1);
+    }
   }
 
   const results: TaskMetrics[] = [];
