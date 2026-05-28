@@ -47,6 +47,7 @@
     "eval:e2e": "tsx src/scripts/eval/eval-e2e.ts",
     "eval:comparison": "tsx src/scripts/eval/eval-comparison.ts",
     "eval:agent-value": "tsx src/scripts/eval/eval-agent-value.ts",
+    "eval:agent-value-hono": "tsx src/scripts/eval/eval-agent-value-hono.ts",
     "demo:agent-memory": "tsx src/scripts/demo-agent-memory.ts",
     "pipeline:reset": "tsx src/scripts/reset-pipeline.ts",
     "build": "tsc",
