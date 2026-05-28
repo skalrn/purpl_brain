@@ -364,6 +364,7 @@ npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
 | Audience | Document |
 |----------|----------|
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
+| **Orchestration integration (User B)** | [docs/technical/orchestration-guide.md](docs/technical/orchestration-guide.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
 | Embedding model selection | [docs/technical/adrs/005-embedding-model.md](docs/technical/adrs/005-embedding-model.md) |
 | Drift coordination flow (sequence diagrams) | [docs/technical/drift-flow.md](docs/technical/drift-flow.md) |
