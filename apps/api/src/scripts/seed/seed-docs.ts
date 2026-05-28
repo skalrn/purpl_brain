@@ -8,8 +8,8 @@
  * Requires GITHUB_TOKEN in env (or apps/api/.env)
  */
 import "dotenv/config";
-import { crawlRepoDocs } from "../lib/github-doc-crawler.js";
-import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
+import { crawlRepoDocs } from "../../lib/github-doc-crawler.js";
+import { redis, STREAMS, PROCESSED_SET } from "../../lib/redis.js";
 
 const args = process.argv.slice(2);
 const get = (flag: string) => {

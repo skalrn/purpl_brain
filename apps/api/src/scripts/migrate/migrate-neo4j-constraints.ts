@@ -4,7 +4,7 @@
  * Run once after initial Neo4j setup or when deploying to a new environment.
  */
 import "dotenv/config";
-import { driver } from "../lib/neo4j.js";
+import { driver } from "../../lib/neo4j.js";
 
 const CONSTRAINTS = [
   { name: "person_id_unique", label: "Person", property: "person_id" },

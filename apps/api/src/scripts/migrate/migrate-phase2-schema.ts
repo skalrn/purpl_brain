@@ -4,7 +4,7 @@
  * Safe to run multiple times (uses SET ... WHERE ... IS NULL pattern).
  */
 import "dotenv/config";
-import { driver } from "../lib/neo4j.js";
+import { driver } from "../../lib/neo4j.js";
 
 async function run() {
   const session = driver.session();

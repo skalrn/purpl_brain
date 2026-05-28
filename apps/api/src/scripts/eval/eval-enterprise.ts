@@ -53,7 +53,7 @@
 import "dotenv/config";
 import neo4j from "neo4j-driver";
 import { createHmac } from "crypto";
-import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
+import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 

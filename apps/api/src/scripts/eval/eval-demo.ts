@@ -10,7 +10,7 @@
  */
 
 import "dotenv/config";
-import { runQuery } from "../services/query-engine.js";
+import { runQuery } from "../../services/query-engine.js";
 
 const DEMO_QUERIES = [
   {

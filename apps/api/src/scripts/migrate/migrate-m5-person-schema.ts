@@ -10,7 +10,7 @@
  *   tsx src/scripts/migrate-m5-person-schema.ts
  */
 import "dotenv/config";
-import { driver } from "../lib/neo4j.js";
+import { driver } from "../../lib/neo4j.js";
 
 async function run() {
   const session = driver.session();

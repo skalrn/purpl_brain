@@ -24,8 +24,8 @@ import "dotenv/config";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { resolve, relative, join, dirname } from "path";
 import { execFileSync } from "child_process";
-import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { deletePointsBySourceId } from "../lib/qdrant.js";
+import { redis, STREAMS, PROCESSED_SET } from "../../lib/redis.js";
+import { deletePointsBySourceId } from "../../lib/qdrant.js";
 import type { CanonicalEvent } from "@purpl/types";
 
 const args = process.argv.slice(2);

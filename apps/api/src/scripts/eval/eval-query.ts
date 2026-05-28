@@ -14,7 +14,7 @@
  */
 
 import "dotenv/config";
-import { runQuery } from "../services/query-engine.js";
+import { runQuery } from "../../services/query-engine.js";
 import { createInterface } from "readline";
 import { writeFileSync } from "fs";
 import { resolve } from "path";

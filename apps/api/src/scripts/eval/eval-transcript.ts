@@ -10,7 +10,7 @@
  *  6. Duplicate ingest returns 409
  */
 import "dotenv/config";
-import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
+import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
 const PROJECT_ID = `eval_transcript_${Date.now()}`;

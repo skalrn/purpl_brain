@@ -11,7 +11,7 @@
 import "dotenv/config";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
-import { STREAMS, PROCESSED_SET } from "../lib/redis.js";
+import { STREAMS, PROCESSED_SET } from "../../lib/redis.js";
 import type { CanonicalEvent } from "@purpl/types";
 
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");

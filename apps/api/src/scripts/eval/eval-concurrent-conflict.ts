@@ -34,7 +34,7 @@
  */
 import "dotenv/config";
 import neo4j from "neo4j-driver";
-import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
+import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
 const API_KEY  = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";

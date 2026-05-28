@@ -12,7 +12,7 @@
 
 import "dotenv/config";
 import { Redis } from "ioredis";
-import { STREAMS, PROCESSED_SET } from "../lib/redis.js";
+import { STREAMS, PROCESSED_SET } from "../../lib/redis.js";
 import type { CanonicalEvent, EventType } from "@purpl/types";
 
 // ── GitHub API types (minimal subset we use) ──────────────────────────────────

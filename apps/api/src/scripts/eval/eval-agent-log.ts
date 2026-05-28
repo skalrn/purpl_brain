@@ -14,7 +14,7 @@
  * auth-dependent checks are skipped with a note.
  */
 import "dotenv/config";
-import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
+import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";

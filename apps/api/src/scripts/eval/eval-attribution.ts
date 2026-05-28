@@ -24,7 +24,7 @@
  *   npm run eval:attribution -w apps/api
  */
 import "dotenv/config";
-import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
+import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 const API    = process.env.BRAIN_API_URL ?? "http://localhost:3001";
 const API_KEY = process.env.BRAIN_API_KEY ?? "dev-local";

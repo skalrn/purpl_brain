@@ -43,7 +43,7 @@ import { randomUUID } from "crypto";
 import { resolve as pathResolve } from "path";
 import neo4j from "neo4j-driver";
 import { Redis } from "ioredis";
-import { cleanupEvalProjects } from "../lib/eval-cleanup.js";
+import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 

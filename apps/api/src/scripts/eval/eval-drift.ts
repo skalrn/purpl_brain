@@ -15,7 +15,7 @@
  *   tsx src/scripts/eval-drift.ts [--project encode_httpx]
  */
 import "dotenv/config";
-import { getDriftAlerts } from "../lib/neo4j.js";
+import { getDriftAlerts } from "../../lib/neo4j.js";
 
 const KNOWN_DRIFT_CONTENT = [
   // Slack drift signals
