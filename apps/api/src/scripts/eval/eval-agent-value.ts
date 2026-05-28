@@ -227,7 +227,7 @@ async function seedDecisions(): Promise<boolean> {
 }
 
 async function brainQuery(taskDescription: string): Promise<{ context: string; tokens: number }> {
-  const res = await fetch(`${API_BASE}/query`, {
+  const res = await fetch(`${API_BASE}/brain/query`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
