@@ -30,6 +30,29 @@ const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const SEMANTIC_THRESHOLD = parseFloat(process.env.DRIFT_SEMANTIC_THRESHOLD ?? "0.55");
 const TOP_K = parseInt(process.env.DRIFT_TOP_K ?? "3");
 const EMBED_MAX_CHARS = 1200;
+const DRIFT_WEBHOOK_URL = process.env.DRIFT_WEBHOOK_URL;
+
+async function pushDriftNotification(payload: {
+  alert_id: string;
+  project_id: string;
+  challenged_decision_id: string;
+  challenged_decision_summary: string;
+  challenging_content: string;
+  reason: string;
+  actor: string;
+  timestamp: string;
+}): Promise<void> {
+  if (!DRIFT_WEBHOOK_URL) return;
+  try {
+    await fetch(DRIFT_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, risk: "high" }),
+    });
+  } catch (e) {
+    console.error("[drift-detector] webhook push failed:", e);
+  }
+}
 
 // ── Stage A: semantic similarity via Qdrant ───────────────────────────────
 
@@ -228,6 +251,17 @@ class DriftDetector extends StreamWorker {
         await writeDriftAlert(alert);
         await writer.xadd(STREAMS.DRIFT, "*", "alert", JSON.stringify(alert));
         console.log(`[drift-detector] ⚡ CONFLICT: event=${result.event_id} challenges decision=${drift.decision_id}: ${drift.reason}`);
+        const decisionSummary = candidates.find((c) => c.decision_id === drift.decision_id)?.summary ?? drift.decision_id;
+        pushDriftNotification({
+          alert_id: alert.alert_id,
+          project_id: result.project_id,
+          challenged_decision_id: drift.decision_id,
+          challenged_decision_summary: decisionSummary,
+          challenging_content: result.raw_content.slice(0, 300),
+          reason: drift.reason,
+          actor: result.actor.name,
+          timestamp: result.timestamp,
+        });
       } catch (e) {
         console.error(`[drift-detector] failed to write conflict for ${result.event_id}:`, e);
       }
