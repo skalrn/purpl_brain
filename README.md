@@ -58,6 +58,22 @@ Not yet validated: multiple developers writing to the same graph. Whether the st
 
 Measured against the builder's own eval suite and manually labeled test cases — not independently verified.
 
+### Agentic value-add ([`eval:agent-value`](apps/api/src/scripts/eval/eval-agent-value.ts))
+
+A/B comparison: same model, same 3 tasks, same LLM judge — only difference is whether brain context (~400 tokens via `POST /brain/query`) was injected before dispatch. Run locally with Ollama (`llama3.1:8b` agent, `qwen2.5:7b` judge), no cloud API required.
+
+| Metric | Cold start | Brain-assisted | Delta |
+|---|---|---|---|
+| Decision alignment rate | 17% (1/6) | **100% (6/6)** | +5 decisions |
+| Contradiction rate | 67% (4/6) | **0% (0/6)** | −4 contradictions |
+| Explicit citation rate | 17% (1/6) | 33% (2/6) | +1 |
+
+Without context the agent picked the wrong validation library (Joi instead of Zod), wrong rate limiting layer (handler-level instead of Fastify plugin), wrong error format (custom instead of RFC 7807), and wrong auth approach (server-side sessions instead of stateless JWT) — on 4 of 6 relevant decisions. With ~400 tokens of brain context injected, all 6 were correct and zero contradictions were introduced.
+
+To reproduce: `npm run eval:agent-value -w apps/api` (requires Ollama running with `llama3.1:8b` and `qwen2.5:7b`).
+
+### Pipeline and retrieval
+
 | Eval | Result | What it measures |
 |---|---|---|
 | Cross-session recall | **5/5 (100%)** | Decisions logged by 3 different agents over 3 weeks, recalled correctly by a new session with no prior context |
