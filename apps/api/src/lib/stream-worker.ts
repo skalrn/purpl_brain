@@ -9,6 +9,12 @@ export interface WorkerConfig {
   fieldName: string;
   blockMs?: number;
   batchSize?: number;
+  /**
+   * Per-message processing timeout in ms. If processMessage does not resolve
+   * within this window the message is sent to the DLQ and ACK'd so the
+   * pipeline keeps moving. Default: 120_000 (2 minutes).
+   */
+  messageTimeoutMs?: number;
 }
 
 /**
@@ -28,6 +34,7 @@ export abstract class StreamWorker {
   protected readonly fieldName: string;
   protected readonly blockMs: number;
   protected readonly batchSize: number;
+  protected readonly messageTimeoutMs: number;
   protected shuttingDown = false;
 
   protected constructor(
@@ -41,6 +48,7 @@ export abstract class StreamWorker {
     this.fieldName = config.fieldName;
     this.blockMs = config.blockMs ?? 5000;
     this.batchSize = config.batchSize ?? 10;
+    this.messageTimeoutMs = config.messageTimeoutMs ?? 120_000;
 
     process.on("SIGTERM", () => {
       console.log(`[${this.name}] SIGTERM received, finishing current batch then exiting`);
@@ -56,6 +64,42 @@ export abstract class StreamWorker {
 
   /** Override to close extra connections before process.exit(). */
   protected async onShutdown(): Promise<void> {}
+
+  /**
+   * Write a failed message to the dead-letter queue stream ({stream}:dlq).
+   * DLQ entries can be inspected and replayed manually. Best-effort — a DLQ
+   * write failure is logged but does not block ACK of the original message.
+   */
+  private async sendToDlq(id: string, value: string, error: unknown): Promise<void> {
+    const dlqStream = `${this.stream}:dlq`;
+    try {
+      await this.redis.xadd(
+        dlqStream, "*",
+        "original_id", id,
+        "original_stream", this.stream,
+        this.fieldName, value,
+        "error", String(error instanceof Error ? error.message : error),
+        "failed_at", new Date().toISOString(),
+        "worker", this.name
+      );
+    } catch (e) {
+      console.error(`[${this.name}] DLQ write failed for ${id}:`, e);
+    }
+  }
+
+  /**
+   * Run processMessage with a per-message timeout. If the timeout fires the
+   * message is sent to the DLQ so the pipeline keeps moving.
+   */
+  private processWithTimeout(id: string, value: string): Promise<void> {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`timed out after ${this.messageTimeoutMs}ms`)),
+        this.messageTimeoutMs
+      )
+    );
+    return Promise.race([this.processMessage(id, value), timeout]);
+  }
 
   private async ensureGroup(): Promise<void> {
     try {
@@ -86,10 +130,11 @@ export abstract class StreamWorker {
           continue;
         }
         try {
-          await this.processMessage(id, value);
+          await this.processWithTimeout(id, value);
           recovered++;
         } catch (e) {
-          console.error(`[${this.name}] pending recovery failed for ${id}:`, e);
+          console.error(`[${this.name}] pending recovery failed for ${id}, sending to DLQ:`, e);
+          await this.sendToDlq(id, value, e);
           await this.redis.xack(this.stream, this.group, id);
         }
       }
@@ -121,9 +166,12 @@ export abstract class StreamWorker {
           const value = fields[fields.indexOf(this.fieldName) + 1];
           if (!value) continue;
           try {
-            await this.processMessage(id, value);
+            await this.processWithTimeout(id, value);
+            await this.redis.xack(this.stream, this.group, id);
           } catch (e) {
-            console.error(`[${this.name}] failed to process ${id}:`, e);
+            console.error(`[${this.name}] failed to process ${id}, sending to DLQ:`, e);
+            await this.sendToDlq(id, value, e);
+            await this.redis.xack(this.stream, this.group, id);
           }
         }
       }
