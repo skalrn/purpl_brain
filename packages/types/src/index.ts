@@ -125,7 +125,7 @@ export interface ExtractionResult {
 
 // "project" and "temporal" are fully implemented.
 // "expertise", "agent-resume", "impact" are spec-defined, degrade to "project" until implemented.
-export type QueryMode = "project" | "temporal" | "expertise" | "agent-resume" | "impact";
+export type QueryMode = "project" | "temporal" | "expertise" | "agent-resume" | "impact" | "plain-rag";
 
 export interface QueryRequest {
   query: string;

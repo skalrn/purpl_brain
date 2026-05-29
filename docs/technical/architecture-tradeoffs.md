@@ -4,6 +4,32 @@ Significant design decisions in purpl-brain, with rationale and the alternatives
 
 ---
 
+## 0. Competitive positioning — why not LangGraph, mem0, or Zep
+
+Verified against current documentation and Perplexity research, mid-2026.
+
+| Capability | LangGraph (OSS) | CrewAI | AutoGen/AG2 | mem0 | Zep | purpl-brain |
+|---|---|---|---|---|---|---|
+| Cross-session shared memory | ✓ JSON Store | ✓ SQLite + embeddings | Partial | ✓ hosted | ✓ hosted | ✓ |
+| Schema enforcement at write time (rationale required) | ✗ any JSON | ✗ free-form | ✗ | ✗ | ✗ | ✓ |
+| Proactive contradiction detection | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| External REST API (non-framework agents) | ✗ | ✗ | ✗ | ✓ (hosted) | ✓ (hosted) | ✓ |
+| Human communication ingestion (Slack, GitHub, meetings) | Custom work | Custom work | Custom work | ✗ | ✗ | ✓ Partial |
+| Self-hosted / open source | ✓ | ✓ | ✓ | Partial | Partial | ✓ |
+| Zero infrastructure option | ✗ | ✗ | ✗ | ✓ | ✓ | ✗ |
+
+**What this means:**
+
+LangGraph's cross-thread Store is real and OSS as of October 2024. For teams already on LangGraph, it covers shared memory across agent threads without new infrastructure. purpl-brain is not a replacement for it — it is the governance layer on top: schema enforcement, contradiction detection, and a REST API accessible from any agent regardless of orchestration framework.
+
+The gap all frameworks share: none have native proactive contradiction detection. Detecting when a new agent decision contradicts a prior one — across threads, across sessions, across agents — requires custom logic in every framework. purpl-brain provides this as a first-class primitive: SUPERSEDES edges, DriftAlerts with LLM confirmation, and webhook delivery before any agent queries.
+
+The zero-infrastructure tradeoff: mem0 and Zep require no self-hosting. purpl-brain requires Neo4j + Qdrant + Redis. That cost is justified when contradiction detection and schema-enforced rationale are requirements — which they are not for teams that just need retrieval.
+
+**Perplexity summary (mid-2026):** *"If your requirement is decision governance — schema-enforced rationale, alternatives, and automatic contradiction alerts — you will still need custom application logic or an external memory/governance layer on top of any of these frameworks."*
+
+---
+
 ## 1. Agents write directly; humans go through the extraction pipeline
 
 **Decision:** Agent decisions are written directly to Neo4j and Qdrant via `brain_log_decision` (structured JSON). Human signals (PRs, Slack threads, meeting transcripts) go through RAW → NORMALIZED → EXTRACTED.

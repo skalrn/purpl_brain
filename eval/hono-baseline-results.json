@@ -1,0 +1,889 @@
+{
+  "run_at": "2026-05-29T09:14:18.141Z",
+  "project_id": "honojs_hono",
+  "judge_model": "claude-haiku-4-5-20251001",
+  "provider": "anthropic",
+  "qdrant_chunks": 59,
+  "totals": {
+    "baseline": {
+      "score": 34,
+      "correct": 11,
+      "partial": 8,
+      "incorrect": 1
+    },
+    "plain_rag": {
+      "score": 35,
+      "correct": 7,
+      "partial": 7,
+      "incorrect": 1,
+      "avg_latency_ms": 11159,
+      "avg_citations": 3
+    },
+    "full_brain": {
+      "score": 33,
+      "correct": 9,
+      "partial": 7,
+      "incorrect": 2,
+      "avg_latency_ms": 11225,
+      "avg_citations": 2.6
+    },
+    "max_score": 44,
+    "question_wins": {
+      "plain_rag": 2,
+      "full_brain": 1,
+      "ties": 19
+    }
+  },
+  "questions": [
+    {
+      "id": "Q01",
+      "query": "Why does Hono use RegExpRouter instead of a trie-based router?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "The retrieved context does not contain enough information to answer this question. The chunks provided cover topics like URL decoding in routing [2], a TrieRouter limitation fix [4], and various middleware and feature discussions, but none of them explain the specific rationale for why Hono chose `RegExpRouter` over a trie-based router in terms of design philosophy or performance tradeoffs.\n\nThe only relevant mentions are that `RegExpRouter` exists and that `buildInitParams()` depends on it [1], and that `TrieRouter` has some pattern-matching limitations [4], but neither chunk provides a substantive explanation of *why* `RegExpRouter` was preferred architecturally over a trie-based approach.\n\nTo get a definitive answer, you would need to consult Hono's documentation, README, or dedicated blog posts/discussions that compare the two router implementations directly.",
+        "citations": 3,
+        "latency_ms": 6247,
+        "grade": "no-info",
+        "facts_found": [
+          "regexp",
+          "trie"
+        ],
+        "facts_missing": [
+          "performance",
+          "routing speed"
+        ],
+        "judge_reasoning": "The answer honestly acknowledges it lacks sufficient information to answer the question rather than hallucinating, which is appropriate given should_have_answer=true but the source material doesn't provide the specific rationale."
+      },
+      "full_brain": {
+        "answer": "The provided source chunks do not contain sufficient information to answer why Hono uses `RegExpRouter` instead of a trie-based router. The chunks touch on a few related topics — for instance, chunk [1] mentions that `RegExpRouter` is \"very high-performing\" but \"might be too complicated,\" and chunk [4] notes that `TrieRouter` still has limitations with certain route patterns — but neither chunk explains the core architectural reasoning or performance trade-offs that led to `RegExpRouter` being preferred over a trie-based approach.\n\nTo get a complete answer, you would need to consult Hono's documentation, blog posts, or more detailed design discussions (such as the README or dedicated architecture notes) that are not present in the retrieved context.",
+        "citations": 2,
+        "latency_ms": 5616,
+        "grade": "no-info",
+        "facts_found": [
+          "regexp",
+          "trie",
+          "performance"
+        ],
+        "facts_missing": [
+          "routing speed"
+        ],
+        "judge_reasoning": "The answer honestly acknowledges insufficient information in the source material to answer the question, rather than hallucinating an explanation, which is the appropriate response when should_have_answer=true but the knowledge base lacks the needed details."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q02",
+      "query": "Why was app.head() changed to be implicit in Hono v4?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "Based on the provided context, the migration guide states that `app.head()` is no longer used in Hono v4 because `app.get()` now implicitly handles the HEAD method [2]. This change was listed as part of the removal of deprecated features when migrating from v3.12.x to v4.0.0 [2].\n\nThe context does not provide further detail about the specific technical reasoning or motivation behind making HEAD handling implicit in `app.get()`. Only the fact of the change and its migration guidance are documented in the retrieved chunks [2].",
+        "citations": 1,
+        "latency_ms": 4897,
+        "grade": "partial",
+        "facts_found": [
+          "implicit",
+          "HEAD",
+          "v4"
+        ],
+        "facts_missing": [
+          "breaking"
+        ],
+        "judge_reasoning": "The answer correctly identifies that app.head() became implicit in v4 with app.get() handling HEAD requests, but it doesn't explicitly characterize this as a breaking change, only as a removal of deprecated features, which somewhat understates the impact."
+      },
+      "full_brain": {
+        "answer": "Based on the provided context, the migration guide for Hono v4 states that `app.head()` is no longer used because `app.get()` now **implicitly handles the HEAD method** [2].\n\nThe migration guide lists this as part of the removal of deprecated features when moving from v3.12.x to v4.0.0, specifically noting: \"Hono - `app.head()` is no longer used. `app.get()` implicitly handles the HEAD method.\" [2]\n\nHowever, the provided chunks do not contain further detail explaining *why* this design decision was made (e.g., the rationale or the specific PR/issue that drove it). The context only confirms that the change was made and what the new behavior is, but not the underlying motivation beyond the implicit HEAD handling by `app.get()` [2].",
+        "citations": 1,
+        "latency_ms": 5734,
+        "grade": "partial",
+        "facts_found": [
+          "implicit",
+          "HEAD",
+          "v4"
+        ],
+        "facts_missing": [
+          "breaking"
+        ],
+        "judge_reasoning": "The answer correctly identifies that app.head() became implicit in v4 with app.get() handling HEAD, but doesn't mention this as a breaking change and admits it lacks the underlying rationale for the design decision."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q03",
+      "query": "What did the team decide about extending the Context object in Hono?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "The provided chunks do not contain any information about a team decision specifically regarding **extending the Context object in Hono**. None of the retrieved chunks discuss proposals, debates, or conclusions related to extending or modifying the `Context` (`c`) object itself as a topic of discussion.\n\nIf you have a specific issue or pull request number related to this topic, I'd recommend looking that up directly, as the available context here does not cover it.",
+        "citations": 0,
+        "latency_ms": 5447,
+        "grade": "no-info",
+        "facts_found": [
+          "context",
+          "extend"
+        ],
+        "facts_missing": [
+          "type"
+        ],
+        "judge_reasoning": "The answer honestly states that the provided chunks lack information about the team's decision on extending the Context object, avoiding hallucination while acknowledging the relevant concepts."
+      },
+      "full_brain": {
+        "answer": "The provided context chunks do not contain any information about a team decision regarding extending the Context object in Hono. None of the retrieved chunks discuss this specific topic, so I cannot answer the question based solely on the provided source material.",
+        "citations": 0,
+        "latency_ms": 3272,
+        "grade": "incorrect",
+        "facts_found": [
+          "context",
+          "extend"
+        ],
+        "facts_missing": [
+          "type"
+        ],
+        "judge_reasoning": "The answer claims no information is available, but should_have_answer=true indicates this question should be answerable, making this a case of hallucination or incomplete research rather than honest acknowledgment of missing information."
+      },
+      "winner": "plain_rag",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": -2
+      }
+    },
+    {
+      "id": "Q04",
+      "query": "What was decided about URI decoding behavior in the Hono router?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "Based on the provided context, here is what was decided about URI decoding behavior in the Hono router:\n\nThe decision was made to modify `getPath()` to decode URL paths by default [1]. This came after discussion about the responsibilities of Hono routers — specifically, whether decoding should happen at the router level or outside of it. Since the router's `match()` method is responsible for taking a string and returning a result (rather than receiving a full Request object), the team felt comfortable with an API that \"decodes and passes it outside the router\" [1].\n\nUltimately, a new implementation was pursued in PR #2714, which was considered the best approach because it provided better security and was less burdensome at request time compared to the alternative PR #2711 [1].",
+        "citations": 1,
+        "latency_ms": 6655,
+        "grade": "correct",
+        "facts_found": [
+          "URI",
+          "decode",
+          "router",
+          "path"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer addresses the question directly, contains all four expected concepts, and provides specific details about the decision to modify getPath() to decode URL paths by default in the Hono router with supporting context."
+      },
+      "full_brain": {
+        "answer": "## URI Decoding Behavior in the Hono Router\n\nThe core decision made was to **modify `getPath()` to decode URL paths by default** [1]. This was determined to be the correct approach for handling URI decoding in Hono's routing layer.\n\nThe reasoning centered on the responsibilities of the router: since the `match()` method of Hono's router is responsible for taking a **string** as input (rather than a full Request object), the team concluded it was appropriate to decode paths outside the router — specifically, by decoding at the `getPath()` level before passing the path in [1].\n\nThe specific implementation was carried out in **PR #2714**, which was chosen over the alternative PR #2711. While #2711 had a performance advantage, #2714 was ultimately preferred because it provided better security and was less burdensome at request time [1].",
+        "citations": 1,
+        "latency_ms": 6753,
+        "grade": "correct",
+        "facts_found": [
+          "URI",
+          "decode",
+          "router",
+          "path"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question about URI decoding behavior in the Hono router, includes all four expected concepts, and provides specific implementation details (PR #2714) with clear reasoning about the decision."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q05",
+      "query": "What middleware proposals were rejected in Hono and why?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "Based on the provided chunks, here are the middleware proposals that were rejected or redirected in Hono and the reasons given:\n\n**Wildcard IP addresses in IP restriction middleware** were rejected [4]. In PR #2813, the proposal to support wildcard IP addresses in the middleware was declined, though the contributor agreed to rename the middleware to 'ip-restriction' and to provide a separate `satisfyAny` middleware for flexible access control instead [4].\n\n**Signed Double Submit Cookie for CSRF protection** was rejected [13]. The maintainers decided against implementing this method because, while it does not require server-side storage (which would be advantageous for Hono), it introduces a vulnerability if an attacker can alter the cookie value. Instead, CSRF protection was implemented using the origin header for validation [13].\n\n**Proxy Helper as middleware** was rejected in favor of keeping it as a helper [6]. The reasoning was that it is simply a wrapper of `fetch`, and since it doesn't always need `c.req.raw` or a Context, it should not be middleware [6].\n\n**GraphQL Server middleware in core** was eventually made obsolete [9][17]. It was removed from the core and suggested to be distributed as third-party middleware instead [9].\n\nMore broadly, Hono's contributing guide notes that even great ideas may not be accepted if the project lead does not find them appropriate, since the project is driven by personal taste and vision [3].",
+        "citations": 6,
+        "latency_ms": 23287,
+        "grade": "correct",
+        "facts_found": [
+          "middleware",
+          "rejected"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question by identifying multiple rejected middleware proposals (wildcard IP addresses, Signed Double Submit Cookie, Proxy Helper as middleware, GraphQL Server middleware) with clear explanations for each rejection, containing both required keywords."
+      },
+      "full_brain": {
+        "answer": "Based on the retrieved context, here are the middleware proposals that were rejected or significantly modified in Hono, along with the reasons:\n\n**1. Wildcard IP Address Support in IP Restriction Middleware**\nThe proposal to support wildcard IP addresses in what became the `ip-restriction` middleware was rejected [4]. The middleware was also proposed to be renamed to `access-control`, but that naming was rejected as well — the team ultimately settled on `ip-restriction` instead [4].\n\n**2. Signed Double Submit Cookie for CSRF Protection**\nThis approach to CSRF protection was explicitly decided against [13]. The reasoning was that while the method avoids server-side storage (an advantage for Hono), it introduces a vulnerability if an attacker can alter the cookie value. Instead, the team implemented CSRF protection using the origin header for validation [13].\n\n**3. Proxy Helper as Middleware**\nA proposal to implement the Proxy Helper as middleware was rejected [6]. The decision was to keep it as a helper rather than middleware because it is simply a wrapper of `fetch`, and making it middleware raised simplicity and safety concerns [6].\n\n**4. Cookie and Body Parse Middleware (Historical)**\nThe `cookie` middleware and `body-parse` middleware were made obsolete and effectively rejected from continued use [9]. Their functionality was folded into default framework functions (`c.req.cookie()` and `c.req.parseBody()`), making standalone middleware unnecessary [9].\n\n**5. GraphQL Server Middleware in Core**\nThe `graphql-server` middleware was removed from Hono's core and declared obsolete [9]. It was suggested it might be redistributed as third-party middleware instead [9].\n\nIt is also worth noting that Hono's maintainer has stated that even great ideas may not be accepted if they don't align with his vision for the project [3].",
+        "citations": 5,
+        "latency_ms": 12307,
+        "grade": "correct",
+        "facts_found": [
+          "middleware",
+          "rejected"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question by providing specific middleware proposals that were rejected in Hono with documented reasons, and clearly uses both required keywords ('middleware' and 'rejected') throughout."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q06",
+      "query": "Why did Hono migrate from deno.land/x to JSR?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "The retrieved chunks do not contain detailed reasoning about **why** Hono migrated from `deno.land/x` to JSR. The migration guide only states that starting from v4.4.0, Hono **no longer publishes the module from `deno.land/x`** and instructs users to use JSR instead [1]. The guide notes there is **no breaking change** associated with this switch, simply a change in the distribution channel [1].\n\nThe specific motivations behind the decision (e.g., JSR's advantages over `deno.land/x`, deprecation plans, or ecosystem considerations) are not covered in any of the provided source chunks. To get a fuller answer, you would need to consult the Hono blog, release notes, or related GitHub discussions/PRs not included here.",
+        "citations": 1,
+        "latency_ms": 5660,
+        "grade": "partial",
+        "facts_found": [
+          "JSR",
+          "deno.land",
+          "migration",
+          "registry"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies that a migration occurred and mentions the relevant technologies (JSR, deno.land/x), but it honestly acknowledges that the source material does not contain the specific reasoning for why the migration happened, which was the core question asked."
+      },
+      "full_brain": {
+        "answer": "The retrieved context does not contain a detailed explanation of **why** Hono migrated from `deno.land/x` to JSR. The migration guide only states that starting from v4.4.0, Hono **no longer publishes the module from `deno.land/x`** and instructs users to switch to JSR instead, updating their imports from `https://deno.land/x/hono/mod.ts` to `jsr:@hono/hono` [1]. The guide notes this is not a breaking change, just a change in where the package is published, and refers readers to the Hono website for more details [1].\n\nThe specific reasons or motivations behind choosing JSR over `deno.land/x` are not covered in the provided source chunks.",
+        "citations": 1,
+        "latency_ms": 21234,
+        "grade": "partial",
+        "facts_found": [
+          "JSR",
+          "deno.land",
+          "migration",
+          "registry"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies that a migration occurred and mentions all expected keywords, but it honestly acknowledges that the source material does not contain the actual reasons why the migration happened, which limits it from being a complete answer to the 'why' question despite having the factual framework."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q07",
+      "query": "What was decided about TypeScript type inference in Hono validators?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "The retrieved chunks do not contain specific information about decisions made regarding TypeScript type inference in Hono validators. The closest references are a brief mention in the migration guide noting that \"Types for the validator matter: https://github.com/honojs/hono/pull/2130\" [15], and the early RPC proposal showing how validator schemas could be used to infer and share request/response types between server and client [1]. However, the chunks do not provide enough detail about the specific decisions made regarding TypeScript type inference in Hono validators to give a complete answer.",
+        "citations": 2,
+        "latency_ms": 5016,
+        "grade": "partial",
+        "facts_found": [
+          "TypeScript",
+          "type",
+          "validator",
+          "inference"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer acknowledges all expected concepts and honestly identifies that the source material lacks sufficient detail about the specific decisions made, avoiding hallucination while providing what information is available."
+      },
+      "full_brain": {
+        "answer": "The retrieved chunks do not contain sufficient information to directly answer what was specifically decided about TypeScript type inference in Hono validators. However, there are a few tangential references worth noting.\n\nThe migration guide notes that \"Types for the validator matter: https://github.com/honojs/hono/pull/2130,\" indicating that a breaking change related to validator types was introduced at some point [15]. Additionally, the migration guide states that the previous Validator Middleware became obsolete in v3.0.0 and the API was changed, though it does not detail the type inference decisions specifically [15].\n\nBeyond these brief mentions, the provided chunks do not contain the details of what was decided regarding TypeScript type inference in Hono validators. You would need to consult the specific PR #2130 or other dedicated issues/PRs for a complete answer.",
+        "citations": 1,
+        "latency_ms": 20403,
+        "grade": "partial",
+        "facts_found": [
+          "TypeScript",
+          "type",
+          "validator",
+          "inference"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer acknowledges all expected concepts and honestly admits the retrieved chunks lack sufficient detail to fully answer the question, pointing to PR #2130 as the source, but doesn't provide the actual decision that was made about type inference."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": -1,
+        "full_brain": -1
+      }
+    },
+    {
+      "id": "Q08",
+      "query": "What is Hono's policy for introducing breaking changes?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "The provided chunks do not contain a comprehensive or explicit policy statement from Hono regarding the introduction of breaking changes. However, a few relevant data points can be gathered:\n\nBreaking changes appear to be reserved for major version releases. For example, a PR described as a breaking change was considered acceptable to merge precisely because a new major version (v4) was upcoming [4]. This suggests Hono follows a convention of bundling breaking changes with major version bumps rather than introducing them in minor or patch releases.\n\nHono documents its breaking changes in a dedicated migration guide, which tracks changes version by version (e.g., v2.0.9 to v2.1.0, v2.2.5 to v2.3.0, etc.) [6][16]. This indicates a practice of communicating and documenting breaking changes to help users migrate between versions.\n\nBeyond these observations, the retrieved chunks do not provide a formal, explicitly stated policy governing how or when Hono introduces breaking changes. For a more definitive answer, the official Hono documentation or contributing guidelines would need to address this topic directly, but the contributing guide chunk provided [11] does not cover it.",
+        "citations": 4,
+        "latency_ms": 7991,
+        "grade": "partial",
+        "facts_found": [
+          "breaking",
+          "major",
+          "version"
+        ],
+        "facts_missing": [
+          "semver"
+        ],
+        "judge_reasoning": "The answer identifies Hono's practice of reserving breaking changes for major version releases and documenting them in migration guides, covering 3 of 4 expected concepts, but lacks explicit mention of semantic versioning (semver) principles and acknowledges the absence of a formal written policy."
+      },
+      "full_brain": {
+        "answer": "The provided chunks do not contain an explicit, comprehensive policy statement from Hono regarding breaking changes. However, some relevant practices can be inferred from the available context:\n\nBreaking changes appear to be reserved for major version releases. For example, a PR described as a breaking change was deliberately held and merged in conjunction with the upcoming v4 release, rather than being merged into an existing stable version [4]. This suggests that breaking changes are batched into major version bumps.\n\nHono also maintains a dedicated migration guide (`MIGRATION.md`) that documents breaking changes version by version, helping users understand what needs to change when upgrading [6][16]. This indicates a practice of communicating breaking changes explicitly rather than silently introducing them.\n\nBeyond these inferences, the retrieved chunks do not contain a formal, written policy on how Hono handles breaking changes in general. For a definitive answer, you would need to consult Hono's official documentation or contributing guidelines directly, as the `CONTRIBUTING.md` chunk provided [11] does not address breaking change policy specifically.",
+        "citations": 4,
+        "latency_ms": 14429,
+        "grade": "partial",
+        "facts_found": [
+          "breaking",
+          "major",
+          "version"
+        ],
+        "facts_missing": [
+          "semver"
+        ],
+        "judge_reasoning": "The answer addresses breaking changes policy and mentions major versions, but lacks explicit reference to semantic versioning (semver) principles and hedges considerably by saying no formal policy exists in the documentation when the question expects a more direct answer."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": -1,
+        "full_brain": -1
+      }
+    },
+    {
+      "id": "Q09",
+      "query": "What has been the most contested design decision in Hono's history?",
+      "should_have_answer": true,
+      "baseline_grade": "incorrect",
+      "plain_rag": {
+        "answer": "The provided chunks do not contain enough information to answer this question. The retrieved context covers various individual issues and pull requests in the Hono repository (such as router limitations [1], middleware naming [6][9], ETag simplicity [8], and security headers [5]), but none of them identify or discuss what has been the **most contested design decision** in Hono's history. There is no chunk that ranks, compares, or characterizes any decision as the most debated or controversial overall.",
+        "citations": 5,
+        "latency_ms": 3875,
+        "grade": "no-info",
+        "facts_found": [
+          "Honest acknowledgment of insufficient information in retrieved context",
+          "Specific examples of design decisions mentioned in available chunks (router limitations, middleware naming, ETag simplicity, security headers)",
+          "Clear explanation of why the question cannot be answered (no ranking or characterization of 'most contested' decision)"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer appropriately states it cannot answer the question rather than hallucinating, which satisfies the requirement for honesty when information is unavailable."
+      },
+      "full_brain": {
+        "answer": "The retrieved context does not contain enough information to answer this question. The chunks cover various individual design decisions in Hono's history — such as router limitations [1], middleware naming [6][9], ETag implementation scope [8], and breaking changes in v4 [7] — but none of them identify or discuss what has been the **most contested** design decision overall. No chunk ranks or compares the controversy or contention of different decisions relative to one another.",
+        "citations": 5,
+        "latency_ms": 8804,
+        "grade": "correct",
+        "facts_found": [
+          "Honest acknowledgment of insufficient information",
+          "Recognition that context mentions multiple design decisions but doesn't rank their contention",
+          "Specific examples of design decisions mentioned (router limitations, middleware naming, ETag implementation, v4 breaking changes)"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer honestly and accurately states that the provided context lacks information needed to identify the most contested decision, rather than fabricating or guessing an answer."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 2,
+        "full_brain": 2
+      }
+    },
+    {
+      "id": "Q10",
+      "query": "What runtimes does Hono officially support and how was that scope decided?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "The provided chunks do not contain a dedicated document or discussion that comprehensively lists all officially supported Hono runtimes or explains how that scope was formally decided. However, the chunks do surface several runtimes mentioned incidentally:\n\n- **Cloudflare Workers, Node.js, and Deno** are referenced together as environments Hono targets. For example, chunk [3] notes that \"Hono and HatTip support a wide range of server-side JavaScript environments (Node.js, Cloudflare Workers, Deno, ...).\" [3]\n- **Bun** is also treated as a supported runtime — the ConnInfo helper/adapter PR explicitly implements support for \"Bun, Deno and CF Workers\" [17], and Bun is used as the project's own package manager in the contributing guide [9].\n- **Firebase Functions** appears in a bug report as a platform a user attempted to run Hono on [18], but it is not described as officially supported.\n\nRegarding how the scope was decided, the chunks do not contain any formal policy or design document on this. The contributing guide does note that the project \"started by Yusuke Wada for the hobby proposal\" and that \"if you propose great ideas, but I do not appropriate them, the idea may not be accepted,\" suggesting scope decisions rest largely with the maintainer's judgment [9]. There is no further detail in the provided context about a structured process for determining which runtimes are officially supported.",
+        "citations": 4,
+        "latency_ms": 9778,
+        "grade": "partial",
+        "facts_found": [
+          "runtime",
+          "Cloudflare",
+          "Deno",
+          "Bun",
+          "Node"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies all five expected runtime concepts and provides evidence for each, but it honestly acknowledges that the source material lacks information about how the official scope was formally decided, which was part of the question."
+      },
+      "full_brain": {
+        "answer": "The provided chunks do not contain a comprehensive, authoritative statement from the Hono project explicitly listing all officially supported runtimes and explaining how that scope was decided. However, the chunks do surface some relevant details:\n\nSeveral runtimes are mentioned incidentally across the discussions. Cloudflare Workers, Deno, Node.js (via an adapter), and Bun are all referenced in the context of specific features — for example, WebSocket support is discussed for Deno and Cloudflare Workers [1], and the ConnInfo helper/adapter was created specifically for Bun, Deno, and Cloudflare Workers [17]. Node.js is acknowledged via an adapter but noted as having limitations (e.g., no WebSocket support planned at the time) [1].\n\nMore broadly, the chunks describe Hono as supporting \"a wide range of server-side JavaScript environments (Node.js, Cloudflare Workers, Deno, ...)\" [3], but this characterization comes from a third-party issue author rather than an official project statement about scope decisions.\n\nThere is no chunk in the provided context that explains *how* the scope of supported runtimes was formally decided by the Hono maintainers. The contributing guide notes that the project started as a hobby and that the main author reserves the right to accept or reject proposals based on personal judgment [9], but this does not specifically address runtime support decisions.\n\nIn short, the available context is insufficient to fully answer the question about how runtime support scope was deliberately decided.",
+        "citations": 4,
+        "latency_ms": 9397,
+        "grade": "partial",
+        "facts_found": [
+          "runtime",
+          "Cloudflare",
+          "Deno",
+          "Bun",
+          "Node"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies all expected runtimes and demonstrates knowledge of Hono's multi-runtime support, but honestly acknowledges the lack of information about how the scope was formally decided, which is half of the question and thus prevents a fully correct response."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": -1,
+        "full_brain": -1
+      }
+    },
+    {
+      "id": "Q11",
+      "query": "What changed in Hono's API design between v3 and v4?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "## Hono API Changes from v3 to v4\n\nThe migration from v3.12.x to v4.0.0 involved the removal of several deprecated features across multiple areas of the API [1].\n\n### Context (`c`) Changes\nSeveral methods on the context object were removed: `c.jsonT()` was replaced by `c.json()`, `c.stream()` and `c.streamText()` were moved to the `hono/streaming` module, and `c.env()` was replaced by `getRuntimeKey()` from `hono/adapter` [1].\n\n### App-Level Changes\nA number of `app.*` methods were removed or changed: `app.showRoutes()` was replaced by `showRoutes()` from `hono/dev`, `app.routerName` was replaced by `getRouterName()` from `hono/dev`, `app.handleEvent()` was replaced by `app.fetch()`, and notably `app.head()` was removed because `app.get()` now implicitly handles the HEAD method [1].\n\n### Request (`req`) Changes\nOn the request object, `req.cookie()` was replaced by `getCookie()` from `hono/cookie`, and several properties like `headers()`, `body()`, `bodyUsed()`, `integrity()`, `keepalive()`, `referrer()`, and `signal()` were removed in favor of accessing them via `req.raw` (e.g., `req.raw.headers`) [1][13].\n\n### Adapter & Middleware Changes\nThe AWS Lambda adapter replaced `LambdaFunctionUrlRequestContext` with `ApiGatewayRequestContextV2`, the Next.js adapter path changed from `hono/nextjs` to `hono/vercel`, and the Cloudflare Workers `serveStatic` adapter now requires a `manifest` option [1][13].\n\n### JSX & Type Changes\nThe default value of the `docType` option in JSX Renderer Middleware changed to `true`, `FC` in `hono/jsx` no longer passes `children` (requiring `PropsWithChildren` instead), and some Mime Types were removed [13].",
+        "citations": 2,
+        "latency_ms": 12081,
+        "grade": "correct",
+        "facts_found": [
+          "v3",
+          "v4",
+          "breaking",
+          "API"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question about API changes between v3 and v4, contains all four expected concepts, and provides specific examples of breaking changes across multiple areas (context, app-level, request, adapter methods)."
+      },
+      "full_brain": {
+        "answer": "## Hono API Changes: v3 to v4\n\nThe migration from v3.12.x to v4.0.0 primarily involved the **removal of previously deprecated features** rather than the introduction of entirely new API patterns [1].\n\n### Context (`c`) Changes\nSeveral methods were removed from the `Context` object and moved to dedicated modules [1]:\n- `c.jsonT()` → use `c.json()` instead\n- `c.stream()` and `c.streamText()` → use `stream()` and `streamText()` from `hono/streaming`\n- `c.env()` → use `getRuntimeKey()` from `hono/adapter`\n\n### `app` (Hono instance) Changes\nSeveral instance methods were removed or changed [1]:\n- `app.showRoutes()` → use `showRoutes()` from `hono/dev`\n- `app.routerName` → use `getRouterName()` from `hono/dev`\n- `app.head()` was removed — `app.get()` now **implicitly handles the HEAD method**\n- `app.handleEvent()` → use `app.fetch()` instead\n\n### `HonoRequest` Changes\nCookie and raw request property access was reorganized [1]:\n- `req.cookie()` → use `getCookie()` from `hono/cookie`\n- Direct proxies like `headers()`, `body()`, `bodyUsed()`, `integrity()`, `keepalive()`, `referrer()`, and `signal()` were removed — use `req.raw` equivalents (e.g., `req.raw.headers`) instead\n\n### Adapter Changes\n- The `serveStatic` Cloudflare Workers adapter now **requires a `manifest` option** to be explicitly passed [13]\n- AWS Lambda's `LambdaFunctionUrlRequestContext` was replaced by `ApiGatewayRequestContextV2`, and the Next.js adapter path moved from `hono/nextjs` to `hono/vercel` [1]",
+        "citations": 2,
+        "latency_ms": 20552,
+        "grade": "correct",
+        "facts_found": [
+          "v3",
+          "v4",
+          "breaking",
+          "API"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question about API changes between Hono v3 and v4, clearly identifies breaking changes (removal of deprecated features and method relocations), and contains all expected concepts with specific technical details about what changed."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 1,
+        "full_brain": 1
+      }
+    },
+    {
+      "id": "Q12",
+      "query": "What architectural decisions has yusukebe made about Hono's core?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "Based on the provided chunks, here are the architectural decisions yusukebe has made about Hono's core:\n\n**Keep the core minimal — use middleware instead of modifying core code.** When handling trailing slashes, yusukebe explicitly stated: \"We don't want to modify or add code for the core of Hono. So, using middleware is the best solution.\" [15] Similarly, for the Proxy Helper, the decision was to keep it as a helper rather than middleware, valuing simplicity and a clean structure. [14]\n\n**Keep structure simple and avoid unnecessary new files.** When adding `cloneRawRequest`, yusukebe decided to add it directly to `src/request.ts` rather than creating new helper files, noting: \"Keeping the structure simple is important.\" [17]\n\n**Scope features deliberately and avoid feature creep.** yusukebe stated that \"Supporting more WebSocket features is outside the scope of Hono\" [4], and similarly kept the ETag middleware simple by implementing only `generateDigest` rather than a streaming variant, reasoning that users needing high-performance logic can implement it themselves. [12]\n\n**Maintain personal creative control over the project's direction.** The contributing guide states that Hono started as a hobby project and \"this stance has not been changed basically,\" with yusukebe reserving the right to decline ideas that don't align with his vision, even great ones. [3]",
+        "citations": 6,
+        "latency_ms": 9709,
+        "grade": "correct",
+        "facts_found": [
+          "yusukebe",
+          "architecture",
+          "core"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question by identifying specific architectural decisions made by yusukebe regarding Hono's core (keeping it minimal, using middleware, maintaining simplicity, scoping features, and maintaining creative control), and includes all three expected concepts with supporting evidence."
+      },
+      "full_brain": {
+        "answer": "Based on the provided chunks, here are the key architectural decisions yusukebe has made about Hono's core:\n\n**Middleware over core modifications:** yusukebe has a clear principle of avoiding changes to Hono's core in favor of middleware solutions. When handling trailing slashes, he explicitly stated: \"We don't want to modify or add code for the core of Hono. So, using middleware is the best solution.\" [15]\n\n**Keeping structure simple:** When deciding where to place the `cloneRawRequest` utility, yusukebe chose to add it directly to `src/request.ts` rather than creating new helper files, noting that \"Keeping the structure simple is important.\" [17]\n\n**Helpers vs. middleware distinction:** yusukebe distinguishes carefully between helpers and middleware. The Proxy Helper was kept as a helper rather than middleware because it doesn't always need `c.req.raw` or a Context, reflecting a deliberate separation of concerns in the architecture. [14]\n\n**WebSocket scope:** yusukebe has explicitly scoped WebSocket support, stating that \"Supporting more WebSocket features is outside the scope of Hono\" and that there are no plans to implement WebSocket support for the Node.js adapter. [4]\n\n**Personal creative control:** The contributing guide makes clear that yusukebe treats Hono as a personal project where he writes code as he likes — proposals that don't align with his vision may not be accepted, reflecting his hands-on control over core architectural direction. [3]",
+        "citations": 5,
+        "latency_ms": 9006,
+        "grade": "correct",
+        "facts_found": [
+          "yusukebe",
+          "architecture",
+          "core"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question by identifying and explaining specific architectural decisions made by yusukebe regarding Hono's core, including middleware prioritization, structural simplicity, helper/middleware distinction, and WebSocket scoping, with all three expected concepts present."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q13",
+      "query": "How does Hono decide what goes into the core package vs external middleware?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "## How Hono Decides What Goes Into the Core vs. External Middleware\n\n**The core principle: avoid modifying core code when middleware will do**\n\nHono's maintainers have a clear preference for keeping the core lean. As stated in one PR discussion about trailing slash handling: *\"We don't want to modify or add code for the core of Hono. So, using middleware is the best solution.\"* [3] The project maintainer (yusukebe) also notes that the project started as a hobby and he reserves the right to accept or reject proposals based on his own judgment about what belongs in the framework. [4]\n\n**Third-party middleware: for things with external dependencies or environment-specific behavior**\n\nThe contributing guide explicitly states that third-party middleware is \"not in the core\" and \"is allowed to depend on other libraries or work only in specific environments.\" [4] Examples given of things that belong as third-party rather than core middleware include GraphQL Server middleware, Firebase Auth middleware, and Sentry middleware. [2] These are managed in the separate `honojs/middleware` monorepo under the `@honojs` namespace. [2]\n\n**Built-in middleware: broadly useful, dependency-free utilities**\n\nSome middleware does get included in the core package when it is general-purpose enough. For example, the Secure Headers middleware (inspired by Helmet) was merged directly into the Hono framework itself, with the documentation noting \"the middleware is built into the Hono framework, so no additional installation is required.\" [8] Similarly, functionality like cookie parsing and body parsing that was once middleware has been promoted into default framework functions over time. [5]\n\n**Helpers vs. middleware: a further distinction**\n\nEven within the core, there is a distinction between what becomes a middleware and what becomes a helper. For instance, the Proxy Helper was kept as a helper rather than middleware because \"it is just a wrapper of `fetch`\" and doesn't always need a Context object — keeping it simpler and safer. [6] The guiding question appears to be whether the functionality is tightly coupled to the request/response lifecycle.",
+        "citations": 6,
+        "latency_ms": 13451,
+        "grade": "partial",
+        "facts_found": [
+          "core",
+          "middleware",
+          "package"
+        ],
+        "facts_missing": [
+          "bundled"
+        ],
+        "judge_reasoning": "The answer addresses the question well and covers most expected concepts (core, middleware, package organization), but does not mention the term 'bundled' or discuss what is actually bundled into the core distribution, which is an important aspect of the decision-making process."
+      },
+      "full_brain": {
+        "answer": "Hono's approach to separating core from external middleware follows a few clear principles, drawn from the contributing guide and maintainer decisions.\n\n**Third-party middleware stays out of core if it has external dependencies or environment-specific requirements.** The contributing guide explicitly states: \"Third-party middleware is not in the core. It is allowed to depend on other libraries or work only in specific environments.\" [4] Examples given of things that belong outside core include GraphQL Server middleware, Firebase Auth middleware, and Sentry middleware — all of which depend on external libraries. [2]\n\n**Modifying core is avoided in favor of middleware solutions.** When a trailing slash handling feature was proposed, the maintainer explicitly said \"We don't want to modify or add code for the core of Hono. So, using middleware is the best solution.\" [3] This reflects a general philosophy of keeping the core lean and expressing optional behavior through middleware.\n\n**Some features get promoted into core when they become universally needed.** For example, cookie parsing and body parsing were originally separate middleware but were eventually made default core functions, with the old middleware marked obsolete. [5] This suggests that functionality used nearly universally can graduate into core over time.\n\n**Helpers vs. middleware is also a distinct consideration.** Even within the repo, there is a distinction between middleware (which operates in the request/response pipeline with a Context) and helpers (simpler utilities). The Proxy Helper, for instance, was kept as a helper rather than middleware because \"it is just a wrapper of `fetch`\" and does not always need a Context. [6]\n\n**Third-party middleware can still live under the `honojs` organization** in the `@honojs` namespace via the `honojs/middleware` monorepo, providing an official home for ecosystem middleware without bloating the core package. [2]",
+        "citations": 5,
+        "latency_ms": 12262,
+        "grade": "correct",
+        "facts_found": [
+          "core",
+          "middleware",
+          "package",
+          "bundled"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question with clear principles about separation of concerns, explicitly mentions core, middleware, and package concepts, and explains decision-making criteria with supporting examples and rationale."
+      },
+      "winner": "full_brain",
+      "baseline_delta": {
+        "plain_rag": -1,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q14",
+      "query": "What testing approach does Hono use and why was it chosen?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "The provided context chunks do not contain sufficient information to answer the question about what specific testing approach Hono uses and why it was chosen. \n\nWhat the chunks do reveal is limited: Hono requires that PRs pass tests using `bun run test` [13], and the project uses [Bun](https://bun.sh/) as its package manager [13]. Some individual PRs mention adding tests and running them as part of contribution checklists [4][12], and there are references to improving test coverage in specific areas such as JWT/JWK functionality [8]. However, there is no explanation in the provided context of a broader, deliberate testing philosophy or rationale for why a particular testing approach was selected for the project overall.",
+        "citations": 4,
+        "latency_ms": 5221,
+        "grade": "no-info",
+        "facts_found": [],
+        "facts_missing": [
+          "test",
+          "vitest",
+          "jest"
+        ],
+        "judge_reasoning": "The answer honestly states that the provided context does not contain sufficient information to answer the question about Hono's testing approach and rationale, which is appropriate given should_have_answer=true but acknowledging the absence of information in the provided chunks."
+      },
+      "full_brain": {
+        "answer": "The retrieved chunks do not contain enough information to answer this question thoroughly. The only relevant detail found is that Hono's contributing guide specifies that PRs must pass tests using `bun run test`, and that the project uses [Bun](https://bun.sh/) as its package manager [13]. There is also a mention in PR #1341 that contributors are expected to add tests and run tests as part of the contribution checklist [4], and similarly in PR #4314 [12].\n\nHowever, the chunks do not explain the broader testing philosophy, framework choices (e.g., which test runner or testing library is used beyond Bun), or the specific rationale for why this testing approach was chosen over alternatives. To get a complete answer about Hono's testing strategy and its justification, you would need to consult additional documentation such as the project's README, test configuration files, or relevant GitHub discussions not present in the provided context.",
+        "citations": 3,
+        "latency_ms": 17504,
+        "grade": "partial",
+        "facts_found": [
+          "test"
+        ],
+        "facts_missing": [
+          "vitest",
+          "jest"
+        ],
+        "judge_reasoning": "The answer mentions testing exists in Hono and that Bun is used to run tests, but fails to identify the specific test framework (vitest) or provide the rationale for why it was chosen, leaving key expected concepts unaddressed."
+      },
+      "winner": "plain_rag",
+      "baseline_delta": {
+        "plain_rag": 1,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q15",
+      "query": "What is the Hono v5 release date?",
+      "should_have_answer": false,
+      "baseline_grade": "no-info",
+      "plain_rag": {
+        "answer": "The provided context does not contain any information about a Hono v5 release date. The chunks reference various older versions (v2.x, v3.x, v4.x) and mention upcoming minor releases like v4.4 [1][7] and v4.10.0 [8], but there is no mention of a v5 release date or announcement anywhere in the retrieved context.",
+        "citations": 3,
+        "latency_ms": 3686,
+        "grade": "correct",
+        "facts_found": [
+          "Honest acknowledgment of missing information",
+          "Explicit statement that context does not contain v5 release date",
+          "Evidence of checking available context (mentions v2.x, v3.x, v4.x versions)"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer appropriately and honestly states that the provided context lacks information about a Hono v5 release date, with no hallucination or false confidence."
+      },
+      "full_brain": {
+        "answer": "The provided context does not contain any information about a Hono v5 release date. The chunks reference various other versions (v3.x, v4.x up to v4.10.0) [1][2][8][17], but there is no mention of a v5 release date or any announcement regarding it.",
+        "citations": 4,
+        "latency_ms": 19482,
+        "grade": "correct",
+        "facts_found": [
+          "Honest admission of lack of information",
+          "No hallucination or confident false claims",
+          "Acknowledgment that context doesn't contain v5 release date information",
+          "Reference to what information IS available (v3.x, v4.x versions)"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer appropriately and honestly states that the provided context lacks information about a Hono v5 release date, without hallucinating or guessing, which is the correct approach when should_have_answer=false."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q16",
+      "query": "What was decided about c.json() helper vs returning raw Response objects?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "The provided chunks do not contain any discussion or decision specifically about a `c.json()` helper versus returning raw `Response` objects. The retrieved context covers topics such as the Proxy Helper, ConnInfo helper, streaming, RPC, context variable management, and various migration notes, but none of these address a deliberation or conclusion about `c.json()` versus raw `Response` returns.\n\nIf you have a more specific issue number, PR number, or additional context about where this decision was discussed, that would help narrow down the relevant source material.",
+        "citations": 0,
+        "latency_ms": 14165,
+        "grade": "no-info",
+        "facts_found": [
+          "c.json",
+          "Response",
+          "helper"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer honestly states that the provided chunks do not contain information about the decision regarding c.json() helper versus raw Response objects, which is the appropriate response when should_have_answer=true but the source material lacks the relevant information."
+      },
+      "full_brain": {
+        "answer": "The retrieved context does not contain any information about a decision regarding `c.json()` helper versus returning raw `Response` objects. None of the provided chunks address this specific design question. You may want to search the Hono GitHub issues or pull requests more specifically for discussions around `c.json()` API design to find the relevant decision record.",
+        "citations": 0,
+        "latency_ms": 13130,
+        "grade": "no-info",
+        "facts_found": [
+          "c.json",
+          "Response",
+          "helper"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer honestly states that the provided context does not contain information about the decision, which is the appropriate response when should_have_answer=true but no relevant information is available in the source material."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q17",
+      "query": "What build tooling decisions were made for Hono's multi-runtime output?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "The retrieved context does not contain sufficient information to answer the question about build tooling decisions made for Hono's multi-runtime output. None of the provided chunks discuss topics such as bundler configuration, tsup/rollup/esbuild settings, output format decisions (ESM/CJS), or any other build tooling choices specifically related to targeting multiple runtimes (e.g., Node.js, Deno, Cloudflare Workers, Bun) simultaneously.\n\nThe closest relevant detail is that the project uses **Bun** as its package manager [13], and that a `denoify` step is used to generate files for Deno compatibility [4] — but these are incidental mentions rather than a comprehensive account of multi-runtime build tooling decisions.\n\nIf you need a thorough answer on this topic, I'd recommend consulting Hono's `package.json`, build scripts, or dedicated build configuration files in the repository directly.",
+        "citations": 2,
+        "latency_ms": 13719,
+        "grade": "no-info",
+        "facts_found": [],
+        "facts_missing": [
+          "build",
+          "bundle",
+          "tsup",
+          "ESM"
+        ],
+        "judge_reasoning": "The answer honestly acknowledges that the retrieved context does not contain sufficient information to answer the question, avoiding hallucination while explaining what would be needed to answer it properly."
+      },
+      "full_brain": {
+        "answer": "The retrieved context does not contain information specifically about build tooling decisions made for Hono's multi-runtime output (e.g., decisions about bundlers, build configurations, or toolchain choices targeting multiple runtimes like Cloudflare Workers, Deno, Node.js, Bun, etc.).\n\nThe closest relevant detail is that the project uses **Bun** as its package manager [13], and there is a mention of running `yarn denoify` to generate files for Deno as part of the contribution process for middleware [4]. However, neither of these speaks directly to architectural build tooling decisions for producing multi-runtime output.\n\nIf you need a more complete answer, I'd recommend looking at Hono's `build.ts` or `package.json` configuration files, or pull requests specifically related to the build pipeline, as those are not represented in the provided chunks.",
+        "citations": 2,
+        "latency_ms": 6216,
+        "grade": "no-info",
+        "facts_found": [],
+        "facts_missing": [
+          "build",
+          "bundle",
+          "tsup",
+          "ESM"
+        ],
+        "judge_reasoning": "The answer honestly acknowledges that the provided context lacks information about build tooling decisions for Hono's multi-runtime output, avoiding hallucination by not inventing details about tsup, bundling strategy, or ESM configurations."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 1,
+        "full_brain": 1
+      }
+    },
+    {
+      "id": "Q18",
+      "query": "How does Hono handle errors and what decisions shaped the error API?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "The provided source chunks do not contain sufficient information to answer how Hono handles errors or what decisions shaped its error API. The retrieved context covers a variety of other topics — such as router design [5], middleware patterns [18][20], path decoding [5], and various feature PRs [11][15][16] — but none of them specifically address Hono's error handling mechanisms, `HTTPException`, `onError`/`notFound` hooks, or the design decisions behind the error API.\n\nTo get a accurate answer to this question, you would need chunks from sources such as Hono's error handling documentation, issues or PRs specifically discussing `app.onError()`, `HTTPException`, or similar error-related constructs.",
+        "citations": 6,
+        "latency_ms": 18982,
+        "grade": "no-info",
+        "facts_found": [
+          "error",
+          "HTTPException"
+        ],
+        "facts_missing": [
+          "handler"
+        ],
+        "judge_reasoning": "The answer honestly acknowledges that the source chunks do not contain sufficient information to answer the question, which is the appropriate response when should_have_answer=true but information is genuinely unavailable, rather than hallucinating an answer."
+      },
+      "full_brain": {
+        "answer": "The provided chunks do not contain sufficient information to answer the question about how Hono handles errors and what decisions shaped the error API specifically. The retrieved context covers topics such as routing, middleware, CSRF protection, JSX types, and other features, but does not include substantive discussion of Hono's error handling mechanisms or the design decisions behind an error API.\n\nThe closest related item is chunk [11], which describes a `parseResponse` / `hcParse` utility added to the Hono client (`hc`) that **automatically parses responses and throws a structured error if the response is not `ok`**, and is type-safe [11]. However, this is scoped to the client-side fetch helper, not the core server-side error handling system.\n\nIf you need a thorough answer about Hono's error handling design (e.g., `app.onError`, `HTTPException`, error middleware), the available chunks do not contain that information. You would need to consult the Hono source code or official documentation directly.",
+        "citations": 1,
+        "latency_ms": 6908,
+        "grade": "no-info",
+        "facts_found": [
+          "HTTPException"
+        ],
+        "facts_missing": [
+          "error",
+          "handler"
+        ],
+        "judge_reasoning": "The answer honestly acknowledges that the provided context lacks sufficient information to answer the question, mentions HTTPException in parentheses as an example of what would be needed, and appropriately avoids hallucinating details about Hono's error handling."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 1,
+        "full_brain": 1
+      }
+    },
+    {
+      "id": "Q19",
+      "query": "What was the rationale behind adding the Hono client (hc)?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "The rationale behind adding the Hono RPC client (`hc`) is explained in issue #727, where it was proposed as an \"ultra cool feature\" to improve developer experience by making type sharing between server and client integrated directly into Hono, rather than relying on external tools like tRPC [7].\n\nThe core goals were to: share request formats inferred from validation schemas, share response formats inferred from JSON objects returned in handlers, and implement a \"client\" that works not only on the server side [7]. The author noted that while tRPC is great, Hono could do it \"in a better way\" because the types and client could be made fully integrated into the framework itself [7].\n\nA practical use case that further motivated its design was enabling Hono's RPC client to work with Cloudflare Service Bindings, giving developers the benefits of both type-safe RPC communication and HTTP service bindings without a lot of boilerplate code for handling typed requests [1].",
+        "citations": 2,
+        "latency_ms": 20002,
+        "grade": "correct",
+        "facts_found": [
+          "hc",
+          "client",
+          "type",
+          "RPC"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer comprehensively addresses the question by explaining the rationale behind adding the Hono RPC client (hc) and includes all four expected concepts: hc, client, type, and RPC, while providing specific context about type sharing, developer experience improvements, and practical use cases."
+      },
+      "full_brain": {
+        "answer": "Based on the provided chunks, the most direct rationale for the Hono RPC client (`hc`) is described in the original proposal issue.\n\nThe `hc` client was introduced to enable **type-safe, integrated RPC between client and server** without needing a separate tool like tRPC. The goal was to share request formats inferred from validation schemas and response formats inferred from JSON return values, while implementing a \"client\" that works not just on the server side [7]. The author noted that while tRPC is great, Hono could do it in a \"better way\" by making it fully **integrated** into the framework itself [7].\n\nA key developer-experience motivation was eliminating boilerplate when making typed HTTP calls — for example, when using Cloudflare service bindings, direct HTTP fetch calls involve a lot of boilerplate for handling typed requests properly, whereas the `hc` client wraps `fetch` to provide clean, typed call syntax like `client.posts.$post(...)` [1].\n\nThere was also an acknowledged concern around **monorepo/compilation overhead**: because the RPC client type is derived from the full route definitions (including their implementations), it can slow down TypeScript compilation and force client environments to satisfy backend environment types they don't need [9]. This led to proposals for \"pure RPC client types\" as a follow-on improvement [9].",
+        "citations": 3,
+        "latency_ms": 10372,
+        "grade": "correct",
+        "facts_found": [
+          "hc",
+          "client",
+          "type",
+          "RPC"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses all four expected concepts, explaining that `hc` was added to enable type-safe RPC between client and server, with clear rationales including eliminating boilerplate and providing integrated typing without needing separate tools like tRPC."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 1,
+        "full_brain": 1
+      }
+    },
+    {
+      "id": "Q20",
+      "query": "What decisions were made about streaming response support in Hono?",
+      "should_have_answer": true,
+      "baseline_grade": "correct",
+      "plain_rag": {
+        "answer": "Based on the provided context, here are the decisions made about streaming response support in Hono:\n\nThe team decided that `c.stream()` should be a simple function specifically for outputting HTTP streaming responses, keeping its scope narrow and focused [1]. It was explicitly decided that `c.stream()` should **not** handle other cases such as Server-Sent Events (SSE) — if users need more complex behavior, they should create their own `ReadableStream` [1].\n\nThere was also discussion around naming, with consideration given to naming the function `streamText()` and adding a `wait` method to it [1].",
+        "citations": 1,
+        "latency_ms": 13572,
+        "grade": "correct",
+        "facts_found": [
+          "stream",
+          "streaming",
+          "response"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question about streaming response support decisions in Hono, includes all three expected concepts, and provides specific details about the design decisions made (keeping c.stream() focused on HTTP streaming, not handling SSE, and naming considerations)."
+      },
+      "full_brain": {
+        "answer": "Based on the retrieved context, two key decisions were made about streaming response support in Hono:\n\n1. **`c.stream()` should be kept simple**: It was decided that `c.stream()` should be a simple function for outputting HTTP streaming responses only, and should not handle other cases like Server-Sent Events (SSE). If more complex behavior is needed, users can create their own `ReadableStream` [1].\n\n2. **Naming and API considerations**: There was consideration of renaming `c.stream()` to `streamText()` and adding a `wait` method to the API [1].",
+        "citations": 1,
+        "latency_ms": 4763,
+        "grade": "correct",
+        "facts_found": [
+          "stream",
+          "streaming",
+          "response"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer directly addresses the question about streaming response support decisions in Hono, contains all three expected keywords, and provides specific details about the design decisions made regarding c.stream() and SSE handling."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    },
+    {
+      "id": "Q21",
+      "query": "Does Hono have a built-in GraphQL server and what was decided about it?",
+      "should_have_answer": false,
+      "baseline_grade": "no-info",
+      "plain_rag": {
+        "answer": "Hono previously had a built-in GraphQL Server middleware, but it was removed and declared obsolete. The migration guide explicitly states: **\"DO NOT** use `graphql-server` middleware\" with the import `import { graphqlServer } from 'hono/graphql-server'`, marking it as obsolete [7].\n\nThe decision was that GraphQL Server middleware should no longer be part of Hono's core. Instead, it was suggested that \"it might be distributed as third-party middleware\" [7]. This aligns with Hono's general stance on such integrations — the contributing guide lists \"GraphQL Server middleware\" as a prime example of the kind of functionality that belongs in third-party middleware rather than the core framework, potentially distributed under the `@honojs` namespace via the `honojs/middleware` monorepo [20].",
+        "citations": 2,
+        "latency_ms": 21524,
+        "grade": "incorrect",
+        "facts_found": [
+          "GraphQL Server middleware existed in Hono",
+          "It was removed/declared obsolete",
+          "Decision was to not include it in core",
+          "Suggestion for third-party distribution"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The question asks whether Hono has a built-in GraphQL server (implying current state) with should_have_answer=false, meaning the grader expects an honest 'I don't know' response; instead, the answer confidently provides specific historical facts with citations, which constitutes a confident answer when uncertainty should be acknowledged."
+      },
+      "full_brain": {
+        "answer": "Based on the provided context, Hono previously had a built-in GraphQL server middleware, but it was made **obsolete** and removed. The migration guide explicitly states: \"**DO NOT** use `graphql-server` middleware\" and shows that importing `graphqlServer` from `hono/graphql-server` is no longer valid. [7]\n\nThe decision was that the GraphQL server middleware \"might be distributed as third-party middleware\" instead of being part of Hono's core. [7] This aligns with Hono's general approach of keeping the core lean and moving non-essential integrations to third-party packages.",
+        "citations": 1,
+        "latency_ms": 5238,
+        "grade": "incorrect",
+        "facts_found": [],
+        "facts_missing": [],
+        "judge_reasoning": "The answer provides specific claims about Hono's GraphQL server history and removal decisions with citations, but should_have_answer=false indicates this information is not expected to be in the provided context, making this a confident assertion about facts that cannot be verified—a hallucination."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": -2,
+        "full_brain": -2
+      }
+    },
+    {
+      "id": "Q22",
+      "query": "What are the most significant architectural decisions made in the Hono project?",
+      "should_have_answer": true,
+      "baseline_grade": "partial",
+      "plain_rag": {
+        "answer": "Based on the provided chunks, here are the most significant architectural decisions made in the Hono project:\n\n**Router Architecture**\nThe team decided to keep `buildInitParams()` and `RegExpRouter()` bundled together due to dependency issues, acknowledging a tradeoff between performance and complexity [1]. They also agreed that the router should be fully initialized before the first request arrives [1]. Work on the TrieRouter and LinearRouter was also undertaken to improve support for complex path patterns, though limitations remained and were eventually resolved via PR #3888 [2].\n\n**Middleware Design**\nHono adopted a built-in security headers middleware (inspired by Helmet) that allows users to toggle specific headers on or off, rather than porting Helmet wholesale [6]. The project also takes a deliberate stance on WebSocket support — while Deno and Cloudflare Workers are supported, Node.js WebSocket support was explicitly out of scope with no plans to implement it [8].\n\n**Code Structure and Simplicity**\nA key principle is keeping the source structure simple — for example, adding the `cloneRawRequest` utility directly to `src/request.ts` rather than creating separate helper directories [9]. Third-party middleware is intentionally kept out of the core, allowing it to depend on external libraries or target specific environments [3].\n\n**Project Governance**\nThe project is maintained with a strong authorial vision — the founder explicitly reserves the right to reject ideas that don't align with his goals, even if they are technically sound [3]. This shapes how architectural decisions are evaluated and accepted.",
+        "citations": 6,
+        "latency_ms": 20525,
+        "grade": "partial",
+        "facts_found": [
+          "router",
+          "middleware"
+        ],
+        "facts_missing": [
+          "TypeScript",
+          "runtime"
+        ],
+        "judge_reasoning": "The answer addresses significant architectural decisions with concrete examples of router and middleware design, but fails to mention TypeScript and runtime decisions, which are fundamental architectural choices for Hono."
+      },
+      "full_brain": {
+        "answer": "## Most Significant Architectural Decisions in the Hono Project\n\n### Router Design and Performance\nOne of the most notable architectural decisions involved the `RegExpRouter` and a new high-performance router implementation. The team acknowledged that the new router is \"highly performant but complex,\" and decided it could still be used in general applications despite that complexity [1]. They also decided to keep `buildInitParams()` and `RegExpRouter()` bundled together due to dependency constraints, and agreed that the router should be fully initialized before the first request arrives [1].\n\n### TrieRouter and LinearRouter Improvements\nThe team worked on improving support for complex path patterns in both `TrieRouter` and `LinearRouter`, while acknowledging that `TrieRouter` still had limitations for certain patterns. This work was ultimately resolved via PR #3888 [2].\n\n### Keeping Structure Simple\nWhen adding new utilities (e.g., `cloneRawRequest`), the team explicitly decided against creating new helper directories and instead favored adding functionality directly to existing source files like `src/request.ts`, with the reasoning that \"keeping the structure simple is important\" [9].\n\n### Security Headers Middleware\nThe team decided to build a Helmet-inspired secure headers middleware (`secureHeaders`) directly into the Hono core, rather than leaving it as a third-party dependency. The design choice was to only support headers with fixed values, giving users simple on/off control [6].\n\n### Scoping WebSocket Support\nThe project maintainer made a deliberate scoping decision around WebSockets: supporting more WebSocket features was deemed \"outside the scope of Hono,\" and there were explicitly no plans to implement WebSocket support for the Node.js adapter [8].\n\n### Universal Middleware Standard\nThe project engaged with a proposal for a universal middleware standard that would work across frameworks (Hono, HatTip, etc.) using the Fetch API as the lowest common denominator, reflecting Hono's broader architectural commitment to cross-environment compatibility [10].",
+        "citations": 6,
+        "latency_ms": 13566,
+        "grade": "partial",
+        "facts_found": [
+          "router",
+          "middleware"
+        ],
+        "facts_missing": [
+          "TypeScript",
+          "runtime"
+        ],
+        "judge_reasoning": "The answer addresses router architecture decisions well but fails to mention TypeScript or runtime as significant architectural choices, missing 50% of expected key concepts for a comprehensive answer."
+      },
+      "winner": "tie",
+      "baseline_delta": {
+        "plain_rag": 0,
+        "full_brain": 0
+      }
+    }
+  ]
+}

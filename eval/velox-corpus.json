@@ -1,0 +1,212 @@
+[
+  {
+    "_comment": "Session 1 — Jan 10, 2026 — Initial architecture decisions",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_001_initial_arch",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "initial-architecture",
+    "codebase": "velox",
+    "timestamp_start": "2026-01-10T09:00:00Z",
+    "timestamp_end": "2026-01-10T10:45:00Z",
+    "work_completed": "Finalized initial architecture: language, auth, and primary datastore decisions",
+    "decisions": [
+      {
+        "id": "velox_d01_typescript",
+        "description": "Use TypeScript and Node.js across the entire stack — frontend, backend API, and workers",
+        "rationale": "Team of four all have TypeScript experience; single language reduces context switching; strong typing catches schema drift early in a pipeline-heavy system",
+        "alternatives_considered": ["Python + FastAPI", "Go"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d02_jwt_auth",
+        "description": "Use JWT tokens for authentication — stateless bearer tokens, 1-hour expiry, RS256 signed",
+        "rationale": "Stateless auth scales horizontally without sticky sessions; no session store needed at current scale; RS256 allows key rotation without invalidating all tokens",
+        "alternatives_considered": ["server-side sessions", "opaque tokens with Redis lookup"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d03_postgres",
+        "description": "Use PostgreSQL as the primary datastore",
+        "rationale": "ACID guarantees required for billing and event deduplication; team is familiar with Postgres; rich querying for ad-hoc analytics during early product phase",
+        "alternatives_considered": ["MySQL", "MongoDB", "CockroachDB"],
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "_comment": "Session 2 — Jan 25, 2026 — Event pipeline design",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_002_event_pipeline",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "event-pipeline-design",
+    "codebase": "velox",
+    "timestamp_start": "2026-01-25T10:00:00Z",
+    "timestamp_end": "2026-01-25T12:30:00Z",
+    "work_completed": "Designed event ingestion pipeline: queue, caching strategy, and rate limiting",
+    "decisions": [
+      {
+        "id": "velox_d04_redis_streams",
+        "description": "Use Redis Streams as the internal event queue between ingestion and processing workers",
+        "rationale": "Redis already needed for rate limiting; Streams support consumer groups for parallel workers; avoids Kafka operational overhead at current event volume (< 5k events/day)",
+        "alternatives_considered": ["Apache Kafka", "RabbitMQ", "SQS"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d05_no_cache",
+        "description": "No dedicated query cache layer — serve all reads directly from Postgres",
+        "rationale": "Current Postgres query p95 latency is 180ms at load; adding a cache layer introduces invalidation complexity that is not justified at this scale; revisit if p95 exceeds 1s",
+        "alternatives_considered": ["Redis query cache", "Materialized views"],
+        "confidence": "medium"
+      },
+      {
+        "id": "velox_d06_rate_limit",
+        "description": "Rate limit all public API endpoints at 100 requests per minute per IP using Redis sliding window",
+        "rationale": "Redis already in stack; sliding window is more accurate than fixed window for burst protection; 100 req/min is well above legitimate use patterns we have observed in beta",
+        "alternatives_considered": ["Token bucket in-process", "nginx rate limiting"],
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "_comment": "Session 3 — Feb 12, 2026 — Deployment and CI/CD",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_003_deployment",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "deployment-setup",
+    "codebase": "velox",
+    "timestamp_start": "2026-02-12T14:00:00Z",
+    "timestamp_end": "2026-02-12T15:30:00Z",
+    "work_completed": "Finalized deployment target and CI/CD pipeline",
+    "decisions": [
+      {
+        "id": "velox_d07_docker_compose",
+        "description": "Deploy on a single server using Docker Compose — not Kubernetes",
+        "rationale": "No customer has requested HA or horizontal scaling; Kubernetes adds significant ops overhead (cluster management, ingress, node pools) that is not justified for a two-node deployment; Docker Compose is sufficient for current and projected 6-month load",
+        "alternatives_considered": ["Kubernetes on EKS", "Fly.io", "Render"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d08_github_actions",
+        "description": "Use GitHub Actions for CI/CD — build, test, and deploy on merge to main",
+        "rationale": "Already using GitHub; free tier covers current build volume; no migration cost from an existing CI system",
+        "alternatives_considered": ["CircleCI", "Jenkins", "self-hosted runner"],
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "_comment": "Session 4 — Feb 28, 2026 — Auth incident response. SUPERSEDES velox_d02_jwt_auth.",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_004_auth_incident",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "auth-incident-response",
+    "codebase": "velox",
+    "timestamp_start": "2026-02-28T16:00:00Z",
+    "timestamp_end": "2026-02-28T18:00:00Z",
+    "work_completed": "Replaced JWT auth with server-side sessions following token-theft incident in staging",
+    "decisions": [
+      {
+        "id": "velox_d09_sessions_replace_jwt",
+        "description": "Replace JWT tokens with server-side sessions stored in Redis, delivered via HttpOnly cookies. This decision supersedes velox_d02_jwt_auth.",
+        "rationale": "JWT token theft occurred in staging: attacker obtained a long-lived refresh token via a misconfigured logging endpoint and replayed it after nominal expiry due to a clock skew bug in the expiry check. HttpOnly cookies prevent JavaScript-based token exfiltration (XSS). Server-side sessions allow instant revocation. Tradeoff: requires Redis session store and sticky sessions or session replication, which is acceptable given Redis is already in the stack.",
+        "alternatives_considered": ["Shorter JWT expiry + refresh rotation", "opaque tokens with Redis lookup (similar outcome, kept session model instead)"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d10_jwt_legacy_path",
+        "description": "Retain JWT middleware on /v1/legacy/* routes only, with hard expiry cutoff of 2026-04-01",
+        "rationale": "Three enterprise integrations depend on JWT bearer tokens; migration window needed; hard cutoff prevents indefinite JWT accumulation",
+        "alternatives_considered": ["Immediate cutover"],
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "_comment": "Session 5 — Mar 10, 2026 — Analytics module",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_005_analytics",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "analytics-module",
+    "codebase": "velox",
+    "timestamp_start": "2026-03-10T10:00:00Z",
+    "timestamp_end": "2026-03-10T12:00:00Z",
+    "work_completed": "Designed per-tenant analytics store and LLM inference setup",
+    "decisions": [
+      {
+        "id": "velox_d11_sqlite_analytics",
+        "description": "Use SQLite as the per-tenant embedded analytics store — separate from the primary Postgres datastore",
+        "rationale": "Analytics queries are tenant-scoped and read-heavy; SQLite avoids cross-tenant query interference in the shared Postgres instance; one SQLite file per tenant simplifies tenant offboarding (delete the file); not a replacement for Postgres — used only for the analytics module",
+        "alternatives_considered": ["ClickHouse", "DuckDB", "Postgres partitioned tables"],
+        "confidence": "medium"
+      },
+      {
+        "id": "velox_d12_llm_inference",
+        "description": "Use Ollama (llama3.2) for LLM inference in local development; use Claude Haiku (claude-haiku-4-5) in production",
+        "rationale": "Ollama is free and runs offline for fast dev iteration; Claude Haiku is fast enough at p50 < 500ms for production latency requirements and cheaper than Sonnet for high-volume summarization tasks",
+        "alternatives_considered": ["GPT-4o-mini", "Gemini Flash", "self-hosted vLLM"],
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "_comment": "Session 6 — Mar 20, 2026 — Performance response. CONTRADICTS velox_d05_no_cache (implicit, not a formal supersession).",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_006_perf_cache",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "performance-load-test-response",
+    "codebase": "velox",
+    "timestamp_start": "2026-03-20T09:00:00Z",
+    "timestamp_end": "2026-03-20T11:00:00Z",
+    "work_completed": "Added Redis query result cache after load testing revealed Postgres latency regression at scale",
+    "decisions": [
+      {
+        "id": "velox_d13_redis_cache",
+        "description": "Add Redis for query result caching with a 5-minute TTL",
+        "rationale": "Load testing at 500 concurrent users showed Postgres query p95 latency at 2.3 seconds — well above the 1-second threshold set in the Jan 25 no-cache decision. The Postgres query plan cache is not sufficient under this write-heavy concurrent load pattern. Redis is already in the stack for Streams and rate limiting, so no new infrastructure is added.",
+        "alternatives_considered": ["Postgres read replica", "materialized views with manual refresh", "longer connection pool"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d14_cache_invalidation",
+        "description": "Invalidate cache entries on any write to the same project_id — do not rely on TTL expiry alone",
+        "rationale": "TTL-only invalidation would serve stale query results for up to 5 minutes after new events are ingested; for a decision-tracking product, stale answers erode trust; write-through invalidation is simpler than versioning",
+        "alternatives_considered": ["Event-driven invalidation via Streams", "versioned cache keys"],
+        "confidence": "high"
+      }
+    ]
+  },
+  {
+    "_comment": "Session 7 — Apr 5, 2026 — Enterprise scaling. SUPERSEDES velox_d07_docker_compose.",
+    "schema_version": "1.0",
+    "session_id": "velox_sess_007_kubernetes",
+    "agent_id": "claude-code",
+    "project_id": "{{PROJECT_ID}}",
+    "task_id": "enterprise-scaling",
+    "codebase": "velox",
+    "timestamp_start": "2026-04-05T10:00:00Z",
+    "timestamp_end": "2026-04-05T12:30:00Z",
+    "work_completed": "Migrated deployment target to Kubernetes on AWS EKS to meet enterprise customer SLA",
+    "decisions": [
+      {
+        "id": "velox_d15_kubernetes",
+        "description": "Migrate from Docker Compose to Kubernetes for production deployment. This decision supersedes velox_d07_docker_compose.",
+        "rationale": "Acme Corp (first enterprise customer) requires a 99.9% uptime SLA and horizontal scaling to handle their 50k daily active user spike. Docker Compose cannot support rolling deployments without downtime or auto-scaling. Kubernetes satisfies both requirements.",
+        "alternatives_considered": ["Docker Swarm", "Nomad", "ECS on Fargate"],
+        "confidence": "high"
+      },
+      {
+        "id": "velox_d16_eks",
+        "description": "Use AWS EKS (managed Kubernetes) rather than self-managed Kubernetes",
+        "rationale": "No one on the team has Kubernetes ops experience; managed control plane reduces operational burden; Acme Corp is already on AWS so data residency is simpler; EKS Fargate mode eliminates node pool management",
+        "alternatives_considered": ["GKE", "self-managed k3s", "AKS"],
+        "confidence": "high"
+      }
+    ]
+  }
+]

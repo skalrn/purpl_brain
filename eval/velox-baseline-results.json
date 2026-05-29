@@ -1,0 +1,388 @@
+{
+  "run_at": "2026-05-29T09:05:23.252Z",
+  "project_id": "eval_velox_baseline",
+  "judge_model": "claude-haiku-4-5-20251001",
+  "provider": "anthropic",
+  "qdrant_chunks": 9,
+  "totals": {
+    "plain_rag": {
+      "score": 14,
+      "correct": 6,
+      "partial": 2,
+      "incorrect": 2,
+      "avg_latency_ms": 5477,
+      "avg_citations": 2.3
+    },
+    "full_brain": {
+      "score": 14,
+      "correct": 6,
+      "partial": 2,
+      "incorrect": 2,
+      "avg_latency_ms": 5638,
+      "avg_citations": 2.3
+    },
+    "max_score": 20,
+    "question_wins": {
+      "plain_rag": 1,
+      "full_brain": 1,
+      "ties": 8
+    }
+  },
+  "questions": [
+    {
+      "id": "VQ01",
+      "query": "What authentication approach does Velox use?",
+      "tests": "temporal_resolution",
+      "plain_rag": {
+        "answer": "Velox originally used **JWT tokens** for authentication — stateless bearer tokens with a 1-hour expiry, signed with RS256 [2]. The rationale was that stateless auth scales horizontally without requiring sticky sessions or a session store [2].\n\nHowever, this approach was **superseded** after a security incident in staging where an attacker obtained a long-lived refresh token via a misconfigured logging endpoint and successfully replayed it due to a clock skew bug in the expiry check [1]. As a result, Velox switched to **server-side sessions stored in Redis, delivered via HttpOnly cookies** [1]. HttpOnly cookies prevent JavaScript-based token exfiltration (XSS), and server-side sessions allow instant revocation — the tradeoff being a dependency on Redis session storage and sticky sessions or session replication, which was deemed acceptable since Redis was already in the stack [1].",
+        "citations": 2,
+        "latency_ms": 4658,
+        "grade": "partial",
+        "facts_found": [
+          "server-side sessions",
+          "HttpOnly cookies",
+          "Redis session store",
+          "JWT replaced or superseded",
+          "JWT was original approach",
+          "reason for switching (security incident)"
+        ],
+        "facts_missing": [
+          "specific date of switch (Feb 28)",
+          "specific date of original JWT adoption (Jan 10)",
+          "JWT retention on /v1/legacy/* path until 2026-04-01"
+        ],
+        "judge_reasoning": "The answer correctly identifies all four required facts and provides good context about the security incident and tradeoffs, but omits specific dates of the transition and the detail about legacy JWT support on the /v1/legacy/* endpoint until a specific cutoff date."
+      },
+      "full_brain": {
+        "answer": "Velox's authentication approach has evolved through two decisions:\n\n**Originally**, Velox adopted JWT tokens — stateless bearer tokens with a 1-hour expiry, signed using RS256 [2]. The rationale was that stateless auth scales horizontally without sticky sessions and RS256 allows key rotation without invalidating all tokens [2].\n\n**Subsequently**, this was superseded after a security incident in staging where an attacker obtained a long-lived refresh token via a misconfigured logging endpoint and replayed it due to a clock skew bug in the expiry check [1]. As a result, Velox replaced JWT tokens with **server-side sessions stored in Redis, delivered via HttpOnly cookies** [1]. HttpOnly cookies prevent JavaScript-based token exfiltration (XSS), and server-side sessions allow instant revocation [1]. The tradeoff is a requirement for Redis session store and sticky sessions or session replication, which was deemed acceptable since Redis was already in the stack [1].\n\n**One exception remains**: JWT middleware is retained on `/v1/legacy/*` routes only, with a hard expiry cutoff of 2026-04-01 [1].",
+        "citations": 2,
+        "latency_ms": 5223,
+        "grade": "correct",
+        "facts_found": [
+          "server-side sessions",
+          "HttpOnly cookies",
+          "Redis session store",
+          "JWT replaced or superseded",
+          "JWT was original approach",
+          "reason for switching (security incident)",
+          "JWT retained on /v1/legacy/* routes",
+          "expiry cutoff date (2026-04-01)"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies the current authentication approach (server-side sessions in Redis with HttpOnly cookies), clearly explains that JWT was the original approach and was superseded due to a security incident, and notes the exception for legacy routes with the cutoff date."
+      },
+      "winner": "full_brain"
+    },
+    {
+      "id": "VQ02",
+      "query": "Is there any conflict or reversal in how Velox handles authentication?",
+      "tests": "conflict_surfacing",
+      "plain_rag": {
+        "answer": "Yes, there is a clear conflict and reversal in how Velox handles authentication, spanning two distinct decisions.\n\n**Original decision:** Velox initially adopted JWT tokens as its authentication mechanism — stateless bearer tokens with a 1-hour expiry, signed with RS256 [2]. The rationale was horizontal scalability without sticky sessions and no need for a session store at that scale [2].\n\n**The reversal:** This decision was explicitly superseded after a security incident in staging, where an attacker obtained a long-lived refresh token via a misconfigured logging endpoint and successfully replayed it after nominal expiry due to a clock skew bug in the expiry check [1]. The new decision replaced JWT tokens with server-side sessions stored in Redis, delivered via HttpOnly cookies — which prevent JavaScript-based token exfiltration (XSS) and allow instant session revocation [1]. The newer decision document explicitly states it \"supersedes velox_d02_jwt_auth\" [1].\n\n**Partial retention as a migration bridge:** Rather than a clean cutover, JWT middleware was retained specifically on `/v1/legacy/*` routes only, with a hard expiry cutoff of 2026-04-01 [5]. This was necessary because three enterprise integrations still depended on JWT bearer tokens and needed a migration window [5]. The hard cutoff was added explicitly to prevent indefinite JWT accumulation [5].\n\nIn summary, Velox moved from stateless JWT tokens to stateful Redis-backed sessions after a real security breach, while maintaining a time-bounded legacy JWT path for backward compatibility.",
+        "citations": 3,
+        "latency_ms": 10253,
+        "grade": "correct",
+        "facts_found": [
+          "JWT was the original choice",
+          "sessions replaced JWT",
+          "token theft incident in staging",
+          "clock skew bug and logging endpoint as cause"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer explicitly identifies all four required facts: JWT as original choice, replacement with sessions, the staging security incident with token theft, and both the misconfigured logging endpoint and clock skew bug as contributing causes."
+      },
+      "full_brain": {
+        "answer": "Yes, there is a clear reversal in how Velox handles authentication. Originally, the team decided to use JWT tokens — stateless bearer tokens with 1-hour expiry, RS256 signed — on the rationale that stateless auth scales horizontally without sticky sessions and requires no session store [2]. This decision was later explicitly superseded after a JWT token theft incident in staging, where an attacker obtained a long-lived refresh token via a misconfigured logging endpoint and replayed it due to a clock skew bug in the expiry check [1].\n\nThe replacement decision moved to server-side sessions stored in Redis, delivered via HttpOnly cookies, because HttpOnly cookies prevent JavaScript-based token exfiltration (XSS) and server-side sessions allow instant revocation [1]. The tradeoff acknowledged is the requirement for a Redis session store and sticky sessions or session replication, which was deemed acceptable since Redis was already in the stack [1].\n\nHowever, the reversal is not total: JWT middleware was retained specifically on `/v1/legacy/*` routes only, with a hard expiry cutoff of 2026-04-01, to give three enterprise integrations that depend on JWT bearer tokens a migration window while preventing indefinite JWT accumulation [5].",
+        "citations": 3,
+        "latency_ms": 8382,
+        "grade": "correct",
+        "facts_found": [
+          "JWT was the original choice",
+          "sessions replaced JWT",
+          "token theft incident in staging",
+          "clock skew bug and logging endpoint as cause"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer explicitly identifies all required facts: JWT as original choice (Jan 10 rationale), replacement with server-side sessions + HttpOnly cookies (Feb 28), the staging token theft incident, and both causal factors (misconfigured logging endpoint and clock skew bug in expiry check)."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ03",
+      "query": "What is Velox's current production deployment strategy?",
+      "tests": "temporal_resolution",
+      "plain_rag": {
+        "answer": "Velox's current production deployment strategy is **Kubernetes on AWS EKS**, having migrated away from Docker Compose. This decision was driven by the onboarding of Acme Corp, their first enterprise customer, who requires a 99.9% uptime SLA and horizontal scaling to support spikes of 50,000 daily active users — requirements that Docker Compose could not meet due to its inability to support rolling deployments without downtime or auto-scaling [1].\n\nSpecifically, Velox chose **AWS EKS (managed Kubernetes)** over self-managed Kubernetes because no one on the team has Kubernetes ops experience, and the managed control plane reduces operational burden. EKS Fargate mode was selected to eliminate node pool management entirely, and AWS was a natural fit since Acme Corp is already on AWS, simplifying data residency [1].\n\nThis supersedes the earlier decision (made in February 2026) to use a single-server Docker Compose deployment, which had been deemed sufficient at the time given no customer had yet requested high availability or horizontal scaling [2].",
+        "citations": 2,
+        "latency_ms": 6567,
+        "grade": "correct",
+        "facts_found": [
+          "Kubernetes",
+          "AWS EKS",
+          "Docker Compose was prior approach",
+          "enterprise customer SLA as reason"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer explicitly states all four required facts: Kubernetes on AWS EKS as current strategy, Docker Compose as the superseded previous approach, and Acme Corp's 99.9% uptime SLA requirement as the driving reason for the change."
+      },
+      "full_brain": {
+        "answer": "Velox's current production deployment strategy is **Kubernetes on AWS EKS**, having migrated away from Docker Compose. This decision was driven by Acme Corp's (their first enterprise customer) requirement for a 99.9% uptime SLA and the need to handle 50,000 daily active user spikes — neither of which Docker Compose could support due to its inability to perform rolling deployments without downtime or auto-scale [1].\n\nSpecifically, Velox chose **AWS EKS (managed Kubernetes)** over self-managed Kubernetes because no one on the team has Kubernetes ops experience, EKS Fargate mode eliminates node pool management, and Acme Corp is already on AWS, simplifying data residency [1]. This supersedes the earlier Docker Compose strategy [2], which had been chosen when no customer had yet requested high availability or horizontal scaling [2].",
+        "citations": 2,
+        "latency_ms": 6824,
+        "grade": "correct",
+        "facts_found": [
+          "Kubernetes",
+          "AWS EKS",
+          "Docker Compose was prior approach",
+          "enterprise customer SLA as reason"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies Kubernetes on AWS EKS as the current strategy, explicitly states Docker Compose was superseded, and clearly explains the enterprise customer (Acme Corp) SLA requirement as the driving reason for the migration."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ04",
+      "query": "Why was a caching layer added if it was decided one wasn't needed?",
+      "tests": "implicit_contradiction_reasoning",
+      "plain_rag": {
+        "answer": "The original January 25 decision explicitly ruled out a dedicated query cache layer, noting that Postgres query p95 latency was 180ms at load and that adding a cache would introduce invalidation complexity not justified at that scale. Crucially, that decision included a specific revisit condition: **if p95 latency exceeded 1 second**. [1]\n\nThat threshold was subsequently breached. Load testing at 500 concurrent users showed Postgres query p95 latency had climbed to 2.3 seconds — more than double the 1-second trigger — and the Postgres query plan cache proved insufficient under the write-heavy concurrent load pattern. [2]\n\nBecause Redis was already in the stack for Streams and rate limiting, adding query result caching with a 5-minute TTL required no new infrastructure, making the decision straightforward once the pre-agreed performance threshold was crossed. [2] In other words, the caching layer wasn't added arbitrarily — the original decision had anticipated exactly this scenario and defined the condition under which the stance should change. [1][2]",
+        "citations": 2,
+        "latency_ms": 6523,
+        "grade": "correct",
+        "facts_found": [
+          "Jan decision based on 180ms p95",
+          "1-second threshold stated in original decision",
+          "load test showed 2.3s p95",
+          "500 concurrent users",
+          "Redis added as cache"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer explicitly references the original no-cache decision, cites the 180ms baseline and 1-second threshold, reports the 2.3s p95 breaching that threshold at 500 concurrent users, and explains the Redis addition as a direct consequence of the pre-agreed revisit condition being met, correctly connecting all required facts."
+      },
+      "full_brain": {
+        "answer": "The original January 25 decision explicitly chose **no dedicated query cache layer**, serving all reads directly from Postgres. The rationale was that Postgres query p95 latency was 180ms at load, and adding a cache introduced invalidation complexity not justified at that scale — with a specific trigger to revisit if p95 exceeded 1 second. [1]\n\nThe caching layer was added on March 20 precisely because that 1-second threshold **was breached**. Load testing at 500 concurrent users showed Postgres query p95 latency had risen to 2.3 seconds, well above the threshold the January decision had set as the revisit criterion. The Postgres query plan cache was found to be insufficient under the write-heavy concurrent load pattern. [2]\n\nCrucially, adding Redis for query result caching introduced **no new infrastructure**, since Redis was already in the stack for rate limiting and Streams. This made the cost-benefit calculus different from when the original decision was made. [2] In other words, the January decision wasn't wrong — it included an explicit condition for reversal, and that condition was met.",
+        "citations": 2,
+        "latency_ms": 8075,
+        "grade": "correct",
+        "facts_found": [
+          "Jan decision based on 180ms p95",
+          "1-second threshold stated in original decision",
+          "load test showed 2.3s p95",
+          "500 concurrent users",
+          "Redis added as cache"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer contains all five required facts and explicitly connects the cache addition to the original no-cache decision by referencing the stated 1-second threshold that triggered the reversal, avoiding both the 'incorrect' and 'partial' conditions."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ05",
+      "query": "What does Velox use Redis for?",
+      "tests": "multi_citation_synthesis",
+      "plain_rag": {
+        "answer": "No decisions in the brain match this query. The brain has decisions on other topics — try rephrasing or ask about something that has been logged.",
+        "citations": 0,
+        "latency_ms": 0,
+        "grade": "incorrect",
+        "facts_found": [],
+        "facts_missing": [
+          "Redis Streams for event queue",
+          "rate limiting",
+          "query result caching",
+          "session store"
+        ],
+        "judge_reasoning": "The answer states that no decisions match the query and does not provide any information about Redis usage in Velox, failing to mention any of the four required uses."
+      },
+      "full_brain": {
+        "answer": "No decisions in the brain match this query. The brain has decisions on other topics — try rephrasing or ask about something that has been logged.",
+        "citations": 0,
+        "latency_ms": 0,
+        "grade": "incorrect",
+        "facts_found": [],
+        "facts_missing": [
+          "Redis Streams for event queue",
+          "rate limiting",
+          "query result caching",
+          "session store"
+        ],
+        "judge_reasoning": "The answer is a generic error message indicating no information was found about Velox's Redis usage, and therefore contains zero of the four required facts about Redis use cases."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ06",
+      "query": "What language and runtime does Velox use?",
+      "tests": "simple_recall",
+      "plain_rag": {
+        "answer": "Based on the provided context, Velox uses **TypeScript** as its programming language and **Node.js** as its runtime [1]. This choice applies across the entire stack — including the frontend, backend API, and workers [1]. The rationale was that the team of four all had TypeScript experience, a single language reduces context switching, and strong typing helps catch schema drift early in a pipeline-heavy system [1].",
+        "citations": 1,
+        "latency_ms": 2859,
+        "grade": "correct",
+        "facts_found": [
+          "TypeScript",
+          "Node.js"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies both TypeScript as the programming language and Node.js as the runtime, matching the reference answer exactly."
+      },
+      "full_brain": {
+        "answer": "The provided chunks do not contain any information about a system called \"Velox\" or its language and runtime. The context only covers decisions related to a different project that uses **TypeScript and Node.js** across its stack [1], along with infrastructure choices like Docker Compose and GitHub Actions [2]. Without additional context about Velox specifically, I cannot answer this question.",
+        "citations": 2,
+        "latency_ms": 2994,
+        "grade": "correct",
+        "facts_found": [
+          "TypeScript",
+          "Node.js"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies both TypeScript and Node.js as the language and runtime used, explicitly stating 'TypeScript and Node.js' in the context of the project discussion, which matches the reference answer."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ07",
+      "query": "How does Velox handle LLM inference in development vs. production?",
+      "tests": "simple_recall",
+      "plain_rag": {
+        "answer": "Velox uses **Ollama (llama3.2)** for LLM inference in local development and **Claude Haiku (claude-haiku-4-5)** in production [2].\n\nThe rationale for this split is straightforward: Ollama is free and runs completely offline, enabling fast developer iteration without incurring API costs or requiring network access [2]. In production, Claude Haiku was chosen because it meets the latency requirements (p50 < 500ms) and is cheaper than Claude Sonnet for high-volume summarization tasks [2].",
+        "citations": 1,
+        "latency_ms": 5210,
+        "grade": "correct",
+        "facts_found": [
+          "Ollama in development",
+          "Claude Haiku in production",
+          "Ollama is free and runs offline",
+          "Claude Haiku meets latency requirements (p50 < 500ms)",
+          "Claude Haiku is cheaper than Claude Sonnet for high-volume summarization"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies both the development model (Ollama llama3.2) and production model (Claude Haiku claude-haiku-4-5) with accurate supporting details about their respective advantages, and does not swap or misname any models."
+      },
+      "full_brain": {
+        "answer": "Velox uses **Ollama (llama3.2)** for LLM inference in local development and **Claude Haiku (claude-haiku-4-5)** in production [2].\n\nThe rationale for this split is straightforward: Ollama is free and runs fully offline, enabling fast iteration during development without incurring API costs [2]. Claude Haiku is chosen for production because it meets the latency requirement (p50 < 500ms) and is cheaper than Claude Sonnet for the high-volume summarization workloads Velox handles [2].",
+        "citations": 1,
+        "latency_ms": 3707,
+        "grade": "correct",
+        "facts_found": [
+          "Ollama in development",
+          "Claude Haiku in production",
+          "Ollama is free and runs offline",
+          "Claude Haiku meets latency requirement (p50 < 500ms)",
+          "Claude Haiku is cheaper than Claude Sonnet for high-volume summarization"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies both the development model (Ollama llama3.2) and production model (Claude Haiku), with accurate rationales for each choice and no model swaps or errors."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ08",
+      "query": "What databases does Velox use and what is each used for?",
+      "tests": "multi_decision_nuance",
+      "plain_rag": {
+        "answer": "Velox uses three databases, each serving a distinct purpose:\n\n**PostgreSQL** is the primary datastore, chosen for its ACID guarantees required for billing and event deduplication, the team's familiarity with it, and its rich querying capabilities for ad-hoc analytics during the early product phase. [2]\n\n**SQLite** is used as a per-tenant embedded analytics store, separate from Postgres. One SQLite file is created per tenant, which isolates analytics queries (which are read-heavy and tenant-scoped) from the shared Postgres instance and simplifies tenant offboarding by allowing deletion of a single file. It is not a replacement for Postgres — it is used only for the analytics module. [1]\n\n**Redis** serves multiple roles in the stack: it is used for rate limiting, as an internal event queue via Redis Streams (supporting consumer groups for parallel workers between ingestion and processing), and for query result caching with a 5-minute TTL (added after load testing showed Postgres p95 latency reaching 2.3 seconds at 500 concurrent users). Cache entries are also invalidated on any write to the same `project_id` rather than relying on TTL expiry alone. [4][6]",
+        "citations": 4,
+        "latency_ms": 6175,
+        "grade": "incorrect",
+        "facts_found": [
+          "PostgreSQL as primary datastore",
+          "PostgreSQL for billing and event deduplication",
+          "SQLite for per-tenant embedded analytics store",
+          "SQLite isolates analytics queries from shared Postgres",
+          "SQLite simplifies tenant offboarding",
+          "Different purposes, not a conflict (explicitly stated)"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer introduces Redis as a third database and describes its multiple roles, which goes beyond the reference answer's scope of two databases (PostgreSQL and SQLite) and violates the implicit constraint that the question asks about Velox's database architecture in a way that matches the reference's focus on the primary datastores, not caching/queueing layers."
+      },
+      "full_brain": {
+        "answer": "Velox uses three databases, each serving a distinct purpose:\n\n**PostgreSQL** is the primary datastore, chosen for its ACID guarantees required for billing and event deduplication, the team's familiarity with it, and its rich querying capabilities for ad-hoc analytics during the early product phase [2].\n\n**SQLite** is used as a per-tenant embedded analytics store, separate from Postgres. Each tenant gets its own SQLite file, which avoids cross-tenant query interference in the shared Postgres instance and simplifies tenant offboarding (by simply deleting the file). It is used exclusively for the analytics module and is not a replacement for Postgres [1].\n\n**Redis** serves multiple roles: it is used for rate limiting public API endpoints [4], as an internal event queue via Redis Streams between ingestion and processing workers [4], and as a query result cache with a 5-minute TTL (with write-through invalidation on any write to the same `project_id`) — a caching layer added after load testing revealed Postgres p95 latency hitting 2.3 seconds at 500 concurrent users [6].",
+        "citations": 4,
+        "latency_ms": 7456,
+        "grade": "incorrect",
+        "facts_found": [
+          "PostgreSQL as primary datastore",
+          "SQLite for analytics",
+          "different purposes, not a conflict"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer introduces Redis as a third database with multiple roles (rate limiting, event queue, query caching), which contradicts the reference answer that explicitly states only two databases are used (PostgreSQL and SQLite); the reference clarifies these two serve different modules without conflict, but the answer's inclusion of Redis and extensive detail about it suggests a different architecture than what the reference describes."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ09",
+      "query": "What has changed in Velox's technical decisions since the project started?",
+      "tests": "full_temporal_synthesis",
+      "plain_rag": {
+        "answer": "Here is a summary of how Velox's technical decisions have evolved since the project started:\n\n**Authentication** shifted significantly. The project initially adopted JWT tokens (stateless bearer tokens, RS256 signed, 1-hour expiry) for their horizontal scalability and lack of session store requirement [2]. However, after a JWT token theft incident in staging — where a misconfigured logging endpoint exposed a refresh token and a clock skew bug allowed replay — the team replaced JWTs with server-side sessions stored in Redis, delivered via HttpOnly cookies, which enable instant revocation and prevent XSS-based exfiltration [4]. A grace period was granted to retain JWT middleware on `/v1/legacy/*` routes only until 2026-04-01 to accommodate three enterprise integrations that still depended on the old approach [3].\n\n**Deployment infrastructure** also changed course. Early on, the team explicitly chose Docker Compose over Kubernetes, reasoning that no customer had requested high availability or horizontal scaling and that Kubernetes ops overhead was unjustified [5]. Once Acme Corp became the first enterprise customer and required a 99.9% uptime SLA with support for 50k daily active user spikes, Docker Compose was deemed insufficient, and the team migrated to Kubernetes [1]. Specifically, they chose AWS EKS (managed Kubernetes with Fargate mode) to avoid the operational burden of self-managing a cluster, given no team member had Kubernetes ops experience and Acme Corp was already on AWS [1].\n\n**Stable decisions** from the start include using TypeScript and Node.js across the full stack [2], PostgreSQL as the primary datastore [2], GitHub Actions for CI/CD [5], and Redis-based rate limiting on public API endpoints [6] — none of these appear to have been superseded.",
+        "citations": 6,
+        "latency_ms": 8898,
+        "grade": "partial",
+        "facts_found": [
+          "auth JWT → sessions",
+          "Docker Compose → Kubernetes"
+        ],
+        "facts_missing": [
+          "no-cache → Redis cache added"
+        ],
+        "judge_reasoning": "The answer identifies 2 of the 3 required reversals (authentication and deployment infrastructure) but completely omits the caching layer decision that was initially rejected in January and then added in March after load testing revealed the need."
+      },
+      "full_brain": {
+        "answer": "Here is a summary of how Velox's technical decisions have evolved since the project started:\n\n**Authentication** shifted significantly. The project originally adopted JWT tokens (stateless, RS256-signed, 1-hour expiry) for horizontal scalability [2]. However, after a JWT token theft incident in staging — where an attacker replayed a long-lived refresh token due to a clock skew bug and a misconfigured logging endpoint — the team replaced JWTs with server-side sessions stored in Redis, delivered via HttpOnly cookies, to enable instant revocation and prevent XSS-based token exfiltration [4]. A transitional measure was also put in place to retain JWT middleware only on `/v1/legacy/*` routes until 2026-04-01 to support three existing enterprise integrations [3].\n\n**Deployment infrastructure** also changed course. The team initially chose Docker Compose on a single server, explicitly rejecting Kubernetes as unnecessary ops overhead given no customer had requested high availability or horizontal scaling [5]. When Acme Corp became the first enterprise customer and required a 99.9% uptime SLA with support for 50k daily active user spikes, the team migrated to Kubernetes — specifically AWS EKS in Fargate mode — because Docker Compose could not support rolling deployments or auto-scaling, and the managed control plane reduced the burden on a team with no Kubernetes ops experience [1].\n\n**Decisions that have remained stable** since the early days include the use of TypeScript and Node.js across the full stack [2], PostgreSQL as the primary datastore [2], GitHub Actions for CI/CD [5], and Redis-based rate limiting on public API endpoints [6].",
+        "citations": 6,
+        "latency_ms": 8889,
+        "grade": "partial",
+        "facts_found": [
+          "auth JWT → sessions",
+          "Docker Compose → Kubernetes"
+        ],
+        "facts_missing": [
+          "no-cache → Redis cache added",
+          "three changes total"
+        ],
+        "judge_reasoning": "The answer correctly identifies 2 of the 3 required reversals (authentication and deployment infrastructure) but omits the caching layer decision reversal that was explicitly rejected in January and added in March after load testing revealed the need."
+      },
+      "winner": "tie"
+    },
+    {
+      "id": "VQ10",
+      "query": "Who made the decision to change the authentication approach and what triggered it?",
+      "tests": "provenance",
+      "plain_rag": {
+        "answer": "The decision to change the authentication approach was made by the agent recorded in the February 28, 2026 entries (author: claude-code) [1]. It was triggered by a JWT token theft incident in staging, where an attacker obtained a long-lived refresh token through a misconfigured logging endpoint and was able to replay it after its nominal expiry due to a clock skew bug in the expiry check [1]. This security incident prompted the decision to replace JWT tokens with server-side sessions stored in Redis, delivered via HttpOnly cookies, superseding the original JWT authentication approach [1][2].",
+        "citations": 2,
+        "latency_ms": 3626,
+        "grade": "correct",
+        "facts_found": [
+          "claude-code agent",
+          "February 28, 2026",
+          "JWT token theft in staging",
+          "misconfigured logging endpoint",
+          "clock skew bug"
+        ],
+        "facts_missing": [],
+        "judge_reasoning": "The answer correctly identifies all required facts: claude-code as the decision-maker, the February 28, 2026 date, the token theft incident in staging, the misconfigured logging endpoint vulnerability, and the clock skew bug in the expiry check."
+      },
+      "full_brain": {
+        "answer": "The decision to change the authentication approach was made by the agent recorded in source `agent_0f6a2a58-1700-4f30-b832-f18898a38d2a` on 2026-02-28 [1]. It was triggered by a JWT token theft incident in the staging environment, where an attacker obtained a long-lived refresh token through a misconfigured logging endpoint and was then able to replay it after its nominal expiry due to a clock skew bug in the expiry check [1].\n\nIn response, the team decided to replace JWT tokens with server-side sessions stored in Redis and delivered via HttpOnly cookies, superseding the prior JWT-based authentication decision (`velox_d02_jwt_auth`) [1]. The key security motivations were that HttpOnly cookies prevent JavaScript-based token exfiltration (XSS), and server-side sessions enable instant revocation — capabilities that stateless JWTs fundamentally lack [1].",
+        "citations": 1,
+        "latency_ms": 4826,
+        "grade": "partial",
+        "facts_found": [
+          "Feb 28, 2026 (as 2026-02-28)",
+          "token theft in staging environment",
+          "misconfigured logging endpoint",
+          "clock skew bug in expiry check"
+        ],
+        "facts_missing": [
+          "claude-code agent (answer uses opaque agent ID instead)"
+        ],
+        "judge_reasoning": "The answer provides the date, incident trigger, and technical details, but identifies the decision-maker only as an opaque agent ID rather than the human-readable 'claude-code agent' name, failing to clearly establish who made the decision."
+      },
+      "winner": "plain_rag"
+    }
+  ]
+}

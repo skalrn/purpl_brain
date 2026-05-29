@@ -1,0 +1,190 @@
+{
+  "_meta": {
+    "project": "Velox (synthetic corpus)",
+    "purpose": "External ground truth for brain-vs-baseline eval. Answers are derived from velox-corpus.json, not from brain query output. Use these as the judge reference — not the brain's own answers.",
+    "planted_contradictions": [
+      {
+        "id": "CONTRA-1",
+        "description": "Auth: JWT (velox_d02, Jan 10) superseded by server-side sessions (velox_d09, Feb 28) after token-theft incident",
+        "type": "explicit_supersession"
+      },
+      {
+        "id": "CONTRA-2",
+        "description": "Caching: 'no cache needed' (velox_d05, Jan 25) contradicted by Redis cache added (velox_d13, Mar 20) after load test failure",
+        "type": "implicit_contradiction"
+      },
+      {
+        "id": "CONTRA-3",
+        "description": "Deployment: Docker Compose (velox_d07, Feb 12) superseded by Kubernetes/EKS (velox_d15, Apr 5) for enterprise SLA",
+        "type": "explicit_supersession"
+      }
+    ],
+    "clean_decisions": [
+      "velox_d01_typescript — TypeScript + Node.js (never contradicted)",
+      "velox_d04_redis_streams — Redis Streams for event queue (never contradicted)",
+      "velox_d06_rate_limit — 100 req/min rate limit (never contradicted)",
+      "velox_d08_github_actions — GitHub Actions CI/CD (never contradicted)",
+      "velox_d11_sqlite_analytics — SQLite for analytics (different domain from Postgres, not a conflict)",
+      "velox_d12_llm_inference — Ollama dev / Claude Haiku prod (never contradicted)"
+    ]
+  },
+  "questions": [
+    {
+      "id": "VQ01",
+      "query": "What authentication approach does Velox use?",
+      "tests": "temporal_resolution",
+      "contra_id": "CONTRA-1",
+      "correct_answer": "Server-side sessions stored in Redis, delivered via HttpOnly cookies. JWT tokens were the original choice (Jan 10) but were replaced on Feb 28 after a token-theft incident in staging. JWT is retained only on the /v1/legacy/* path until 2026-04-01.",
+      "required_facts": [
+        "server-side sessions",
+        "HttpOnly cookies",
+        "Redis session store",
+        "JWT replaced or superseded"
+      ],
+      "incorrect_if": "Answer says JWT is the current auth approach without noting the supersession",
+      "partial_if": "Answer mentions sessions but does not mention JWT was the prior approach or the reason for switching",
+      "scoring_notes": "Plain RAG may return JWT (first/most-embedded decision) or sessions (most recent) without reconciling them. Graph/SUPERSEDES should return sessions as current, JWT as historical."
+    },
+    {
+      "id": "VQ02",
+      "query": "Is there any conflict or reversal in how Velox handles authentication?",
+      "tests": "conflict_surfacing",
+      "contra_id": "CONTRA-1",
+      "correct_answer": "Yes. JWT tokens were chosen on Jan 10 for stateless horizontal scaling. They were replaced on Feb 28 with server-side sessions + HttpOnly cookies after an attacker stole a JWT token in staging via a misconfigured logging endpoint and replayed it using a clock-skew bug.",
+      "required_facts": [
+        "JWT was the original choice",
+        "sessions replaced JWT",
+        "token theft incident in staging",
+        "clock skew bug or logging endpoint as cause"
+      ],
+      "incorrect_if": "Answer says there is no conflict",
+      "partial_if": "Answer identifies the change but omits the cause (token theft / staging incident)",
+      "scoring_notes": "This is a direct conflict-surfacing query. Both plain RAG and graph should be able to find this if both decisions are retrieved, but graph has a CHALLENGES edge to make the link explicit."
+    },
+    {
+      "id": "VQ03",
+      "query": "What is Velox's current production deployment strategy?",
+      "tests": "temporal_resolution",
+      "contra_id": "CONTRA-3",
+      "correct_answer": "Kubernetes on AWS EKS (Fargate mode), decided Apr 5. Docker Compose was the original deployment target (Feb 12) but was superseded when the first enterprise customer (Acme Corp) required a 99.9% uptime SLA and horizontal scaling.",
+      "required_facts": [
+        "Kubernetes",
+        "AWS EKS",
+        "Docker Compose was prior approach",
+        "enterprise customer SLA as reason"
+      ],
+      "incorrect_if": "Answer says Docker Compose is the deployment target",
+      "partial_if": "Answer says Kubernetes but does not mention Docker Compose was superseded or the reason for the change",
+      "scoring_notes": "Mirrors VQ01 but for deployment. SUPERSEDES edge makes this unambiguous for graph; plain RAG may return Docker Compose (longer, more detailed session) or Kubernetes (most recent)."
+    },
+    {
+      "id": "VQ04",
+      "query": "Why was a caching layer added if it was decided one wasn't needed?",
+      "tests": "implicit_contradiction_reasoning",
+      "contra_id": "CONTRA-2",
+      "correct_answer": "The Jan 25 decision not to add a cache was based on Postgres p95 latency of 180ms at current load, with a stated threshold of 1 second for revisiting. Load testing on Mar 20 at 500 concurrent users showed p95 hit 2.3 seconds — exceeding that threshold. Redis query result caching with a 5-minute TTL was added at that point. The Postgres query plan cache was not sufficient under the write-heavy concurrent load pattern.",
+      "required_facts": [
+        "Jan decision based on 180ms p95",
+        "1-second threshold stated in original decision",
+        "load test showed 2.3s p95",
+        "500 concurrent users",
+        "Redis added as cache"
+      ],
+      "incorrect_if": "Answer does not reference the original no-cache decision or treats the cache as a new unrelated addition",
+      "partial_if": "Answer explains Redis was added for performance but does not connect to the original no-cache rationale or threshold",
+      "scoring_notes": "The hardest implicit-contradiction query. Requires retrieving both velox_d05 and velox_d13, recognizing they address the same concern, and surfacing the threshold condition that links them. No explicit SUPERSEDES edge — this tests semantic graph traversal vs. plain retrieval."
+    },
+    {
+      "id": "VQ05",
+      "query": "What does Velox use Redis for?",
+      "tests": "multi_citation_synthesis",
+      "contra_id": null,
+      "correct_answer": "Redis is used for three distinct purposes: (1) Redis Streams as the internal event queue between ingestion and processing workers (Jan 25); (2) sliding-window rate limiting on public API endpoints at 100 req/min per IP (Jan 25); (3) query result caching with a 5-minute TTL, added Mar 20 after load testing. Redis is also used as the session store for server-side auth sessions (Feb 28).",
+      "required_facts": [
+        "Redis Streams for event queue",
+        "rate limiting",
+        "query result caching",
+        "session store"
+      ],
+      "incorrect_if": "Answer mentions only one Redis use",
+      "partial_if": "Answer mentions 2 of 4 uses",
+      "scoring_notes": "Tests multi-citation synthesis across 3 sessions. Plain RAG may return only the most semantically similar chunk (likely caching or Streams). Graph traversal can follow all Decision nodes tagged with Redis. Scoring: 1 use = incorrect, 2 = partial, 3+ = correct."
+    },
+    {
+      "id": "VQ06",
+      "query": "What language and runtime does Velox use?",
+      "tests": "simple_recall",
+      "contra_id": null,
+      "correct_answer": "TypeScript and Node.js across the entire stack — frontend, backend API, and workers.",
+      "required_facts": [
+        "TypeScript",
+        "Node.js"
+      ],
+      "incorrect_if": "Answer names a different language",
+      "partial_if": "Answer names TypeScript but not Node.js or vice versa",
+      "scoring_notes": "Baseline recall question. Both plain RAG and graph should score correct. If either fails here, there is a retrieval bug, not a graph-vs-RAG difference."
+    },
+    {
+      "id": "VQ07",
+      "query": "How does Velox handle LLM inference in development vs. production?",
+      "tests": "simple_recall",
+      "contra_id": null,
+      "correct_answer": "Ollama (llama3.2) for local development — free, runs offline, fast iteration. Claude Haiku (claude-haiku-4-5) in production — p50 < 500ms, cheaper than Sonnet for high-volume summarization.",
+      "required_facts": [
+        "Ollama in development",
+        "Claude Haiku in production"
+      ],
+      "incorrect_if": "Answer names the wrong model or swaps dev/prod",
+      "partial_if": "Answer mentions one environment but not both",
+      "scoring_notes": "Baseline recall. Both conditions should score correct."
+    },
+    {
+      "id": "VQ08",
+      "query": "What databases does Velox use and what is each used for?",
+      "tests": "multi_decision_nuance",
+      "contra_id": null,
+      "correct_answer": "Two databases, different purposes: (1) PostgreSQL as the primary datastore for billing, event deduplication, and general querying — chosen for ACID guarantees and team familiarity. (2) SQLite as the per-tenant embedded analytics store — one file per tenant, isolates analytics queries from the shared Postgres instance, simplifies tenant offboarding. These are not in conflict; they serve different modules.",
+      "required_facts": [
+        "PostgreSQL as primary datastore",
+        "SQLite for analytics",
+        "different purposes, not a conflict"
+      ],
+      "incorrect_if": "Answer frames Postgres and SQLite as a contradiction or says only one database is used",
+      "partial_if": "Answer lists both but does not distinguish their separate purposes",
+      "scoring_notes": "Tests nuanced synthesis — two decisions that look like a contradiction but are not. A system that over-fires on 'multiple DB choices = conflict' will score incorrect here. Graph with SUPERSEDES edges should distinguish this from CONTRA-1 and CONTRA-3."
+    },
+    {
+      "id": "VQ09",
+      "query": "What has changed in Velox's technical decisions since the project started?",
+      "tests": "full_temporal_synthesis",
+      "contra_id": "CONTRA-1 + CONTRA-2 + CONTRA-3",
+      "correct_answer": "Three significant reversals since January: (1) Auth changed from JWT tokens to server-side sessions (Feb 28) after a staging token-theft incident. (2) A caching layer was added (Mar 20) after being explicitly rejected in January — load testing at 500 concurrent users triggered the revisit threshold. (3) Deployment target changed from Docker Compose to Kubernetes on AWS EKS (Apr 5) to meet an enterprise customer's 99.9% uptime SLA. All other decisions (TypeScript, Redis Streams, rate limiting, GitHub Actions, SQLite analytics, Ollama/Haiku inference split) remain in place.",
+      "required_facts": [
+        "auth JWT → sessions",
+        "no-cache → Redis cache added",
+        "Docker Compose → Kubernetes",
+        "three changes total"
+      ],
+      "incorrect_if": "Answer identifies fewer than 2 of the 3 reversals",
+      "partial_if": "Answer identifies 2 of 3 reversals",
+      "scoring_notes": "The most differentiating query. Requires temporal synthesis across all sessions. Plain RAG may return a mix of current and past decisions with no reconciliation. Graph with SUPERSEDES + CHALLENGES edges should surface all three changes as a coherent list. This is the primary eval question for the 'asserted not measured' claim."
+    },
+    {
+      "id": "VQ10",
+      "query": "Who made the decision to change the authentication approach and what triggered it?",
+      "tests": "provenance",
+      "contra_id": "CONTRA-1",
+      "correct_answer": "The claude-code agent made this decision on Feb 28, 2026, during the auth-incident-response task. The trigger was a JWT token theft in the staging environment: an attacker obtained a long-lived refresh token via a misconfigured logging endpoint and replayed it after nominal expiry using a clock-skew bug in the expiry check.",
+      "required_facts": [
+        "claude-code agent",
+        "Feb 28 2026",
+        "token theft in staging",
+        "misconfigured logging endpoint",
+        "clock skew bug"
+      ],
+      "incorrect_if": "Answer cannot identify who made the decision or when",
+      "partial_if": "Answer identifies the cause (token theft) but not the agent or date, or vice versa",
+      "scoring_notes": "Provenance query. Both conditions should be able to answer if the source metadata is stored. Failure here indicates a citation/metadata gap, not a graph-vs-RAG difference."
+    }
+  ]
+}

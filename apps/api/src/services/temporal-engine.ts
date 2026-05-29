@@ -17,7 +17,7 @@
 import { getSession, writeSupersedesEdge, resolveAlertsForSupersededDecision } from "../lib/neo4j.js";
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
-import { chat, MODELS } from "../lib/llm.js";
+import { chat, chatJSON, MODELS } from "../lib/llm.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { EventSource } from "@purpl/types";
 
@@ -59,8 +59,13 @@ interface ChangelogEntry {
   replaced?: PriorMatch;
 }
 
-const SUPERSEDES_SCORE_THRESHOLD = parseFloat(
-  process.env.TEMPORAL_SUPERSEDES_THRESHOLD ?? "0.72"
+// Broad candidate threshold — low enough to catch topically-related decisions
+// including reversals (e.g. "no cache needed" vs "add Redis cache"). The old
+// 0.72 paraphrase threshold was structurally blind to reversals because a
+// decision and its opposite score low on cosine similarity.
+// LLM confirmation (stageC below) gates which candidates actually supersede.
+const SUPERSEDES_CANDIDATE_THRESHOLD = parseFloat(
+  process.env.TEMPORAL_CANDIDATE_THRESHOLD ?? "0.35"
 );
 const SUPERSEDES_TOP_K = 5;
 
@@ -148,93 +153,239 @@ async function countEventsInRange(
   }
 }
 
+// ── Stage C: LLM supersession confirmation ────────────────────────────────────
+// Mirrors the drift-detector Stage C pattern. Low Qdrant threshold catches
+// reversals (low-similarity opposites); LLM confirms whether supersession is real.
+
+const SUPERSEDES_CONFIRM_SYSTEM = `You are a decision supersession detector for software engineering teams.
+
+Given a newer engineering decision and a list of older decisions from the same project, identify which older decision (if any) the newer one supersedes, reverses, or replaces.
+
+A newer decision SUPERSEDES an older one when:
+- It reverses the stance: chose X before, now choosing not-X or the opposite
+- It replaces the technology or approach for the same purpose: chose X, now choosing Y for the same concern
+- It updates or refines the choice for the same specific concern
+
+A newer decision does NOT supersede an older one when:
+- They address genuinely different concerns or different parts of the system
+- The newer decision extends or adds something without changing the older choice
+- The newer decision is about a different component, module, or scope
+
+Respond with JSON only:
+{
+  "superseded_id": "<decision_id of the one being superseded, or null if none>",
+  "reasoning": "one sentence explaining why this is or is not a supersession"
+}`;
+
+interface SupersedesConfirmation {
+  superseded_id: string | null;
+  reasoning: string;
+}
+
+async function confirmSupersession(
+  newer: DecisionRow,
+  candidates: Array<PriorMatch & { rationale?: string }>
+): Promise<PriorMatch | null> {
+  if (candidates.length === 0) return null;
+
+  const candidatesBlock = candidates
+    .map((c, i) =>
+      `Candidate ${i + 1}:\n  decision_id: ${c.decision_id}\n  summary: "${c.summary}"\n  date: ${c.valid_from.slice(0, 10)}`
+    )
+    .join("\n\n");
+
+  const userMessage = `Newer decision (${newer.valid_from.slice(0, 10)}):
+  summary: "${newer.summary}"${newer.rationale ? `\n  rationale: "${newer.rationale}"` : ""}
+
+Older candidate decisions:
+${candidatesBlock}
+
+Does the newer decision supersede any of these?`;
+
+  console.log(
+    `[temporal-engine] stage-C: checking ${candidates.length} candidate(s) for "${newer.summary.slice(0, 60)}"`
+  );
+
+  try {
+    const result = await chatJSON<SupersedesConfirmation>(
+      MODELS.EXTRACTION,
+      [
+        { role: "system", content: SUPERSEDES_CONFIRM_SYSTEM },
+        { role: "user", content: userMessage },
+      ]
+    );
+
+    console.log(
+      `[temporal-engine] stage-C result: superseded_id=${result.superseded_id ?? "none"} — ${result.reasoning}`
+    );
+
+    if (!result.superseded_id) return null;
+    return candidates.find((c) => c.decision_id === result.superseded_id) ?? null;
+  } catch (e) {
+    console.error("[temporal-engine] stage-C confirmation failed:", e);
+    return null;
+  }
+}
+
+// Max prior decisions to pass directly to LLM without Qdrant pre-filtering.
+// For corpora with more decisions than this, Qdrant pre-filters first.
+const NEO4J_DIRECT_LIMIT = parseInt(
+  process.env.TEMPORAL_NEO4J_DIRECT_LIMIT ?? "25"
+);
+
 /**
- * Find a likely prior version of `decision` via Qdrant semantic similarity,
- * filtered to the same project and chunks with has_decisions=true. Returns
- * null when no candidate clears the threshold or every candidate is the
- * decision itself / not strictly before it.
+ * Fetch up to `limit` Decision nodes that are older than `validFrom` in the
+ * same project, excluding `selfId`. Most-recent first.
+ */
+async function fetchPriorDecisions(
+  projectId: string,
+  validFrom: string,
+  selfId: string,
+  limit: number
+): Promise<Array<PriorMatch & { rationale?: string }>> {
+  const session = getSession();
+  try {
+    // Note: LIMIT with a parameter is unreliable across Neo4j versions/drivers;
+    // fetch all candidates and slice in application code.
+    const result = await session.run(
+      `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+       WHERE e.project_id = $project_id
+         AND d.decision_id <> $self
+         AND d.valid_from < $valid_from
+         AND NOT (d)<-[:SUPERSEDES]-()
+       RETURN d.decision_id AS decision_id,
+              d.summary     AS summary,
+              d.rationale   AS rationale,
+              d.valid_from  AS valid_from,
+              e.url         AS source_url
+       ORDER BY d.valid_from DESC`,
+      { project_id: projectId, self: selfId, valid_from: validFrom }
+    );
+    return result.records.slice(0, limit).map((r) => ({
+      decision_id: r.get("decision_id") as string,
+      summary: r.get("summary") as string,
+      rationale: (r.get("rationale") as string | null) ?? undefined,
+      valid_from: r.get("valid_from") as string,
+      source_url: (r.get("source_url") as string) ?? "",
+      score: 0,
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Find a prior version of `decision` that the newer decision supersedes.
+ *
+ * Two-stage approach — Stage A varies by corpus size:
+ *
+ *   Small corpus (≤ NEO4J_DIRECT_LIMIT prior decisions):
+ *     Stage A — Query Neo4j directly for all prior decisions. Bypasses Qdrant
+ *               entirely. Semantic search on multi-decision chunks is the wrong
+ *               instrument for finding reversals — a decision and its opposite
+ *               (e.g. "no cache needed" vs "add Redis cache") score LOW on
+ *               cosine similarity and would never surface as candidates.
+ *
+ *   Large corpus (> NEO4J_DIRECT_LIMIT):
+ *     Stage A — Qdrant broad candidate search at low threshold (0.35) to
+ *               surface topically-related decisions, then Neo4j lookup.
+ *               LLM still makes the final call.
+ *
+ *   Stage C — LLM confirms which candidate (if any) is actually superseded.
  */
 async function findPriorVersion(
   projectId: string,
   decision: DecisionRow
 ): Promise<PriorMatch | null> {
-  const vector = await embed(decision.summary).catch(() => null);
-  if (!vector) return null;
+  // Stage A: get candidates — prefer Neo4j direct query for small corpora
+  let candidates: Array<PriorMatch & { rationale?: string }>;
 
-  const results = (await qdrant.search(COLLECTION, {
-    vector,
-    limit: SUPERSEDES_TOP_K,
-    filter: {
-      must: [
-        { key: "project_id", match: { value: projectId } },
-        { key: "has_decisions", match: { value: true } },
-      ],
-    },
-    with_payload: true,
-    score_threshold: SUPERSEDES_SCORE_THRESHOLD,
-  })) as Array<{ score: number; payload?: Record<string, unknown> }>;
+  const priorDirect = await fetchPriorDecisions(
+    projectId, decision.valid_from, decision.decision_id, NEO4J_DIRECT_LIMIT + 1
+  );
 
-  // Filter to chunks whose underlying Event is OLDER than this decision and
-  // belongs to a DIFFERENT Decision. We need a Neo4j lookup for the latter,
-  // so collect candidate event_ids first.
-  const candidateEventIds = [
-    ...new Set(
-      results
-        .map((r) => String(r.payload?.graph_node_id ?? ""))
-        .filter((id) => id && id !== decision.event_id)
-    ),
-  ];
-  if (candidateEventIds.length === 0) return null;
+  if (priorDirect.length <= NEO4J_DIRECT_LIMIT) {
+    // Small corpus — use all prior decisions directly, no Qdrant filter needed
+    candidates = priorDirect;
+    console.log(
+      `[temporal-engine] stage-A (neo4j-direct): ${candidates.length} prior decision(s) for "${decision.summary.slice(0, 60)}"`
+    );
+  } else {
+    // Large corpus — use Qdrant to pre-filter topically-related decisions
+    const vector = await embed(decision.summary).catch(() => null);
+    if (!vector) return null;
 
-  const session = getSession();
-  try {
-    const lookup = await session.run(
-      `UNWIND $ids AS eid
-       MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {event_id: eid})
-       WHERE d.decision_id <> $self
-         AND d.valid_from < $valid_from
-       RETURN d.decision_id AS decision_id,
-              d.summary     AS summary,
-              d.valid_from  AS valid_from,
-              e.url         AS source_url,
-              eid           AS event_id
-       ORDER BY d.valid_from DESC`,
-      {
-        ids: candidateEventIds,
-        self: decision.decision_id,
-        valid_from: decision.valid_from,
+    const results = (await qdrant.search(COLLECTION, {
+      vector,
+      limit: SUPERSEDES_TOP_K * 4,
+      filter: {
+        must: [
+          { key: "project_id", match: { value: projectId } },
+          { key: "has_decisions", match: { value: true } },
+        ],
+      },
+      with_payload: true,
+      score_threshold: SUPERSEDES_CANDIDATE_THRESHOLD,
+    })) as Array<{ score: number; payload?: Record<string, unknown> }>;
+
+    const candidateEventIds = [
+      ...new Set(
+        results
+          .map((r) => String(r.payload?.graph_node_id ?? ""))
+          .filter((id) => id && id !== decision.event_id)
+      ),
+    ];
+    if (candidateEventIds.length === 0) return null;
+
+    const session = getSession();
+    try {
+      const lookup = await session.run(
+        `UNWIND $ids AS eid
+         MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {event_id: eid})
+         WHERE d.decision_id <> $self
+           AND d.valid_from < $valid_from
+           AND NOT (d)<-[:SUPERSEDES]-()
+         RETURN d.decision_id AS decision_id,
+                d.summary     AS summary,
+                d.rationale   AS rationale,
+                d.valid_from  AS valid_from,
+                e.url         AS source_url,
+                eid           AS event_id
+         ORDER BY d.valid_from DESC`,
+        { ids: candidateEventIds, self: decision.decision_id, valid_from: decision.valid_from }
+      );
+
+      const scoreByEventId = new Map(
+        results.map((r) => [String(r.payload?.graph_node_id ?? ""), r.score])
+      );
+      const seen = new Set<string>();
+      candidates = [];
+      for (const r of lookup.records) {
+        const did = r.get("decision_id") as string;
+        if (seen.has(did)) continue;
+        seen.add(did);
+        candidates.push({
+          decision_id: did,
+          summary: r.get("summary") as string,
+          rationale: (r.get("rationale") as string | null) ?? undefined,
+          valid_from: r.get("valid_from") as string,
+          source_url: (r.get("source_url") as string) ?? "",
+          score: scoreByEventId.get(r.get("event_id") as string) ?? SUPERSEDES_CANDIDATE_THRESHOLD,
+        });
+        if (candidates.length >= SUPERSEDES_TOP_K) break;
       }
+    } finally {
+      await session.close();
+    }
+    console.log(
+      `[temporal-engine] stage-A (qdrant): ${candidates.length} candidate(s) for "${decision.summary.slice(0, 60)}" — scores: ${candidates.map((c) => c.score.toFixed(2)).join(", ")}`
     );
-
-    if (lookup.records.length === 0) return null;
-
-    // Pick the highest-scoring candidate whose event_id is in the lookup set
-    const eligibleEventIds = new Set(
-      lookup.records.map((r) => r.get("event_id") as string)
-    );
-
-    const bestQdrant = results.find((r) =>
-      eligibleEventIds.has(String(r.payload?.graph_node_id ?? ""))
-    );
-    if (!bestQdrant) return null;
-
-    const matchingNode = lookup.records.find(
-      (r) =>
-        (r.get("event_id") as string) ===
-        String(bestQdrant.payload?.graph_node_id ?? "")
-    );
-    if (!matchingNode) return null;
-
-    return {
-      decision_id: matchingNode.get("decision_id") as string,
-      summary: matchingNode.get("summary") as string,
-      valid_from: matchingNode.get("valid_from") as string,
-      source_url: (matchingNode.get("source_url") as string) ?? "",
-      score: bestQdrant.score,
-    };
-  } finally {
-    await session.close();
   }
+
+  if (candidates.length === 0) return null;
+
+  // Stage C: LLM confirms which candidate (if any) is actually superseded
+  return confirmSupersession(decision, candidates);
 }
 
 function formatDelta(entries: ChangelogEntry[]): string {
@@ -290,27 +441,29 @@ export async function runTemporalQuery(
     };
   }
 
-  // For each decision, look up a possible prior version and persist the edge
-  const entries: ChangelogEntry[] = await Promise.all(
-    decisions.map(async (d): Promise<ChangelogEntry> => {
-      const prior = await findPriorVersion(projectId, d).catch(() => null);
-      if (prior) {
-        // Persist supersession and reconcile stale drift alerts — best-effort
-        await Promise.all([
-          writeSupersedesEdge(d.decision_id, prior.decision_id),
-          resolveAlertsForSupersededDecision(prior.decision_id),
-        ]).catch((err) =>
-          console.error("[temporal-engine] supersedes write failed:", err)
-        );
-      }
-      return {
-        decision: d,
-        source: inferSourceFromEventId(d.event_id),
-        kind: prior ? "superseded" : "created",
-        replaced: prior ?? undefined,
-      };
-    })
-  );
+  // For each decision, look up a possible prior version and persist the edge.
+  // Sequential — parallel LLM calls for large time windows hit rate limits and
+  // fail silently (catch returns null). Most decisions won't supersede anything,
+  // so the extra latency is only paid when supersessions are actually found.
+  const entries: ChangelogEntry[] = [];
+  for (const d of decisions) {
+    const prior = await findPriorVersion(projectId, d).catch(() => null);
+    if (prior) {
+      // Persist supersession and reconcile stale drift alerts — best-effort
+      await Promise.all([
+        writeSupersedesEdge(d.decision_id, prior.decision_id),
+        resolveAlertsForSupersededDecision(prior.decision_id),
+      ]).catch((err) =>
+        console.error("[temporal-engine] supersedes write failed:", err)
+      );
+    }
+    entries.push({
+      decision: d,
+      source: inferSourceFromEventId(d.event_id),
+      kind: prior ? "superseded" : "created",
+      replaced: prior ?? undefined,
+    });
+  }
 
   const userMessage = `Question: "${originalQuery}"
 Time range: ${range.from.slice(0, 10)} to ${range.to.slice(0, 10)}

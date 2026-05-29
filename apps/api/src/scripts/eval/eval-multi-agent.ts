@@ -335,11 +335,11 @@ async function main() {
     const seed = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", SEED_LOG, true
     );
-    check("seed agent-log returns 200", seed.status === 200,
+    check("seed agent-log accepted (200 or 202)", [200, 202].includes(seed.status),
       `status=${seed.status} body=${JSON.stringify(seed.body).slice(0, 120)}`);
     check("seed logs 3 decisions", seed.body.decisions_logged === 3,
       `decisions_logged=${seed.body.decisions_logged}`);
-    seedOk = seed.status === 200;
+    seedOk = [200, 202].includes(seed.status);
   }
 
   // ── Phase 2: Wait for pipeline ───────────────────────────────────────────────
@@ -481,11 +481,11 @@ async function main() {
     const refactorLog = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", REFACTOR_LOG, true
     );
-    check("A4: RefactorAgent decision log returns 200", refactorLog.status === 200,
+    check("A4: RefactorAgent decision log accepted (200 or 202)", [200, 202].includes(refactorLog.status),
       `status=${refactorLog.status}`);
     check("A4: RefactorAgent logs 1 decision", refactorLog.body.decisions_logged === 1,
       `decisions_logged=${refactorLog.body.decisions_logged}`);
-    refactorLogOk = refactorLog.status === 200;
+    refactorLogOk = [200, 202].includes(refactorLog.status);
   }
 
   // ── Phase 6: DependencyUpgradeAgent logs decision — no re-query (setup for A15) ─
@@ -498,9 +498,9 @@ async function main() {
     const depLog = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", DEPUPGRADE_LOG, true
     );
-    check("DependencyUpgradeAgent log returns 200", depLog.status === 200,
+    check("DependencyUpgradeAgent log accepted (200 or 202)", [200, 202].includes(depLog.status),
       `status=${depLog.status}`);
-    depUpgradeLogOk = depLog.status === 200;
+    depUpgradeLogOk = [200, 202].includes(depLog.status);
     // This agent deliberately does NOT query the brain again after this point.
     // A15 will later verify its decision is in the brain but it never logged a
     // rejection or pivot despite the DriftAlert that follows.
@@ -684,14 +684,14 @@ async function main() {
     const secRejection = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", SECURITY_REJECTION_LOG, true
     );
-    check("A11: SecurityAuditAgent rejection decision logged (200)",
-      secRejection.status === 200,
+    check("A11: SecurityAuditAgent rejection decision logged (200 or 202)",
+      [200, 202].includes(secRejection.status),
       `status=${secRejection.status} body=${JSON.stringify(secRejection.body).slice(0, 80)}`);
     check("A11: rejection decision has 'REJECT' or 'defer' keyword in body",
       SECURITY_REJECTION_LOG.decisions[0].description.toLowerCase().includes("reject") ||
       SECURITY_REJECTION_LOG.decisions[0].rationale.toLowerCase().includes("defer"),
       "decision description should contain REJECT and rationale should contain defer");
-    securityRejectionOk = secRejection.status === 200;
+    securityRejectionOk = [200, 202].includes(secRejection.status);
 
     // A12: Session timeline — query + signal observed + rejection logged in order
     // Verify by checking that SecurityAuditAgent's session is queryable and
@@ -788,7 +788,7 @@ async function main() {
     const prLog = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
       "/brain/agent-log", PRREVIEW_LOG, true
     );
-    check("A14: PRReviewAgent decision logged (200)", prLog.status === 200,
+    check("A14: PRReviewAgent decision logged (200 or 202)", [200, 202].includes(prLog.status),
       `status=${prLog.status}`);
     check("A14: PRReviewAgent logs 1 decision", prLog.body.decisions_logged === 1,
       `decisions_logged=${prLog.body.decisions_logged}`);

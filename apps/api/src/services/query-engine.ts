@@ -227,6 +227,81 @@ function validateCitations(answer: string, chunks: ContextChunk[]): boolean {
   return cited.every((i) => chunks.some((c) => c.index === i));
 }
 
+// ── Entity fan-out: keyword search on Decision summaries ─────────────────────
+// Used when vector search returns nothing above threshold. Extracts significant
+// terms from the query and searches Neo4j Decision nodes directly, so named
+// entities like "Redis" that appear across multiple sparse decisions are found
+// even when no single event chunk scores high on similarity.
+
+const STOP_WORDS = new Set([
+  "what", "does", "which", "where", "when", "why", "how", "use", "used",
+  "using", "for", "the", "and", "has", "have", "are", "was", "were", "is",
+  "its", "it", "a", "an", "in", "to", "of", "on", "or", "with", "by",
+  "from", "about", "that", "this", "not", "be", "been", "can", "do", "did",
+  "had", "any", "all", "our", "your", "their", "there", "than", "then", "so",
+  "if", "but", "at", "as", "up", "out", "who", "get", "got", "let", "into",
+  "just", "also", "more", "some", "each", "over", "after", "between",
+]);
+
+function extractQueryTerms(query: string): string[] {
+  return [...new Set(
+    query
+      .split(/[^a-zA-Z0-9.#+\-_]/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && !STOP_WORDS.has(t.toLowerCase()))
+  )];
+}
+
+async function entityFanout(query: string, projectId: string): Promise<ContextChunk[]> {
+  const terms = extractQueryTerms(query);
+  if (terms.length === 0) return [];
+
+  const s = getSession();
+  try {
+    const result = await s.run(
+      `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: $project_id})
+       WHERE NOT (d)<-[:SUPERSEDES]-()
+       AND any(term IN $terms WHERE toLower(d.summary) CONTAINS toLower(term))
+       WITH d, e ORDER BY d.valid_from DESC
+       WITH d, head(collect(e)) AS e
+       OPTIONAL MATCH (e)-[:AUTHORED_BY]->(p:Person)
+       RETURN d.summary AS summary,
+              d.confidence AS confidence,
+              d.status AS status,
+              d.valid_from AS valid_from,
+              e.event_id AS event_id,
+              e.source AS source,
+              e.source_url AS source_url,
+              e.timestamp AS timestamp,
+              p.name AS actor_name
+       ORDER BY d.valid_from DESC
+       LIMIT 10`,
+      { project_id: projectId, terms }
+    );
+
+    return result.records.map((r, i) => {
+      const summary = String(r.get("summary") ?? "");
+      const confidence = (r.get("confidence") as string | null) ?? "";
+      const status = (r.get("status") as string | null) ?? "";
+      const suffix = [status, confidence].filter(Boolean).join(", ");
+      const eventId = String(r.get("event_id") ?? "");
+      return {
+        index: i + 1,
+        content: suffix ? `${summary} (${suffix})` : summary,
+        source: (r.get("source") as string) || inferSourceFromEventId(eventId),
+        source_url: String(r.get("source_url") ?? ""),
+        actor_name: String(r.get("actor_name") ?? ""),
+        timestamp: String(r.get("valid_from") ?? r.get("timestamp") ?? ""),
+        project_id: projectId,
+        score: 0,
+        graph_node_id: eventId,
+      };
+    });
+  } finally {
+    await s.close();
+  }
+}
+
 // ── Shared context preparation (embed → Qdrant → graph → assemble) ───────────
 
 interface PreparedContext {
@@ -236,41 +311,54 @@ interface PreparedContext {
   startMs: number;
 }
 
-async function prepareContext(request: QueryRequest): Promise<PreparedContext | null> {
+async function prepareContext(request: QueryRequest, skipGraph = false): Promise<PreparedContext | null> {
   const startMs = Date.now();
 
   const queryVector = await embed(request.query);
   const vectorResults = await vectorSearch(queryVector, request.project_id);
 
-  if (vectorResults.length === 0) return null;
-
   // Drop chunks below the minimum score threshold before they reach the LLM.
   // Low-score chunks are semantically distant from the query — injecting them
   // confuses the agent more than helping (validated in eval-agent-value-hono).
   const aboveThreshold = vectorResults.filter((r) => r.score >= QUERY_MIN_SCORE);
-  if (aboveThreshold.length === 0) return null;
 
-  const chunks: ContextChunk[] = aboveThreshold
-    .filter((r) => r.payload)
-    .map((r, i) => ({
-      index: i + 1,
-      content: String(r.payload!.content ?? ""),
-      source: r.payload!.source
-        ? String(r.payload!.source)
-        : inferSourceFromEventId(String(r.payload!.graph_node_id ?? "")),
-      source_url: String(r.payload!.source_url ?? ""),
-      actor_name: String(r.payload!.actor_name ?? ""),
-      timestamp: String(r.payload!.timestamp ?? ""),
-      project_id: String(r.payload!.project_id ?? ""),
-      score: r.score,
-      graph_node_id: String(r.payload!.graph_node_id ?? ""),
-    }));
+  let chunks: ContextChunk[];
+  let usedFanout = false;
+
+  if (aboveThreshold.length === 0) {
+    // Vector search found nothing above threshold. Try entity fan-out: extract
+    // named terms from the query and search Decision summaries directly in
+    // Neo4j. This recovers distributed facts (e.g. "what do we use Redis for?")
+    // where no single event chunk scores high enough on similarity.
+    const fanoutChunks = await entityFanout(request.query, request.project_id);
+    if (fanoutChunks.length === 0) return null;
+    chunks = fanoutChunks;
+    usedFanout = true;
+  } else {
+    chunks = aboveThreshold
+      .filter((r) => r.payload)
+      .map((r, i) => ({
+        index: i + 1,
+        content: String(r.payload!.content ?? ""),
+        source: r.payload!.source
+          ? String(r.payload!.source)
+          : inferSourceFromEventId(String(r.payload!.graph_node_id ?? "")),
+        source_url: String(r.payload!.source_url ?? ""),
+        actor_name: String(r.payload!.actor_name ?? ""),
+        timestamp: String(r.payload!.timestamp ?? ""),
+        project_id: String(r.payload!.project_id ?? ""),
+        score: r.score,
+        graph_node_id: String(r.payload!.graph_node_id ?? ""),
+      }));
+  }
 
   const eventIds = [...new Set(chunks.map((c) => c.graph_node_id))].filter(Boolean);
   const sinceIso =
     request.time_range?.from ??
     new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const graphData = await graphExpand(eventIds, request.project_id, sinceIso);
+  // Fan-out chunks are already Decision summaries — graphExpand would re-append
+  // the same data from the same event IDs, producing duplicate content.
+  const graphData = (skipGraph || usedFanout) ? [] : await graphExpand(eventIds, request.project_id, sinceIso);
 
   const nowMs = Date.now();
   const formatAgo = (ts: string): string => {
@@ -287,27 +375,16 @@ async function prepareContext(request: QueryRequest): Promise<PreparedContext | 
     const chunk = chunks.find((c) => c.graph_node_id === node.event_id);
     if (!chunk) continue;
 
+    // Only append graph context that is itself citable evidence the LLM can
+    // reason over. Opaque event IDs (related_event_ids, co_referenced_event_ids)
+    // and author-activity strings are non-citable dangling pointers — they add
+    // tokens without adding evidence and cause the model to over-reach on thin
+    // corpora (confirmed in Hono eval: 5 regressions traced to these lines).
     if (node.decisions.length > 0) {
       chunk.content += `\nDecisions: ${node.decisions.map((d) => `${d.summary} (${d.status || "unknown"}, ${d.confidence || "?"})`).join("; ")}`;
     }
-    if (node.related_event_ids.length > 0) {
-      const sample = node.related_event_ids.slice(0, 3).join(", ");
-      const more = node.related_event_ids.length > 3 ? ` (+${node.related_event_ids.length - 3} more)` : "";
-      chunk.content += `\nRelated events via shared decisions: ${sample}${more}`;
-    }
     if (node.ticket_refs.length > 0) {
       chunk.content += `\nLinked tickets: ${node.ticket_refs.join(", ")}`;
-    }
-    if (node.co_referenced_event_ids.length > 0) {
-      const sample = node.co_referenced_event_ids.slice(0, 3).join(", ");
-      const more = node.co_referenced_event_ids.length > 3 ? ` (+${node.co_referenced_event_ids.length - 3} more)` : "";
-      chunk.content += `\nOther events referencing same tickets: ${sample}${more}`;
-    }
-    if (node.recent_author_activity.length > 0) {
-      const acts = node.recent_author_activity
-        .map((a) => `${a.event_id} (${a.source || "unknown"}, ${formatAgo(a.timestamp)})`)
-        .join("; ");
-      chunk.content += `\n${node.author_name || "Author"} also worked on: ${acts}`;
     }
   }
 
@@ -343,7 +420,7 @@ function buildCitations(answer: string, chunks: ContextChunk[]): { citations: Ci
 
 export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
   const [prepared, corpusSize] = await Promise.all([
-    prepareContext(request),
+    prepareContext(request, request.mode === "plain-rag"),
     countProjectDecisions(request.project_id),
   ]);
 
@@ -389,7 +466,7 @@ export async function* runQueryStream(request: QueryRequest): AsyncGenerator<Str
   let corpusSize = 0;
   try {
     [prepared, corpusSize] = await Promise.all([
-      prepareContext(request),
+      prepareContext(request, request.mode === "plain-rag"),
       countProjectDecisions(request.project_id),
     ]);
   } catch (e) {
