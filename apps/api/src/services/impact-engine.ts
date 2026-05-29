@@ -1,19 +1,24 @@
-// Impact analysis — known design gap (see ADR-006):
-// Risk tiers (critical/high/medium/low) are assigned entirely by LLM judgment
-// against a vague rubric. The same change described differently can produce
-// different tiers. Decision metadata (confidence, downstream references, open
-// drift alerts, age) is not used to enforce a minimum tier floor.
-//
-// What needs improving: a hybrid model where rule-based pre-scoring sets a floor
-// (decision.confidence=high → floor medium; open DriftAlert → floor high) and
-// the LLM assessment adds nuance on top. overall_risk = max(rule_floor, llm_tier).
-// Until then, treat impact analysis as a first signal requiring human review,
-// not a gate that can be acted on automatically.
+// Risk tiers use a hybrid model: deterministic rule-based floor + LLM nuance on top.
+// overall_risk = max(rule_floor, llm_tier) per decision.
+// Floor rules: open DriftAlert → min "high"; confidence="high" → min "medium".
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { getDecisionsWithTicketsByEventIds } from "../lib/neo4j.js";
 import { chatJSON, MODELS } from "../lib/llm.js";
 import type { ImpactDecision, ImpactResponse, ImpactTask } from "@purpl/types";
+
+const TIER_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 };
+type RiskTier = "critical" | "high" | "medium" | "low";
+
+function maxTier(a: RiskTier, b: RiskTier): RiskTier {
+  return (TIER_RANK[a] ?? 0) >= (TIER_RANK[b] ?? 0) ? a : b;
+}
+
+function ruleFloor(confidence: string, openDriftCount: number): RiskTier {
+  if (openDriftCount > 0) return "high";
+  if (confidence === "high") return "medium";
+  return "low";
+}
 
 const TOP_K = 15;
 
@@ -99,7 +104,7 @@ interface LLMAssessment {
 
 async function assessImpact(
   changeDescription: string,
-  decisions: Array<{ decision_id: string; summary: string; rationale: string | null; status: string }>
+  decisions: Array<{ decision_id: string; summary: string; rationale: string | null; status: string; confidence: string; open_drift_count: number }>
 ): Promise<LLMAssessment> {
   if (decisions.length === 0) {
     return {
@@ -195,12 +200,24 @@ export async function analyzeImpact(
     assessment.assessments.map((a) => [a.decision_id, a])
   );
 
-  // 5. Assemble ImpactDecision objects
-  const affectedDecisions: ImpactDecision[] = decisionsWithTickets.map((d) => {
+  // 5. Apply deterministic floor over LLM tier per decision, then derive overall_risk
+  const floored = decisionsWithTickets.map((d) => {
     const assess = riskByDecision.get(d.decision_id);
-    const riskTier = assess?.risk_tier ?? "low";
-    const reason = assess?.reason ?? "";
+    const llmTier = (assess?.risk_tier ?? "low") as RiskTier;
+    const floor = ruleFloor(d.confidence, d.open_drift_count);
+    return {
+      d,
+      riskTier: maxTier(llmTier, floor),
+      reason: assess?.reason ?? "",
+    };
+  });
 
+  const overall_risk = floored.reduce<RiskTier>(
+    (acc, { riskTier }) => maxTier(acc, riskTier),
+    assessment.overall_risk as RiskTier
+  );
+
+  const affectedDecisions: ImpactDecision[] = floored.map(({ d, riskTier, reason }) => {
     const affectedTickets: ImpactTask[] = d.ticket_refs.map((ref) => {
       const info = jiraInfoMap.get(ref);
       return {
@@ -225,7 +242,7 @@ export async function analyzeImpact(
 
   return {
     change_description: changeDescription,
-    overall_risk: assessment.overall_risk,
+    overall_risk,
     summary: assessment.summary,
     affected_decisions: affectedDecisions,
     latency_ms: Date.now() - startMs,

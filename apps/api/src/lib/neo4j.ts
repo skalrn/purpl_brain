@@ -167,6 +167,8 @@ export async function getDecisionsWithTicketsByEventIds(eventIds: string[], proj
   summary: string;
   rationale: string | null;
   status: string;
+  confidence: string;
+  open_drift_count: number;
   ticket_refs: string[];
 }>> {
   if (eventIds.length === 0) return [];
@@ -176,11 +178,14 @@ export async function getDecisionsWithTicketsByEventIds(eventIds: string[], proj
       `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event)
        WHERE e.event_id IN $event_ids AND e.project_id = $project_id
        OPTIONAL MATCH (d)-[:INFORMS]->(t:Ticket)
+       OPTIONAL MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->(d)
        RETURN d.decision_id AS decision_id,
               e.event_id AS event_id,
               d.summary AS summary,
               d.rationale AS rationale,
               d.status AS status,
+              coalesce(d.confidence, 'medium') AS confidence,
+              count(DISTINCT a) AS open_drift_count,
               collect(DISTINCT t.ref) AS ticket_refs`,
       { event_ids: eventIds, project_id: projectId }
     );
@@ -190,6 +195,8 @@ export async function getDecisionsWithTicketsByEventIds(eventIds: string[], proj
       summary: r.get("summary") as string,
       rationale: (r.get("rationale") as string | null) ?? null,
       status: (r.get("status") as string) ?? "unknown",
+      confidence: (r.get("confidence") as string) ?? "medium",
+      open_drift_count: (r.get("open_drift_count") as number) ?? 0,
       ticket_refs: ((r.get("ticket_refs") as string[]) ?? []).filter(Boolean),
     }));
   } finally {
