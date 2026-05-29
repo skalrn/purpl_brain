@@ -465,12 +465,13 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
   const session = getSession();
   try {
     const query = projectId
-      ? `MATCH (a:DriftAlert {project_id: $project_id, resolution: "pending"})
-         MATCH (a)-[:CHALLENGES]->(d:Decision)
+      ? `MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->(d:Decision)
+         WHERE a.project_id = $project_id
+            OR (a.project_id IS NULL AND (d)-[:EXTRACTED_FROM]->(:Event {project_id: $project_id}))
          RETURN a.alert_id AS alert_id,
                 d.decision_id AS decision_id,
                 d.summary AS decision_summary,
-                a.project_id AS project_id,
+                coalesce(a.project_id, $project_id) AS project_id,
                 a.source AS source,
                 a.content AS content,
                 a.reason AS reason,

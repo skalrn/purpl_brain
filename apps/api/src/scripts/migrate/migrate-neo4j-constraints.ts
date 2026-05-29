@@ -54,6 +54,18 @@ async function run() {
       console.log(`[migrate-constraints] ✓ index ${idx.label}.${idx.property}`);
     }
 
+    // Backfill project_id onto DriftAlerts written before the denormalization
+    // (2026-05-28). Idempotent — only touches alerts where project_id IS NULL.
+    const backfill = await session.run(
+      `MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event)
+       WHERE a.project_id IS NULL
+       SET a.project_id = e.project_id
+       RETURN count(a) AS n`
+    );
+    const backfilled = backfill.records[0]?.get("n");
+    const n = typeof backfilled === "number" ? backfilled : Number(backfilled?.toNumber?.() ?? 0);
+    if (n > 0) console.log(`[migrate-constraints] backfilled project_id on ${n} DriftAlert(s) ✓`);
+
     console.log("[migrate-constraints] all constraints and indexes applied ✓");
   } finally {
     await session.close();
