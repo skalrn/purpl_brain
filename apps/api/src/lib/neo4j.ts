@@ -48,7 +48,8 @@ export async function writeDriftAlert(alert: DriftAlert): Promise<void> {
          a.actor           = $actor,
          a.timestamp       = $timestamp,
          a.confirmed_by_llm = $confirmed_by_llm,
-         a.resolution      = $resolution
+         a.resolution      = $resolution,
+         a.project_id      = d.project_id
        MERGE (a)-[:CHALLENGES]->(d)`,
       {
         fingerprint,
@@ -461,12 +462,12 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
   const session = getSession();
   try {
     const query = projectId
-      ? `MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: $project_id})
-         WHERE a.resolution = "pending"
+      ? `MATCH (a:DriftAlert {project_id: $project_id, resolution: "pending"})
+         MATCH (a)-[:CHALLENGES]->(d:Decision)
          RETURN a.alert_id AS alert_id,
                 d.decision_id AS decision_id,
                 d.summary AS decision_summary,
-                e.project_id AS project_id,
+                a.project_id AS project_id,
                 a.source AS source,
                 a.content AS content,
                 a.reason AS reason,
@@ -476,12 +477,12 @@ export async function getDriftAlerts(projectId?: string): Promise<Array<{
                 a.confirmed_by_llm AS confirmed_by_llm,
                 a.fingerprint AS fingerprint
          ORDER BY a.timestamp DESC`
-      : `MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event)
-         WHERE a.resolution = "pending"
+      : `MATCH (a:DriftAlert {resolution: "pending"})
+         MATCH (a)-[:CHALLENGES]->(d:Decision)
          RETURN a.alert_id AS alert_id,
                 d.decision_id AS decision_id,
                 d.summary AS decision_summary,
-                e.project_id AS project_id,
+                a.project_id AS project_id,
                 a.source AS source,
                 a.content AS content,
                 a.reason AS reason,
@@ -535,12 +536,14 @@ export async function getDriftAlertsForActor(personId: string): Promise<Array<{
   try {
     const result = await session.run(
       `MATCH (:Person {person_id: $person_id})-[:MEMBER_OF]->(proj:Project)
-       MATCH (a:DriftAlert)-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: proj.project_id})
-       WHERE a.resolution = "pending"
+       WITH collect(proj.project_id) AS allowed_projects
+       MATCH (a:DriftAlert {resolution: "pending"})
+       WHERE a.project_id IN allowed_projects
+       MATCH (a)-[:CHALLENGES]->(d:Decision)
        RETURN a.alert_id AS alert_id,
               d.decision_id AS decision_id,
               d.summary AS decision_summary,
-              e.project_id AS project_id,
+              a.project_id AS project_id,
               a.source AS source,
               a.content AS content,
               a.reason AS reason,
@@ -580,8 +583,8 @@ export async function getAlertProjectId(alertId: string): Promise<string | null>
   const session = getSession();
   try {
     const result = await session.run(
-      `MATCH (a:DriftAlert {alert_id: $alert_id})-[:CHALLENGES]->(d:Decision)-[:EXTRACTED_FROM]->(e:Event)
-       RETURN e.project_id AS project_id LIMIT 1`,
+      `MATCH (a:DriftAlert {alert_id: $alert_id})
+       RETURN a.project_id AS project_id LIMIT 1`,
       { alert_id: alertId }
     );
     return result.records[0]?.get("project_id") as string ?? null;
