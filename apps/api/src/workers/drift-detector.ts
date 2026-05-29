@@ -83,6 +83,8 @@ async function stageA(
     score_threshold: SEMANTIC_THRESHOLD,
   });
 
+  console.log(`[drift-detector] stage-A raw hits: ${results.map(r => `${r.payload?.graph_node_id}(${r.score.toFixed(2)})`).join(", ") || "none"}`);
+
   // Collect event_ids from the matching chunks, excluding the event being processed
   const matchingEventIds = [
     ...new Set(
@@ -93,6 +95,8 @@ async function stageA(
   ].slice(0, TOP_K * 2);
 
   if (matchingEventIds.length === 0) return [];
+
+  console.log(`[drift-detector] stage-A candidates: event_ids=${matchingEventIds.join(",")} excluded=${excludeEventIds.join(",")}`);
 
   // Look up which confirmed Decision nodes were extracted from those events
   const decisions = await getDecisionsByEventIds(matchingEventIds);
@@ -126,8 +130,8 @@ async function stageA(
 const DRIFT_SYSTEM_PROMPT = `You are a decision drift detector for software engineering teams.
 
 Given a new message/event and a list of existing project decisions, classify each related decision as one of:
-- "conflicts": the message contradicts or challenges the decision — suggests doing something different, reopens a closed question, or expresses doubt about a settled choice
-- "confirms": the message is consistent with or reinforces the decision — implements it, references it positively, or provides evidence it was the right call
+- "conflicts": the message contradicts or challenges the decision — suggests doing something different, reopens a closed question, or expresses doubt about a settled choice. This includes replacing a previously-chosen technology with a different one, even if the stated rationale sounds similar.
+- "confirms": the message is consistent with or reinforces the decision — implements it, references it positively, or provides evidence it was the right call. A message that proposes switching away from the chosen option is NOT a confirmation.
 - neither: the message is unrelated or is a routine update with no bearing on the decision
 
 Respond with JSON only:
@@ -137,6 +141,7 @@ Respond with JSON only:
 }
 
 Example conflict reason: "Removes obfuscation step, contradicting the decision to ship obfuscated builds for IP protection."
+Example conflict reason: "Proposes migrating to Weaviate, directly contradicting the decision to adopt Qdrant as the vector store — the tool choice conflicts even if the rationale sounds similar."
 Example confirmation reason: "Implements the 3-pane layout as AppShell, consistent with the decision to adopt this layout pattern."
 
 Return { "drifts": [], "confirms": [] } if no related decisions found.`;
@@ -162,6 +167,7 @@ ${decisionsBlock}
 
 Does this message contradict any of these decisions?`;
 
+  console.log(`[drift-detector] stage-C input: candidates=${candidates.map(c => `${c.decision_id}(${c.score.toFixed(2)}): "${c.summary.slice(0,80)}"`).join(" | ")}`);
   return chatJSON<DriftConfirmation>(
     MODELS.EXTRACTION, // Use fast model for confirmation — cheaper
     [
@@ -198,6 +204,7 @@ class DriftDetector extends StreamWorker {
     // Skip document — docs define the baseline; bulk ingest causes non-deterministic
     // race conditions where doc chunks drift-check against each other mid-ingest.
     const source = inferSourceFromEventId(result.event_id);
+    console.log(`[drift-detector] processing event=${result.event_id} source=${source} project=${result.project_id}`);
     if (source === "github" || source === "document") {
       await redis.xack(STREAMS.EXTRACTED, "drift-detector", id);
       return;

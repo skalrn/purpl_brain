@@ -32,3 +32,4 @@ engineering-decision-products-prd.md
 # Python
 __pycache__/
 *.pyc
+apps/api/.env.ollama.backup
