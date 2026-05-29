@@ -28,7 +28,7 @@ export default function ProjectCard({ project, windowLabel }: { project: Project
     last_session_operator_name,
     last_session_work_summary,
     decision_count,
-    active_sources,
+    active_sources = [],
   } = project;
 
   const hasDelta = sessions_since > 0 || decisions_since > 0;
