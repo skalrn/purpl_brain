@@ -173,18 +173,41 @@ API: `http://localhost:3001/health`
 
 ## First 10 minutes
 
-After `setup.sh` completes, run through this sequence to confirm the core loop works. Use the `BRAIN_API_KEY` printed by setup.sh.
+After `setup.sh` completes, open **http://localhost:3000** and follow the three-step onboarding loop. It takes about 2 minutes and demonstrates the core loop end-to-end.
 
-**1. Check everything is running (30 seconds)**
+### Step 1 — Log a decision (~30 seconds)
+
+Open your project and fill in the two fields:
+
+- **What was decided?** — one sentence, specific. Example: `Use Redis for session cache, not Memcached`
+- **Why?** — the rationale. Example: `Redis supports TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.`
+
+Click **Log decision →**. The UI confirms it was received.
+
+### Step 2 — Wait for the pipeline
+
+The decision flows through: normalizer → extractor → brain-writer → Qdrant + Neo4j. The UI polls automatically and unlocks step 3 when the decision is queryable.
+
+> **Ollama:** this takes ~90 seconds on the default local path. The progress indicator is not frozen — the pipeline is running. If you need faster feedback, switch to `LLM_PROVIDER=anthropic` in `apps/api/.env` (reduces pipeline to ~15s and query to ~2s).
+
+### Step 3 — Ask the brain about it (the payoff)
+
+A query is pre-filled based on what you logged. Submit it. You should receive:
+
+- A prose answer citing the decision
+- A citation card showing the source, author, and quoted rationale
+- A `corpus_size` confirmation that the brain is no longer empty
+
+This is the core loop: **log once, recall from any future session with a cited answer.** From here, every agent session that calls `brain_query` on startup will load this context instead of starting cold.
+
+---
+
+### Alternative: verify via curl
+
+If you prefer CLI verification or are running headless:
 
 ```bash
-curl http://localhost:3001/health
-# → {"status":"ok"}
-```
-
-**2. Log a decision (30 seconds)**
-
-```bash
+# 1. Log a decision
 curl -X POST http://localhost:3001/brain/agent-log \
   -H "Content-Type: application/json" \
   -H "X-API-Key: <your-key>" \
@@ -192,46 +215,31 @@ curl -X POST http://localhost:3001/brain/agent-log \
     "session_id": "first-test",
     "project_id": "<your-project-id>",
     "agent_id": "me",
-    "work_completed": "Chose Redis over Memcached for the session cache layer",
+    "work_completed": "Chose Redis over Memcached for session cache",
     "decisions": [{
-      "id": "session-cache-choice",
+      "id": "session-cache",
       "description": "Use Redis for session cache, not Memcached",
-      "rationale": "Redis supports TTL-native eviction and pub/sub which we need for cache invalidation. Memcached requires a separate eviction job.",
+      "rationale": "TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.",
       "alternatives_considered": ["Memcached", "in-memory LRU"],
       "confidence": "high"
     }]
   }'
-# → {"ok":true,"event_id":"...","decisions_logged":1}
-```
 
-**3. Wait for the pipeline (Ollama: ~90s, Anthropic: ~15s)**
-
-The decision flows through: normalizer → extractor → brain-writer → Qdrant + Neo4j.
-
-```bash
-# Watch the chunk count grow:
-watch -n 5 'curl -s -X POST http://localhost:6333/collections/brain_chunks/points/count \
-  -H "Content-Type: application/json" \
-  -d "{\"filter\":{\"must\":[{\"key\":\"project_id\",\"match\":{\"value\":\"<your-project-id>\"}}]}}" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)[\"result\"][\"count\"], \"chunks\")"'
-# Stop when count reaches 1+
-```
-
-**4. Query it back (the payoff)**
-
-```bash
+# 2. Wait for pipeline (Ollama: ~90s / Anthropic: ~15s), then query
 curl -s -X POST http://localhost:3001/brain/query \
   -H "Content-Type: application/json" \
   -H "X-API-Key: <your-key>" \
-  -d '{
-    "query": "what was decided about the cache layer and why?",
-    "project_id": "<your-project-id>"
-  }' | python3 -m json.tool
+  -d '{"query": "what was decided about the cache layer?", "project_id": "<your-project-id>"}' \
+  | python3 -m json.tool
 ```
 
-You should get an answer citing Redis, the rationale about TTL-native eviction, and the alternatives considered — sourced from what you logged in step 2. This is the core loop: **log once, recall from any future session**.
+Expected response: an `answer` citing Redis and the rationale, with a `citations` array pointing back to your log entry. `corpus_size: 1` confirms the brain indexed it.
 
-> **Ollama latency:** the query step takes 14–28s on Ollama. That is normal — not a hang. The answer arrives when the LLM finishes.
+---
+
+### What to seed first
+
+The brain's value depends on what you give it. **Seed an internal project, not a public one.** If you seed a well-known framework (React, Hono, Next.js), the LLM already knows those decisions from training data — the brain adds nothing. Seed your own private repo where the decisions are novel to the model. See [What makes a good first corpus](#what-makes-a-good-first-corpus) for detail.
 
 ---
 
