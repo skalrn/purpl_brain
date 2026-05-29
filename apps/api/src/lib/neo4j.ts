@@ -138,6 +138,7 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
     const result = await session.run(
       `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event)
        WHERE e.event_id IN $event_ids AND d.status = "confirmed"
+         AND NOT (d)<-[:SUPERSEDES]-()
        RETURN d.decision_id AS decision_id,
               e.event_id AS event_id,
               d.summary AS summary,
@@ -152,6 +153,50 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
       quoted_text: r.get("quoted_text") as string,
       status: r.get("status") as string,
     }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Persist a SUPERSEDES edge: newer decision replaced older decision.
+ * MERGE is idempotent — safe to call multiple times for the same pair.
+ */
+export async function writeSupersedesEdge(
+  newerDecisionId: string,
+  olderDecisionId: string
+): Promise<void> {
+  const session = getSession();
+  try {
+    await session.run(
+      `MATCH (newer:Decision {decision_id: $newer_id})
+       MATCH (older:Decision {decision_id: $older_id})
+       MERGE (newer)-[:SUPERSEDES]->(older)`,
+      { newer_id: newerDecisionId, older_id: olderDecisionId }
+    );
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * When a decision is superseded, auto-resolve any pending DriftAlerts that were
+ * challenging it — the decision is dead so the conflict no longer matters.
+ * Returns the count of alerts resolved.
+ */
+export async function resolveAlertsForSupersededDecision(
+  olderDecisionId: string
+): Promise<number> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (a:DriftAlert {resolution: "pending"})-[:CHALLENGES]->(d:Decision {decision_id: $decision_id})
+       SET a.resolution = "superseded", a.resolved_at = $resolved_at
+       RETURN count(a) AS n`,
+      { decision_id: olderDecisionId, resolved_at: new Date().toISOString() }
+    );
+    const n = result.records[0]?.get("n");
+    return typeof n === "number" ? n : Number(n?.toNumber?.() ?? 0);
   } finally {
     await session.close();
   }

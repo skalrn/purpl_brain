@@ -93,6 +93,7 @@ async function graphExpand(
           return await s.run(
             `MATCH (seed:Event {event_id: $event_id})
              OPTIONAL MATCH (d:Decision)-[:EXTRACTED_FROM]->(seed)
+               WHERE NOT (d)<-[:SUPERSEDES]-()
              OPTIONAL MATCH (d)-[:EXTRACTED_FROM]->(related:Event)
                WHERE related.event_id <> seed.event_id
                AND related.project_id = seed.project_id

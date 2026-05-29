@@ -14,7 +14,7 @@
  * "what happened in this window." Distinct from runQuery — does NOT use
  * vector retrieval to assemble context; only to find supersedes candidates.
  */
-import { getSession } from "../lib/neo4j.js";
+import { getSession, writeSupersedesEdge, resolveAlertsForSupersededDecision } from "../lib/neo4j.js";
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
 import { chat, MODELS } from "../lib/llm.js";
@@ -290,10 +290,19 @@ export async function runTemporalQuery(
     };
   }
 
-  // For each decision, look up a possible prior version
+  // For each decision, look up a possible prior version and persist the edge
   const entries: ChangelogEntry[] = await Promise.all(
     decisions.map(async (d): Promise<ChangelogEntry> => {
       const prior = await findPriorVersion(projectId, d).catch(() => null);
+      if (prior) {
+        // Persist supersession and reconcile stale drift alerts — best-effort
+        await Promise.all([
+          writeSupersedesEdge(d.decision_id, prior.decision_id),
+          resolveAlertsForSupersededDecision(prior.decision_id),
+        ]).catch((err) =>
+          console.error("[temporal-engine] supersedes write failed:", err)
+        );
+      }
       return {
         decision: d,
         source: inferSourceFromEventId(d.event_id),
