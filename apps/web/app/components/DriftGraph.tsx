@@ -39,9 +39,11 @@ function buildGraph(
     alert_id: string;
     decision_id: string;
     decision_summary: string;
+    reason: string | null;
     content: string;
     project_id: string;
-  }>
+  }>,
+  projectId: string
 ): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -52,17 +54,29 @@ function buildGraph(
       seenDecisions.add(a.decision_id);
       nodes.push({
         id: a.decision_id,
-        data: { label: a.decision_summary.slice(0, 60) + (a.decision_summary.length > 60 ? "…" : "") },
+        type: "default",
+        data: {
+          label: (
+            <a
+              href={`/p/${encodeURIComponent(projectId)}/decisions/${a.decision_id}`}
+              className="block text-indigo-200 hover:text-white transition-colors leading-tight"
+            >
+              {a.decision_summary.slice(0, 70)}{a.decision_summary.length > 70 ? "…" : ""}
+            </a>
+          ),
+        },
         position: { x: 0, y: 0 },
-        style: { background: "#1e1b4b", border: "1.5px solid #818cf8", borderRadius: 8, color: "#e0e7ff", fontSize: 11 },
+        style: { background: "#1e1b4b", border: "1.5px solid #818cf8", borderRadius: 8, color: "#e0e7ff", fontSize: 11, width: NODE_W },
       });
     }
 
+    // Prefer the LLM reason over raw content — reason is the one-sentence conflict explanation
+    const signalLabel = (a.reason ?? a.content).slice(0, 60) + ((a.reason ?? a.content).length > 60 ? "…" : "");
     nodes.push({
       id: `alert_${a.alert_id}`,
-      data: { label: a.content.slice(0, 50) + (a.content.length > 50 ? "…" : "") },
+      data: { label: signalLabel },
       position: { x: 0, y: 0 },
-      style: { background: "#450a0a", border: "1.5px solid #ef4444", borderRadius: 8, color: "#fca5a5", fontSize: 11 },
+      style: { background: "#450a0a", border: "1.5px solid #ef4444", borderRadius: 8, color: "#fca5a5", fontSize: 11, width: NODE_W },
     });
 
     edges.push({
@@ -89,7 +103,7 @@ export default function DriftGraph({ projectId }: { projectId: string }) {
 
   const alerts = data?.alerts ?? [];
 
-  const { nodes, edges } = useMemo(() => buildGraph(alerts), [alerts]);
+  const { nodes, edges } = useMemo(() => buildGraph(alerts, projectId), [alerts, projectId]);
 
   const onNodesChange = useCallback(() => {}, []);
   const onEdgesChange = useCallback(() => {}, []);
