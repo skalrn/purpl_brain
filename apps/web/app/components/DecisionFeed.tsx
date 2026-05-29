@@ -150,6 +150,13 @@ function DecisionCard({ decision, projectId }: { decision: Decision; projectId: 
             {actor}
           </span>
 
+          {/* Lineage badge */}
+          {decision.has_lineage && (
+            <span className="text-xs text-purple-600 border border-purple-900/60 rounded px-1.5 py-0.5 shrink-0">
+              ↻ history
+            </span>
+          )}
+
           {/* Time — pushed to the right */}
           <span className="text-xs text-gray-600 ml-auto shrink-0">
             {relativeTime(decision.valid_from)}

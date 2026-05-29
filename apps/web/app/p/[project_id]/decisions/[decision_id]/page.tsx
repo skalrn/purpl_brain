@@ -12,6 +12,7 @@ import {
   type DecisionFollowUpTask,
   type LineageNode,
 } from "../../../../lib/api";
+import DecisionTimeline from "../../../../components/DecisionTimeline";
 
 // ── Codegen prompt copy box ───────────────────────────────────────────────────
 
@@ -269,15 +270,8 @@ export default function DecisionDetailPage({
       {decision && (
         <div className="flex-1 px-6 py-6 max-w-3xl mx-auto w-full flex flex-col gap-8">
 
-          {/* Lineage timeline */}
-          {(decision.supersedes || decision.superseded_by) && (
-            <LineageTimeline
-              current={{ decision_id: decision.decision_id, summary: decision.summary, valid_from: decision.valid_from }}
-              supersedes={decision.supersedes}
-              supersededBy={decision.superseded_by}
-              projectId={decision.project_id}
-            />
-          )}
+          {/* Decision evolution timeline */}
+          <DecisionTimeline decisionId={decision.decision_id} projectId={decision.project_id} />
 
           {/* Decision header */}
           <section className="flex flex-col gap-4">
@@ -393,17 +387,7 @@ export default function DecisionDetailPage({
             </section>
           )}
 
-          {/* Resolved alerts */}
-          {resolvedAlerts.length > 0 && (
-            <section className="border-t border-gray-800 pt-6">
-              <p className="text-xs font-semibold text-gray-500 mb-3">Resolved ({resolvedAlerts.length})</p>
-              <div className="flex flex-col gap-2">
-                {resolvedAlerts.map((a) => (
-                  <ResolvedAlertRow key={a.alert_id} alert={a} />
-                ))}
-              </div>
-            </section>
-          )}
+          {/* Resolved alerts are shown in the Decision Timeline above */}
 
           {/* Follow-up tasks */}
           {decision.follow_up_tasks.length > 0 && (

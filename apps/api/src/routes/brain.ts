@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { v4 as uuidv4 } from "uuid";
 import { redis, STREAMS, PROCESSED_SET } from "../lib/redis.js";
-import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions, listDecisions, getDecisionDetail, getCorpusStats } from "../lib/neo4j.js";
+import { getDriftAlerts, getDriftAlertsForActor, getAlertProjectId, getSessionProjectId, resolveDriftAlert, countActiveSeats, countActiveSeatsForActor, resolvePersonByName, createFollowUpTaskFromAlert, getFollowUpTasks, listAgentSessions, getAgentSession, countRecentDecisions, listDecisions, getDecisionDetail, getDecisionChain, getCorpusStats } from "../lib/neo4j.js";
 import { detectAndParse, flattenToText } from "../lib/transcript-parser.js";
 import { chunkText } from "../lib/document-chunker.js";
 import { deletePointsBySourceId } from "../lib/qdrant.js";
@@ -570,6 +570,25 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (e) {
         fastify.log.error(e);
         return reply.status(500).send({ error: "Failed to fetch decision detail" });
+      }
+    }
+  );
+
+  // ── GET /brain/decisions/:id/chain ──────────────────────────────────────────
+  fastify.get<{ Params: { id: string } }>(
+    "/brain/decisions/:id/chain",
+    { preHandler: requireApiKey },
+    async (req, reply) => {
+      const { id } = req.params;
+      try {
+        const chain = await getDecisionChain(id);
+        if (chain.length === 0) {
+          return reply.status(404).send({ error: "Decision not found" });
+        }
+        return { chain };
+      } catch (e) {
+        fastify.log.error(e);
+        return reply.status(500).send({ error: "Failed to fetch decision chain" });
       }
     }
   );

@@ -124,6 +124,29 @@ export interface Decision {
   operator_name: string | null;
   event_id: string;
   event_source: string;
+  has_lineage: boolean;
+}
+
+export interface ChainNode {
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  valid_from: string;
+  confidence: string;
+  status: string;
+  drift_alerts: Array<{
+    alert_id: string;
+    reason: string | null;
+    content: string;
+    resolution: string;
+    resolution_reason: string | null;
+    timestamp: string;
+    source: string;
+  }>;
+}
+
+export function fetchDecisionChain(decisionId: string): Promise<{ chain: ChainNode[] }> {
+  return apiFetch<{ chain: ChainNode[] }>(`/brain/decisions/${encodeURIComponent(decisionId)}/chain`);
 }
 
 export interface DecisionsResponse {

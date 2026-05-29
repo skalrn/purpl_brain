@@ -1532,12 +1532,15 @@ export async function listDecisions(projectId: string, limit = 50): Promise<Arra
   operator_name: string | null;
   event_id: string;
   event_source: string;
+  has_lineage: boolean;
 }>> {
   const session = getSession();
   try {
     const result = await session.run(
       `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {project_id: $project_id})
        MATCH (e)-[:AUTHORED_BY]->(p:Person)
+       OPTIONAL MATCH (d)-[:SUPERSEDES]->(older_d)
+       OPTIONAL MATCH (newer_d)-[:SUPERSEDES]->(d)
        RETURN d.decision_id AS decision_id,
               d.summary AS summary,
               d.rationale AS rationale,
@@ -1547,7 +1550,8 @@ export async function listDecisions(projectId: string, limit = 50): Promise<Arra
               p.name AS agent_id,
               e.operator_name AS operator_name,
               e.event_id AS event_id,
-              coalesce(e.source, 'agent') AS event_source
+              coalesce(e.source, 'agent') AS event_source,
+              (older_d IS NOT NULL OR newer_d IS NOT NULL) AS has_lineage
        ORDER BY valid_from DESC
        LIMIT $limit`,
       { project_id: projectId, limit: neo4j.int(limit) }
@@ -1563,6 +1567,85 @@ export async function listDecisions(projectId: string, limit = 50): Promise<Arra
       operator_name:           (r.get("operator_name") as string | null) ?? null,
       event_id:                r.get("event_id") as string,
       event_source:            (r.get("event_source") as string) ?? "agent",
+      has_lineage:             (r.get("has_lineage") as boolean) ?? false,
+    }));
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Walk the full SUPERSEDES chain for a decision (up to 10 hops each direction)
+ * and return all decisions in chronological order, each with their drift alerts.
+ * Used to build the decision evolution timeline on the detail page.
+ */
+export async function getDecisionChain(decisionId: string): Promise<Array<{
+  decision_id: string;
+  summary: string;
+  rationale: string | null;
+  valid_from: string;
+  confidence: string;
+  status: string;
+  drift_alerts: Array<{
+    alert_id: string;
+    reason: string | null;
+    content: string;
+    resolution: string;
+    resolution_reason: string | null;
+    timestamp: string;
+    source: string;
+  }>;
+}>> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (target:Decision {decision_id: $decision_id})
+       OPTIONAL MATCH (target)-[:SUPERSEDES*1..10]->(older)
+       OPTIONAL MATCH (newer)-[:SUPERSEDES*1..10]->(target)
+       WITH target,
+            [x IN collect(DISTINCT older) WHERE x IS NOT NULL] AS older_chain,
+            [x IN collect(DISTINCT newer) WHERE x IS NOT NULL] AS newer_chain
+       WITH older_chain + [target] + newer_chain AS chain
+       UNWIND chain AS d
+       WITH DISTINCT d
+       OPTIONAL MATCH (a:DriftAlert)-[:CHALLENGES]->(d)
+       WITH d, collect(DISTINCT CASE WHEN a.alert_id IS NOT NULL THEN {
+         alert_id:          a.alert_id,
+         reason:            a.reason,
+         content:           a.content,
+         resolution:        a.resolution,
+         resolution_reason: a.resolution_reason,
+         timestamp:         a.timestamp,
+         source:            a.source
+       } END) AS raw_alerts
+       RETURN d.decision_id AS decision_id,
+              d.summary AS summary,
+              d.rationale AS rationale,
+              d.valid_from AS valid_from,
+              coalesce(d.confidence, 'medium') AS confidence,
+              coalesce(d.status, 'confirmed') AS status,
+              raw_alerts
+       ORDER BY d.valid_from ASC`,
+      { decision_id: decisionId }
+    );
+    return result.records.map((r) => ({
+      decision_id: r.get("decision_id") as string,
+      summary:     (r.get("summary") as string) ?? "",
+      rationale:   (r.get("rationale") as string | null) ?? null,
+      valid_from:  r.get("valid_from") as string,
+      confidence:  (r.get("confidence") as string) ?? "medium",
+      status:      (r.get("status") as string) ?? "confirmed",
+      drift_alerts: ((r.get("raw_alerts") as Array<Record<string, unknown>>) ?? [])
+        .filter((a) => a && a.alert_id != null)
+        .map((a) => ({
+          alert_id:          a.alert_id as string,
+          reason:            (a.reason as string | null) ?? null,
+          content:           (a.content as string) ?? "",
+          resolution:        (a.resolution as string) ?? "pending",
+          resolution_reason: (a.resolution_reason as string | null) ?? null,
+          timestamp:         (a.timestamp as string) ?? "",
+          source:            (a.source as string) ?? "agent",
+        })),
     }));
   } finally {
     await session.close();
