@@ -33,6 +33,17 @@ async function run() {
       { name: "person_slack_user_id_idx", label: "Person", property: "slack_user_id" },
       { name: "person_jira_user_id_idx", label: "Person", property: "jira_user_id" },
       { name: "person_email_idx", label: "Person", property: "email" },
+      // Event filters used on nearly every query — critical for scale
+      { name: "event_project_id_idx", label: "Event", property: "project_id" },
+      { name: "event_source_idx", label: "Event", property: "source" },
+      { name: "event_timestamp_idx", label: "Event", property: "timestamp" },
+      // Decision filters used in drift detection and query expansion
+      { name: "decision_project_id_idx", label: "Decision", property: "project_id" },
+      { name: "decision_status_idx", label: "Decision", property: "status" },
+      { name: "decision_valid_from_idx", label: "Decision", property: "valid_from" },
+      // DriftAlert hot-path filters (global banner, inbox, reconciliation)
+      { name: "drift_alert_resolution_idx", label: "DriftAlert", property: "resolution" },
+      { name: "drift_alert_fingerprint_idx", label: "DriftAlert", property: "fingerprint" },
     ];
 
     for (const idx of INDEXES) {
