@@ -7,7 +7,7 @@ import AgentTypeBadge from "../../../../components/AgentTypeBadge";
 import OperatorTag from "../../../../components/OperatorTag";
 import RiskBadge from "../../../../components/RiskBadge";
 import WriteBackQualityBadge from "../../../../components/WriteBackQualityBadge";
-import { fetchAgentSession, relativeTime } from "../../../../lib/api";
+import { fetchAgentSession, fetchDecisions, relativeTime } from "../../../../lib/api";
 
 export default function SessionDetailView({
   params,
@@ -90,6 +90,7 @@ export default function SessionDetailView({
           <InheritedContext
             resultsCount={session.brain_query_results_count}
             distinctSessions={session.brain_query_distinct_sessions_count}
+            projectId={projectId}
           />
 
           {/* Decisions */}
@@ -182,10 +183,23 @@ export default function SessionDetailView({
 function InheritedContext({
   resultsCount,
   distinctSessions,
+  projectId,
 }: {
   resultsCount: number | null | undefined;
   distinctSessions: number | null | undefined;
+  projectId: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const { data } = useQuery({
+    queryKey: ["decisions", projectId, resultsCount],
+    queryFn: () => fetchDecisions(projectId, Math.max(resultsCount ?? 0, 20)),
+    enabled: expanded && !!resultsCount && resultsCount > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  const decisions = (data?.decisions ?? []).slice(0, resultsCount ?? 0);
+
   if (resultsCount === undefined || resultsCount === null) {
     return (
       <p className="text-xs text-gray-600 italic">
@@ -193,6 +207,7 @@ function InheritedContext({
       </p>
     );
   }
+
   if (resultsCount === 0) {
     return (
       <p className="text-xs text-gray-500 italic">
@@ -200,12 +215,51 @@ function InheritedContext({
       </p>
     );
   }
+
   return (
-    <p className="text-xs text-gray-400 italic">
-      This session queried the brain at start. Found{" "}
-      <span className="text-purple-400 font-medium">{resultsCount} prior decision{resultsCount !== 1 ? "s" : ""}</span>
-      {distinctSessions ? ` from ${distinctSessions} session${distinctSessions !== 1 ? "s" : ""}` : ""}.
-    </p>
+    <section className="border border-purple-900/40 bg-purple-950/10 rounded-xl p-4 flex flex-col gap-3">
+      <button
+        className="flex items-center justify-between w-full text-left group"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <p className="text-xs text-gray-400">
+          Session started with{" "}
+          <span className="text-purple-400 font-medium">
+            {resultsCount} prior decision{resultsCount !== 1 ? "s" : ""}
+          </span>
+          {distinctSessions ? ` from ${distinctSessions} session${distinctSessions !== 1 ? "s" : ""}` : ""}
+          {" "}in context
+        </p>
+        <span className="text-gray-600 text-xs group-hover:text-gray-400 transition-colors ml-3 shrink-0">
+          {expanded ? "▲ hide" : "▼ show"}
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="flex flex-col gap-1.5 pt-1 border-t border-purple-900/30">
+          {decisions.length === 0 && (
+            <p className="text-xs text-gray-600 animate-pulse">Loading…</p>
+          )}
+          {decisions.map((d) => (
+            <Link
+              key={d.decision_id}
+              href={`/p/${projectId}/decisions/${d.decision_id}`}
+              className="group/item flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-purple-950/30 transition-colors"
+            >
+              <span className="text-purple-700 text-xs mt-0.5 shrink-0">→</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-300 group-hover/item:text-gray-100 transition-colors line-clamp-1">
+                  {d.summary}
+                </p>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  {d.event_source} · {relativeTime(d.valid_from)}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
