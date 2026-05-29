@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createHash } from "node:crypto";
 import { Redis } from "ioredis";
 import { v4 as uuidv4 } from "uuid";
 import { STREAMS } from "../lib/redis.js";
@@ -53,8 +54,23 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
     source,
   });
 
+  // Pre-assign decision IDs in JS so UNWIND can use them
+  const decisionsWithIds = result.decisions.map((d) => ({
+    decision_id: uuidv4(),
+    project_id: result.project_id,
+    event_id: result.event_id,
+    quoted_text: d.quoted_text,
+    summary: d.summary ?? "",
+    rationale: d.rationale ?? "",
+    alternatives_considered: d.alternatives_considered ?? [],
+    confidence: d.confidence,
+    codegen_prompt: d.codegen_prompt ?? null,
+    valid_from: result.timestamp,
+  }));
+
   const session = getSession();
   try {
+    // Query 1: Event node + AUTHORED_BY edge
     await session.run(
       `MERGE (e:Event {event_id: $event_id})
        SET e.source = $source,
@@ -85,52 +101,45 @@ async function writeToNeo4j(result: ExtractionResult): Promise<string> {
       }
     );
 
-    for (const ref of result.ticket_refs) {
+    // Query 2: All ticket refs in one UNWIND (no-op if empty)
+    if (result.ticket_refs.length > 0) {
       await session.run(
-        `MERGE (t:Ticket {ref: $ref})
+        `UNWIND $refs AS ref
+         MERGE (t:Ticket {ref: ref})
          ON CREATE SET t.project_id = $project_id
-         WITH t
+         WITH t, ref
          MATCH (e:Event {event_id: $event_id})
          MERGE (e)-[:REFERENCES]->(t)`,
-        { ref, project_id: result.project_id, event_id: result.event_id }
+        { refs: result.ticket_refs, project_id: result.project_id, event_id: result.event_id }
       );
     }
 
-    for (const decision of result.decisions) {
-      const decisionId = uuidv4();
+    // Query 3: All decisions in one UNWIND (no-op if empty)
+    if (decisionsWithIds.length > 0) {
       await session.run(
-        `MATCH (e:Event {event_id: $event_id})
+        `UNWIND $decisions AS dec
+         MATCH (e:Event {event_id: dec.event_id})
          CREATE (d:Decision {
-           decision_id: $decision_id,
-           project_id: $project_id,
-           event_id: $event_id,
-           quoted_text: $quoted_text,
-           summary: $summary,
-           rationale: $rationale,
-           alternatives_considered: $alternatives_considered,
-           confidence: $confidence,
-           codegen_prompt: $codegen_prompt,
+           decision_id: dec.decision_id,
+           project_id: dec.project_id,
+           event_id: dec.event_id,
+           quoted_text: dec.quoted_text,
+           summary: dec.summary,
+           rationale: dec.rationale,
+           alternatives_considered: dec.alternatives_considered,
+           confidence: dec.confidence,
+           codegen_prompt: dec.codegen_prompt,
            status: "confirmed",
-           valid_from: $valid_from,
+           valid_from: dec.valid_from,
            valid_to: null
          })
          CREATE (d)-[:EXTRACTED_FROM]->(e)`,
-        {
-          event_id: result.event_id,
-          project_id: result.project_id,
-          decision_id: decisionId,
-          quoted_text: decision.quoted_text,
-          summary: decision.summary ?? "",
-          rationale: decision.rationale ?? "",
-          alternatives_considered: decision.alternatives_considered ?? [],
-          confidence: decision.confidence,
-          codegen_prompt: decision.codegen_prompt ?? null,
-          valid_from: result.timestamp,
-        }
+        { decisions: decisionsWithIds }
       );
     }
 
-    if (result.decisions.length > 0 && result.ticket_refs.length > 0) {
+    // Query 4: INFORMS edges (only when both decisions and tickets exist)
+    if (decisionsWithIds.length > 0 && result.ticket_refs.length > 0) {
       await session.run(
         `MATCH (d:Decision)-[:EXTRACTED_FROM]->(e:Event {event_id: $event_id})
          MATCH (e)-[:REFERENCES]->(t:Ticket)
@@ -171,7 +180,13 @@ async function writeToQdrant(result: ExtractionResult, actorPersonId: string) {
   const source = inferSourceFromEventId(result.event_id);
 
   const points = allChunks.map((chunk, i) => ({
-    id: uuidv4(),
+    // Deterministic ID from project + content — re-ingesting identical content
+    // upserts the same point rather than bloating the collection with duplicates.
+    id: createHash("sha256")
+      .update(`${result.project_id}:${chunk.text}`)
+      .digest("hex")
+      .slice(0, 32)
+      .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5"),
     vector: vectors[i],
     payload: {
       chunk_id: chunk.id,

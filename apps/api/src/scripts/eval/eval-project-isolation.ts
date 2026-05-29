@@ -16,6 +16,10 @@
  *
  * Note: ingest endpoints require X-API-Key. If BRAIN_API_KEY is unset,
  * pipeline checks are skipped.
+ *
+ * LOAD-BEARING: this eval directly tests the multi-tenancy claim made in the
+ * README. Checks 4 and 6 (cross-project leak assertions) are the critical ones.
+ * If either fails, project_id isolation is broken and beta cannot open.
  */
 import "dotenv/config";
 

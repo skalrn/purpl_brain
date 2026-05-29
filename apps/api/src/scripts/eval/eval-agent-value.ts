@@ -119,6 +119,16 @@ function pct(n: number, d: number): string {
 // Five realistic decisions about a web API project, using real technology names
 // so they embed with meaningful vectors (fictional names score below the 0.55
 // cosine threshold in nomic-embed-text and won't be retrieved).
+//
+// KNOWN LIMITATION (EVAL-4 class): Several decisions below (JWT, Zod, RFC 7807)
+// are established best practices the base model may already prefer. The
+// brain-assisted condition can show inflated alignment because the model agrees
+// with the decisions from prior knowledge, not because the brain transmitted
+// novel information. To isolate brain value, decisions should be project-specific
+// choices the model has no prior reason to prefer (e.g. "use jose not
+// jsonwebtoken", a custom error field name, a non-default TTL). This eval
+// measures direction-of-effect correctly but may overstate magnitude on
+// well-known decisions. Run eval-agent-value-hono for the corpus-derived variant.
 
 const PRIOR_DECISIONS = [
   {

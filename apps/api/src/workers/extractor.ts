@@ -8,10 +8,11 @@ import type { CanonicalEvent, ExtractionResult, Decision } from "@purpl/types";
 const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 const writer = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
 
-// ── GitHub PR link-following (fixes 91% recall gap) ───────────────────────────
+// ── GitHub PR link-following ──────────────────────────────────────────────────
 // When a document (ADR, transcript) embeds GitHub PR URLs, those PR comment
 // threads are never ingested — only the doc text is. This causes missed
-// decisions that were hashed out in the linked PR discussion.
+// decisions that were hashed out in the linked PR discussion. Link-following
+// re-ingests the PR body + comment thread as a synthetic event.
 
 const GITHUB_API = "https://api.github.com";
 const LINKED_PR_SET = "brain:linked_pr_processed";
@@ -249,9 +250,8 @@ class Extractor extends StreamWorker {
     let decisions: Decision[] = [];
 
     // Follow embedded GitHub PR links in document events before LLM extraction.
-    // This is the fix for the 91% recall gap: ADRs reference PR discussions but
-    // those PRs were never ingested, so decisions in linked PR comment threads
-    // were invisible to the brain.
+    // ADRs reference PR discussions but those PRs were never ingested, so
+    // decisions in linked PR comment threads would be invisible to the brain.
     if (event.source === "document" || event.event_type === "document_chunk") {
       await fetchLinkedPRs(
         event.raw_content,
