@@ -54,13 +54,13 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
   // ── POST /brain/drift-alerts/:id/resolve ────────────────────────────────
   fastify.post<{
     Params: { id: string };
-    Body: { resolution: DriftResolution };
+    Body: { resolution: DriftResolution; resolution_reason?: string };
   }>(
     "/brain/drift-alerts/:id/resolve",
     { preHandler: requireApiKey },
     async (req, reply) => {
       const { id } = req.params;
-      const { resolution } = req.body;
+      const { resolution, resolution_reason } = req.body;
 
       // project_id is not in the URL so requireProjectMember cannot check it —
       // look it up and verify membership. Returns 404 for both not-found and
@@ -73,7 +73,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen" | "escalate", new Date().toISOString());
+        await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen" | "escalate", new Date().toISOString(), resolution_reason);
 
         // "reopen" means the decision is no longer valid — create a follow-up task
         // so the team has an actionable item to resolve the contradiction.

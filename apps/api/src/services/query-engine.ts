@@ -1,6 +1,6 @@
 import { embed } from "../lib/embed.js";
 import { qdrant, COLLECTION } from "../lib/qdrant.js";
-import { getSession } from "../lib/neo4j.js";
+import { getSession, countProjectDecisions } from "../lib/neo4j.js";
 import { chat, chatStream, MODELS, PROVIDER } from "../lib/llm.js";
 import { inferSourceFromEventId } from "../lib/event-source.js";
 import type { QueryRequest, QueryResponse, Citation } from "@purpl/types";
@@ -342,14 +342,21 @@ function buildCitations(answer: string, chunks: ContextChunk[]): { citations: Ci
 // ── Non-streaming (existing callers / MCP) ────────────────────────────────────
 
 export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
-  const prepared = await prepareContext(request);
+  const [prepared, corpusSize] = await Promise.all([
+    prepareContext(request),
+    countProjectDecisions(request.project_id),
+  ]);
 
   if (!prepared) {
+    const msg = corpusSize === 0
+      ? "The brain has no decisions yet for this project. Log your first decision to get started."
+      : "No decisions in the brain match this query. The brain has decisions on other topics — try rephrasing or ask about something that has been logged.";
     return {
-      answer: "No relevant information found in the brain for this project. Try ingesting more GitHub events first.",
+      answer: msg,
       citations: [],
       latency_ms: 0,
       citation_warning: false,
+      corpus_size: corpusSize,
     };
   }
 
@@ -367,32 +374,40 @@ export async function runQuery(request: QueryRequest): Promise<QueryResponse> {
   const answer = raw.replace(/\n+Sources:[\s\S]*$/i, "").trim();
   const { citations, citationWarning } = buildCitations(answer, chunks);
 
-  return { answer, citations, latency_ms: Date.now() - startMs, citation_warning: citationWarning };
+  return { answer, citations, latency_ms: Date.now() - startMs, citation_warning: citationWarning, corpus_size: corpusSize };
 }
 
 // ── Streaming — yields SSE-ready events ───────────────────────────────────────
 
 export type StreamEvent =
   | { type: "delta"; text: string }
-  | { type: "done"; answer: string; citations: Citation[]; citation_warning: boolean; latency_ms: number }
+  | { type: "done"; answer: string; citations: Citation[]; citation_warning: boolean; latency_ms: number; corpus_size: number }
   | { type: "error"; message: string };
 
 export async function* runQueryStream(request: QueryRequest): AsyncGenerator<StreamEvent> {
   let prepared: PreparedContext | null;
+  let corpusSize = 0;
   try {
-    prepared = await prepareContext(request);
+    [prepared, corpusSize] = await Promise.all([
+      prepareContext(request),
+      countProjectDecisions(request.project_id),
+    ]);
   } catch (e) {
     yield { type: "error", message: String(e) };
     return;
   }
 
   if (!prepared) {
+    const msg = corpusSize === 0
+      ? "The brain has no decisions yet for this project. Log your first decision to get started."
+      : "No decisions in the brain match this query. The brain has decisions on other topics — try rephrasing or ask about something that has been logged.";
     yield {
       type: "done",
-      answer: "No relevant information found in the brain for this project. Try ingesting more events first.",
+      answer: msg,
       citations: [],
       citation_warning: false,
       latency_ms: 0,
+      corpus_size: corpusSize,
     };
     return;
   }
@@ -428,5 +443,6 @@ export async function* runQueryStream(request: QueryRequest): AsyncGenerator<Str
     citations,
     citation_warning: citationWarning,
     latency_ms: Date.now() - startMs,
+    corpus_size: corpusSize,
   };
 }

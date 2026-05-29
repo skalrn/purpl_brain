@@ -10,6 +10,7 @@ import {
   relativeTime,
   type DecisionDriftAlert,
   type DecisionFollowUpTask,
+  type LineageNode,
 } from "../../../../lib/api";
 
 // ── Codegen prompt copy box ───────────────────────────────────────────────────
@@ -268,6 +269,16 @@ export default function DecisionDetailPage({
       {decision && (
         <div className="flex-1 px-6 py-6 max-w-3xl mx-auto w-full flex flex-col gap-8">
 
+          {/* Lineage timeline */}
+          {(decision.supersedes || decision.superseded_by) && (
+            <LineageTimeline
+              current={{ decision_id: decision.decision_id, summary: decision.summary, valid_from: decision.valid_from }}
+              supersedes={decision.supersedes}
+              supersededBy={decision.superseded_by}
+              projectId={decision.project_id}
+            />
+          )}
+
           {/* Decision header */}
           <section className="flex flex-col gap-4">
             <div className="flex items-center gap-2 flex-wrap">
@@ -416,6 +427,60 @@ export default function DecisionDetailPage({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function LineageTimeline({
+  current,
+  supersedes,
+  supersededBy,
+  projectId,
+}: {
+  current: LineageNode;
+  supersedes: LineageNode | null;
+  supersededBy: LineageNode | null;
+  projectId: string;
+}) {
+  const nodes = [
+    supersedes ? { ...supersedes, kind: "older" as const } : null,
+    { ...current, kind: "current" as const },
+    supersededBy ? { ...supersededBy, kind: "newer" as const } : null,
+  ].filter(Boolean) as Array<LineageNode & { kind: "older" | "current" | "newer" }>;
+
+  return (
+    <div className="border border-gray-800 rounded-xl px-4 py-3 bg-gray-900/40">
+      <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wide">Decision lineage</p>
+      <div className="flex items-start gap-0">
+        {nodes.map((node, i) => (
+          <div key={node.decision_id} className="flex items-start">
+            {i > 0 && (
+              <div className="flex items-center mt-2.5 mx-1">
+                <div className="w-6 h-px bg-gray-700" />
+                <span className="text-gray-600 text-xs">→</span>
+                <div className="w-1 h-px bg-gray-700" />
+              </div>
+            )}
+            <div className={`flex flex-col gap-1 max-w-48 ${node.kind === "current" ? "" : "opacity-60"}`}>
+              <div className={`w-2 h-2 rounded-full mx-auto ${
+                node.kind === "current" ? "bg-purple-500" :
+                node.kind === "older"   ? "bg-gray-600" : "bg-gray-500"
+              }`} />
+              {node.kind === "current" ? (
+                <p className="text-xs text-gray-200 text-center line-clamp-2">{node.summary}</p>
+              ) : (
+                <Link
+                  href={`/p/${projectId}/decisions/${node.decision_id}`}
+                  className="text-xs text-gray-400 hover:text-purple-300 text-center line-clamp-2 transition-colors"
+                >
+                  {node.summary}
+                </Link>
+              )}
+              <p className="text-xs text-gray-700 text-center">{relativeTime(node.valid_from)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

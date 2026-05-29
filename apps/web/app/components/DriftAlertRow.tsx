@@ -33,14 +33,18 @@ export default function DriftAlertRow({
   projectId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [resolvingWith, setResolvingWith] = useState<"keep" | "under_review" | null>(null);
+  const [reason, setReason] = useState("");
   const queryClient = useQueryClient();
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (resolution: "keep" | "under_review" | "reopen") =>
-      resolveDriftAlert(alert.alert_id, resolution),
-    onSuccess: (_, resolution) => {
+    mutationFn: ({ resolution, reason }: { resolution: "keep" | "under_review" | "reopen"; reason?: string }) =>
+      resolveDriftAlert(alert.alert_id, resolution, reason),
+    onSuccess: (_, { resolution }) => {
       toast.success(`Alert ${resolution === "keep" ? "kept" : resolution === "reopen" ? "reopened" : "marked under review"}`);
       queryClient.invalidateQueries({ queryKey: ["drift-alerts", projectId] });
+      setResolvingWith(null);
+      setReason("");
     },
     onError: () => toast.error("Failed to resolve alert"),
   });
@@ -111,30 +115,62 @@ export default function DriftAlertRow({
         </div>
       )}
 
-      {/* Action buttons — always visible */}
+      {/* Resolution reason input — shown when Keep or Under review is clicked */}
+      {resolvingWith && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            autoFocus
+            className="flex-1 rounded bg-gray-900 border border-gray-700 px-2.5 py-1 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-600"
+            placeholder={`Why are you ${resolvingWith === "keep" ? "keeping" : "deferring"} this? (optional)`}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") mutate({ resolution: resolvingWith, reason: reason.trim() || undefined });
+              if (e.key === "Escape") { setResolvingWith(null); setReason(""); }
+            }}
+          />
+          <button
+            onClick={() => mutate({ resolution: resolvingWith, reason: reason.trim() || undefined })}
+            disabled={isPending}
+            className="px-2.5 py-1 rounded-lg text-xs bg-purple-700 hover:bg-purple-600 text-white disabled:opacity-40 transition-colors"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={() => { setResolvingWith(null); setReason(""); }}
+            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {!resolvingWith && (
       <div className="flex items-center gap-2 mt-2">
         <button
-          onClick={() => mutate("keep")}
+          onClick={() => setResolvingWith("keep")}
           disabled={isPending}
           className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 disabled:opacity-40 transition-colors"
         >
           Keep
         </button>
         <button
-          onClick={() => mutate("under_review")}
+          onClick={() => setResolvingWith("under_review")}
           disabled={isPending}
           className="px-2.5 py-1 rounded-lg text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 disabled:opacity-40 transition-colors"
         >
           Under review
         </button>
         <button
-          onClick={() => mutate("reopen")}
+          onClick={() => mutate({ resolution: "reopen" })}
           disabled={isPending}
           className="px-2.5 py-1 rounded-lg text-xs bg-red-900/40 hover:bg-red-900/60 text-red-400 disabled:opacity-40 transition-colors border border-red-900"
         >
           Reopen
         </button>
       </div>
+      )}
     </div>
   );
 }

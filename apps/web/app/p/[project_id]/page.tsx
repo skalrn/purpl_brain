@@ -13,7 +13,7 @@ import DecisionFeed from "../../components/DecisionFeed";
 import ImpactAnalyzer from "../../components/ImpactAnalyzer";
 import IngestPanel from "../../components/IngestPanel";
 import { fetchProjects } from "../../lib/api";
-import SeedBrainBanner from "../../components/SeedBrainBanner";
+import OnboardingLoop from "../../components/OnboardingLoop";
 
 type Tab = "decisions" | "drift" | "sessions" | "tasks" | "impact" | "ingest";
 
@@ -87,11 +87,6 @@ export default function ProjectBrainView({
           )}
         </div>
 
-        {projectsLoaded && (project?.decision_count ?? 0) === 0 && (
-          <div className="mb-3">
-            <SeedBrainBanner projectId={projectId} />
-          </div>
-        )}
 
         {/* Tab bar */}
         <div className="flex items-center">
@@ -126,10 +121,34 @@ export default function ProjectBrainView({
         </div>
       </div>
 
+      {/* Onboarding loop — shown instead of tab content when brain is cold */}
+      {projectsLoaded && (project?.decision_count ?? 0) === 0 && (
+        <div className="px-6">
+          <OnboardingLoop projectId={projectId} />
+        </div>
+      )}
+
       {/* Tab content */}
+      {(!projectsLoaded || (project?.decision_count ?? 0) > 0) && (
       <div className="px-6 py-6 flex flex-col gap-6">
         {activeTab === "decisions" && (
           <>
+            {pendingDrift > 0 && (
+              <div className="border border-red-900/40 rounded-xl bg-red-950/10 px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-red-400 uppercase tracking-wide">
+                    {pendingDrift} drift alert{pendingDrift !== 1 ? "s" : ""} pending
+                  </span>
+                  <button
+                    onClick={() => selectTab("drift")}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    Triage all →
+                  </button>
+                </div>
+                <DriftInbox projectId={projectId} compact />
+              </div>
+            )}
             <DecisionFeed projectId={projectId} />
             <ChangelogSection projectId={projectId} />
           </>
@@ -145,6 +164,7 @@ export default function ProjectBrainView({
         {activeTab === "impact" && <ImpactAnalyzer projectId={projectId} />}
         {activeTab === "ingest" && <IngestPanel projectId={projectId} />}
       </div>
+      )}
     </div>
   );
 }

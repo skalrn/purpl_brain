@@ -33,6 +33,7 @@ export interface Project {
   last_session_agent_id: string | null;
   last_session_operator_name: string | null;
   last_session_work_summary: string | null;
+  active_sources: string[];
 }
 
 export interface ProjectsResponse {
@@ -153,6 +154,20 @@ export interface TasksResponse {
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 
+export interface QueryResult {
+  answer: string;
+  citations: Array<{ source_url?: string; quoted_text?: string }>;
+  corpus_size: number;
+  citation_warning: boolean;
+}
+
+export function apiBrainQuery(query: string, projectId: string): Promise<QueryResult> {
+  return apiFetch<QueryResult>("/brain/query", {
+    method: "POST",
+    body: JSON.stringify({ query, project_id: projectId }),
+  });
+}
+
 export function fetchProjects(since?: string): Promise<ProjectsResponse> {
   const qs = since ? `?since=${encodeURIComponent(since)}` : "";
   return apiFetch<ProjectsResponse>(`/brain/projects${qs}`);
@@ -165,11 +180,12 @@ export function fetchDriftAlerts(projectId?: string): Promise<DriftAlertsRespons
 
 export function resolveDriftAlert(
   alertId: string,
-  resolution: "keep" | "under_review" | "reopen" | "escalate"
+  resolution: "keep" | "under_review" | "reopen" | "escalate",
+  resolution_reason?: string
 ): Promise<{ ok: boolean }> {
   return apiFetch<{ ok: boolean }>(`/brain/drift-alerts/${alertId}/resolve`, {
     method: "POST",
-    body: JSON.stringify({ resolution }),
+    body: JSON.stringify({ resolution, resolution_reason }),
   });
 }
 
@@ -237,6 +253,12 @@ export interface DecisionFollowUpTask {
   codegen_prompt?: string | null;
 }
 
+export interface LineageNode {
+  decision_id: string;
+  summary: string;
+  valid_from: string;
+}
+
 export interface DecisionFull {
   decision_id: string;
   summary: string;
@@ -255,6 +277,8 @@ export interface DecisionFull {
   codegen_prompt?: string | null;
   drift_alerts: DecisionDriftAlert[];
   follow_up_tasks: DecisionFollowUpTask[];
+  supersedes: LineageNode | null;
+  superseded_by: LineageNode | null;
 }
 
 // ── Impact analysis ──────────────────────────────────────────────────────────

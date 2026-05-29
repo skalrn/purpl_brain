@@ -6,6 +6,15 @@ import { relativeTime } from "../lib/api";
 import DriftBadge from "./DriftBadge";
 import BrainHealthBadge from "./BrainHealthBadge";
 
+const SOURCE_LABELS: Record<string, { label: string; colour: string }> = {
+  agent:    { label: "Agent",   colour: "text-purple-400 border-purple-800/60" },
+  github:   { label: "GitHub",  colour: "text-blue-400 border-blue-800/60" },
+  slack:    { label: "Slack",   colour: "text-yellow-400 border-yellow-800/60" },
+  meeting:  { label: "Meeting", colour: "text-green-400 border-green-800/60" },
+  jira:     { label: "Jira",    colour: "text-cyan-400 border-cyan-800/60" },
+  document: { label: "Docs",    colour: "text-gray-400 border-gray-700/60" },
+};
+
 export default function ProjectCard({ project, windowLabel }: { project: Project; windowLabel: string }) {
   const {
     project_id,
@@ -19,9 +28,11 @@ export default function ProjectCard({ project, windowLabel }: { project: Project
     last_session_operator_name,
     last_session_work_summary,
     decision_count,
+    active_sources,
   } = project;
 
   const hasDelta = sessions_since > 0 || decisions_since > 0;
+  const isCold = decision_count === 0;
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-3 hover:border-gray-700 transition-colors">
@@ -41,8 +52,15 @@ export default function ProjectCard({ project, windowLabel }: { project: Project
         )}
       </div>
 
+      {/* Cold brain state */}
+      {isCold && (
+        <p className="text-xs text-gray-600 italic">
+          Brain is empty — <Link href={`/p/${encodeURIComponent(project_id)}`} className="text-purple-500 hover:text-purple-400">log the first decision →</Link>
+        </p>
+      )}
+
       {/* Last session line */}
-      {last_session_agent_id && (
+      {!isCold && last_session_agent_id && (
         <div className="text-xs text-gray-400 space-y-0.5">
           <p>
             Last session:{" "}
@@ -59,10 +77,31 @@ export default function ProjectCard({ project, windowLabel }: { project: Project
           {last_session_work_summary && (
             <p className="text-gray-500 truncate">
               &ldquo;{last_session_work_summary}&rdquo;
-              {decision_count > 0 && (
-                <span className="ml-1">· {decision_count} decision{decision_count !== 1 ? "s" : ""}</span>
-              )}
             </p>
+          )}
+        </div>
+      )}
+
+      {/* Brain health — total decisions + active sources */}
+      {!isCold && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500">
+            <span className="text-gray-300 font-medium">{decision_count}</span> decision{decision_count !== 1 ? "s" : ""}
+          </span>
+          {active_sources.length > 0 && (
+            <>
+              <span className="text-gray-700">·</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {active_sources.map((src) => {
+                  const s = SOURCE_LABELS[src] ?? { label: src, colour: "text-gray-400 border-gray-700/60" };
+                  return (
+                    <span key={src} className={`text-xs border rounded px-1.5 py-0.5 font-mono ${s.colour}`}>
+                      {s.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       )}

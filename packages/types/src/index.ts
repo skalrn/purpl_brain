@@ -156,6 +156,7 @@ export interface QueryResponse {
   citations: Citation[];
   latency_ms: number;
   citation_warning: boolean;
+  corpus_size: number; // total decisions in this project — 0 = cold brain, >0 = thin brain when no results
 }
 
 // Impact analysis

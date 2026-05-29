@@ -5,7 +5,7 @@ import { fetchDriftAlerts } from "../lib/api";
 import DriftBadge from "./DriftBadge";
 import DriftAlertRow from "./DriftAlertRow";
 
-export default function DriftInbox({ projectId }: { projectId: string }) {
+export default function DriftInbox({ projectId, compact = false }: { projectId: string; compact?: boolean }) {
   const { data, isLoading } = useQuery({
     queryKey: ["drift-alerts", projectId],
     queryFn: () => fetchDriftAlerts(projectId),
@@ -14,6 +14,17 @@ export default function DriftInbox({ projectId }: { projectId: string }) {
   });
 
   const alerts = data?.alerts ?? [];
+  const displayed = compact ? alerts.slice(0, 2) : alerts.slice(0, 50);
+
+  if (compact) {
+    return (
+      <div>
+        {displayed.map((alert) => (
+          <DriftAlertRow key={alert.alert_id} alert={alert} projectId={projectId} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <section>
@@ -33,7 +44,7 @@ export default function DriftInbox({ projectId }: { projectId: string }) {
           </div>
         )}
 
-        {alerts.slice(0, 50).map((alert) => (
+        {displayed.map((alert) => (
           <DriftAlertRow key={alert.alert_id} alert={alert} projectId={projectId} />
         ))}
       </div>

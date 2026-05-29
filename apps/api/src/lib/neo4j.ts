@@ -73,7 +73,8 @@ export async function writeDriftAlert(alert: DriftAlert): Promise<void> {
 export async function resolveDriftAlert(
   alert_id: string,
   resolution: "keep" | "under_review" | "reopen" | "escalate",
-  resolved_at: string
+  resolved_at: string,
+  resolution_reason?: string
 ): Promise<void> {
   // "escalate" moves a confirmation back to pending conflict for human review
   const storedResolution = resolution === "escalate" ? "pending" : resolution;
@@ -81,7 +82,9 @@ export async function resolveDriftAlert(
   try {
     await session.run(
       `MATCH (a:DriftAlert {alert_id: $alert_id})
-       SET a.resolution = $resolution, a.resolved_at = $resolved_at
+       SET a.resolution = $resolution,
+           a.resolved_at = $resolved_at,
+           a.resolution_reason = $resolution_reason
        WITH a
        MATCH (a)-[:CHALLENGES]->(d:Decision)
        SET d.status = CASE $resolution
@@ -89,7 +92,7 @@ export async function resolveDriftAlert(
          WHEN "reopen" THEN "changed"
          ELSE d.status
        END`,
-      { alert_id, resolution: storedResolution, resolved_at }
+      { alert_id, resolution: storedResolution, resolved_at, resolution_reason: resolution_reason ?? null }
     );
   } finally {
     await session.close();
@@ -627,6 +630,7 @@ export async function listProjectsForActor(personId: string, since?: string): Pr
   last_session_agent_id: string | null;
   last_session_operator_name: string | null;
   last_session_work_summary: string | null;
+  active_sources: string[];
 }>> {
   const session = getSession();
   const sinceTs = since ?? "1970-01-01T00:00:00.000Z";
@@ -654,14 +658,20 @@ export async function listProjectsForActor(personId: string, since?: string): Pr
        WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
             pending_drift_count, pending_tasks_count, sessions_since,
             count(DISTINCT ds) AS decisions_since
+       OPTIONAL MATCH (esrc:Event {project_id: pid})
+       WHERE esrc.timestamp >= $since
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            collect(DISTINCT esrc.source) AS active_sources
        OPTIONAL MATCH (latest_agent:Event {project_id: pid, source: "agent"})
        OPTIONAL MATCH (latest_agent)-[:AUTHORED_BY]->(latest_person:Person)
        WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
             pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
-            latest_agent, latest_person
+            active_sources, latest_agent, latest_person
        ORDER BY latest_agent.timestamp DESC
        WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
             pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            active_sources,
             head(collect(latest_person.name)) AS last_session_agent_id,
             head(collect(latest_agent.operator_name)) AS last_session_operator_name,
             head(collect(latest_agent.raw_content)) AS last_session_raw
@@ -674,6 +684,7 @@ export async function listProjectsForActor(personId: string, since?: string): Pr
               pending_tasks_count,
               sessions_since,
               decisions_since,
+              active_sources,
               last_session_agent_id,
               last_session_operator_name,
               last_session_raw
@@ -696,6 +707,7 @@ export async function listProjectsForActor(personId: string, since?: string): Pr
         last_session_agent_id:       (r.get("last_session_agent_id") as string | null) ?? null,
         last_session_operator_name:  (r.get("last_session_operator_name") as string | null) ?? null,
         last_session_work_summary:   workMatch ? workMatch[1].trim() : (raw ? raw.slice(0, 120) : null),
+        active_sources:              ((r.get("active_sources") as string[]) ?? []).filter(Boolean),
       };
     });
   } finally {
@@ -740,6 +752,7 @@ export async function listProjects(since?: string): Promise<Array<{
   last_session_agent_id: string | null;
   last_session_operator_name: string | null;
   last_session_work_summary: string | null;
+  active_sources: string[];
 }>> {
   const session = getSession();
   // Use epoch as sentinel when no since is provided — avoids conditional Cypher
@@ -767,14 +780,20 @@ export async function listProjects(since?: string): Promise<Array<{
        WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
             pending_drift_count, pending_tasks_count, sessions_since,
             count(DISTINCT ds) AS decisions_since
+       OPTIONAL MATCH (esrc:Event {project_id: pid})
+       WHERE esrc.timestamp >= $since
+       WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
+            pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            collect(DISTINCT esrc.source) AS active_sources
        OPTIONAL MATCH (latest_agent:Event {project_id: pid, source: "agent"})
        OPTIONAL MATCH (latest_agent)-[:AUTHORED_BY]->(latest_person:Person)
        WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
             pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
-            latest_agent, latest_person
+            active_sources, latest_agent, latest_person
        ORDER BY latest_agent.timestamp DESC
        WITH pid, event_count, last_event_at, decision_count, last_decision_logged_at,
             pending_drift_count, pending_tasks_count, sessions_since, decisions_since,
+            active_sources,
             head(collect(latest_person.name)) AS last_session_agent_id,
             head(collect(latest_agent.operator_name)) AS last_session_operator_name,
             head(collect(latest_agent.raw_content)) AS last_session_raw
@@ -787,6 +806,7 @@ export async function listProjects(since?: string): Promise<Array<{
               pending_tasks_count,
               sessions_since,
               decisions_since,
+              active_sources,
               last_session_agent_id,
               last_session_operator_name,
               last_session_raw
@@ -809,6 +829,7 @@ export async function listProjects(since?: string): Promise<Array<{
         last_session_agent_id:       (r.get("last_session_agent_id") as string | null) ?? null,
         last_session_operator_name:  (r.get("last_session_operator_name") as string | null) ?? null,
         last_session_work_summary:   workMatch ? workMatch[1].trim() : (raw ? raw.slice(0, 120) : null),
+        active_sources:              ((r.get("active_sources") as string[]) ?? []).filter(Boolean),
       };
     });
   } finally {
@@ -879,6 +900,19 @@ export async function listAgentSessions(projectId: string): Promise<Array<{
         work_summary:                workMatch ? workMatch[1].trim() : raw.slice(0, 120),
       };
     });
+  } finally {
+    await session.close();
+  }
+}
+
+export async function countProjectDecisions(projectId: string): Promise<number> {
+  const session = getSession();
+  try {
+    const result = await session.run(
+      `MATCH (d:Decision {project_id: $project_id}) RETURN count(d) AS n`,
+      { project_id: projectId }
+    );
+    return toNum(result.records[0]?.get("n") ?? 0);
   } finally {
     await session.close();
   }
@@ -1568,6 +1602,9 @@ export async function getDecisionDetail(decisionId: string): Promise<{
     status: string;
     created_at: string;
   }>;
+  // Lineage — what this decision replaced and what replaced it
+  supersedes: { decision_id: string; summary: string; valid_from: string } | null;
+  superseded_by: { decision_id: string; summary: string; valid_from: string } | null;
 } | null> {
   const session = getSession();
   try {
@@ -1576,7 +1613,9 @@ export async function getDecisionDetail(decisionId: string): Promise<{
        MATCH (e)-[:AUTHORED_BY]->(p:Person)
        OPTIONAL MATCH (a:DriftAlert)-[:CHALLENGES]->(d)
        OPTIONAL MATCH (t:FollowUpTask)-[:ADDRESSES]->(d)
-       WITH d, e, p,
+       OPTIONAL MATCH (d)-[:SUPERSEDES]->(older:Decision)
+       OPTIONAL MATCH (newer:Decision)-[:SUPERSEDES]->(d)
+       WITH d, e, p, older, newer,
             collect(DISTINCT {
               alert_id:   a.alert_id,
               source:     a.source,
@@ -1608,7 +1647,17 @@ export async function getDecisionDetail(decisionId: string): Promise<{
               e.operator_name        AS operator_name,
               e.project_id           AS project_id,
               raw_alerts,
-              raw_tasks`,
+              raw_tasks,
+              CASE WHEN older IS NOT NULL THEN {
+                decision_id: older.decision_id,
+                summary: older.summary,
+                valid_from: older.valid_from
+              } END AS supersedes,
+              CASE WHEN newer IS NOT NULL THEN {
+                decision_id: newer.decision_id,
+                summary: newer.summary,
+                valid_from: newer.valid_from
+              } END AS superseded_by`,
       { decision_id: decisionId }
     );
 
@@ -1640,6 +1689,8 @@ export async function getDecisionDetail(decisionId: string): Promise<{
       follow_up_tasks:         filterNull(r.get("raw_tasks") as Array<Record<string, unknown>>, "task_id") as Array<{
         task_id: string; title: string; description: string | null; status: string; created_at: string;
       }>,
+      supersedes:              (r.get("supersedes") as { decision_id: string; summary: string; valid_from: string } | null) ?? null,
+      superseded_by:           (r.get("superseded_by") as { decision_id: string; summary: string; valid_from: string } | null) ?? null,
     };
   } finally {
     await session.close();
