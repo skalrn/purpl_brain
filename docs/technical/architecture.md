@@ -223,7 +223,7 @@ See ADRs for rationale on key decisions.
 | API server | Node.js (Fastify) | TypeScript; monorepo with `apps/api` |
 | Vector store | Qdrant (self-hosted) | |
 | Graph database | Neo4j 5 Community | Uniqueness constraints on all primary keys |
-| Embedding model | `text-embedding-3-small` (OpenAI) via Anthropic-compatible endpoint | Evaluated in Phase 1 |
+| Embedding model | `nomic-embed-text:v1.5` (local, via Ollama) | See ADR-005; OpenAI embeddings evaluated and deferred |
 | LLM (query + extraction) | Claude Haiku 4.5 (extraction/intent), Claude Sonnet 4.6 (query answers) | Prompt caching on all calls; see llm-cost-controls.md |
 | Event queue | Redis 7 Streams (consumer groups, SIGTERM-safe workers) | `StreamWorker` base class in `apps/api/src/lib/stream-worker.ts` |
 | Workers | normalizer → extractor → brain-writer → drift-detector | All use `StreamWorker`; crash-safe Qdrant retry queue |
