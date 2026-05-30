@@ -27,6 +27,18 @@ echo ""
 echo -e "${YELLOW}GitHub and Slack are optional — connect them later.${RESET}"
 echo ""
 
+# ── Prerequisites check ───────────────────────────────────────────────────────
+if ! command -v node &>/dev/null; then
+  echo -e "${RED}❌  Node.js is not installed. Install v20+ from https://nodejs.org${RESET}"
+  exit 1
+fi
+NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
+if [[ "$NODE_MAJOR" -lt 20 ]]; then
+  echo -e "${RED}❌  Node.js 20+ is required (found: $(node --version)).${RESET}"
+  exit 1
+fi
+echo -e "${GREEN}✓ Node.js $(node --version)${RESET}"
+
 # ── Docker check ──────────────────────────────────────────────────────────────
 if ! docker info &>/dev/null; then
   echo -e "${RED}❌  Docker is not running. Start Docker Desktop and re-run.${RESET}"
@@ -164,6 +176,17 @@ BRAIN_API_KEY=${API_KEY}
 BRAIN_AGENT_ID=claude-code
 MCPEOF
 echo -e "${GREEN}✓ Written apps/mcp/.env${RESET}"
+
+# ── Write root .env for docker-compose variable substitution ──────────────────
+# NEO4J_AUTH must match between this file (neo4j container init) and apps/api/.env
+# (API connection). Missing this file causes Neo4j to start with the wrong password.
+cat > ".env" << ROOTENV
+OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+DRIFT_SEMANTIC_THRESHOLD=0.55
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEO4J_AUTH=neo4j/${NEO4J_PASSWORD_GEN}
+ROOTENV
+echo -e "${GREEN}✓ Written .env${RESET}"
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 echo ""

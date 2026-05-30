@@ -1551,7 +1551,8 @@ export async function listDecisions(projectId: string, limit = 50): Promise<Arra
               e.operator_name AS operator_name,
               e.event_id AS event_id,
               coalesce(e.source, 'agent') AS event_source,
-              (older_d IS NOT NULL OR newer_d IS NOT NULL) AS has_lineage
+              (older_d IS NOT NULL OR newer_d IS NOT NULL OR
+               EXISTS { MATCH (:DriftAlert {resolution: "pending"})-[:CHALLENGES]->(d) }) AS has_lineage
        ORDER BY valid_from DESC
        LIMIT $limit`,
       { project_id: projectId, limit: neo4j.int(limit) }

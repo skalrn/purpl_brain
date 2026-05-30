@@ -215,54 +215,65 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## First 10 minutes
 
-After `setup.sh` completes, open **http://localhost:3000** and follow the three-step onboarding loop.
+After `setup.sh` completes, verify the core loop: log a decision, wait for the pipeline, query it back with a cited answer.
 
-### Step 1 — Log a decision (~30 seconds)
-
-Fill in two fields: **What was decided?** and **Why?** Click **Log decision →**.
-
-Example: `Use Redis for session cache, not Memcached` — `Redis supports TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.`
-
-### Step 2 — Wait for the pipeline
-
-The decision flows through: normalizer → extractor → brain-writer → Qdrant + Neo4j. The UI polls automatically and unlocks step 3 when the decision is queryable.
-
-> **Ollama:** ~90 seconds on the default local path. Switch to `LLM_PROVIDER=anthropic` for ~15s.
-
-### Step 3 — Ask the brain about it
-
-A query is pre-filled based on what you logged. Submit it. You should see a prose answer with citations, a source card showing author and timestamp, and `corpus_size: 1` confirming the brain indexed it.
-
-This is the core loop: **log once, recall from any future session with a cited answer.** From here, every agent session that calls `brain_query` on startup loads this context instead of starting cold.
-
-### Verify via curl
+### Option A — single command (fastest)
 
 ```bash
-# Log a decision
-curl -X POST http://localhost:3001/brain/agent-log \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: <your-key>" \
-  -d '{
-    "session_id": "first-test",
-    "project_id": "<your-project-id>",
-    "agent_id": "me",
-    "work_completed": "Chose Redis over Memcached for session cache",
-    "decisions": [{
-      "id": "session-cache",
-      "description": "Use Redis for session cache, not Memcached",
-      "rationale": "TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.",
-      "alternatives_considered": ["Memcached", "in-memory LRU"],
-      "confidence": "high"
-    }]
-  }'
+# API key was printed by setup.sh and is also in apps/mcp/.env:
+API_KEY=$(grep BRAIN_API_KEY apps/mcp/.env | cut -d= -f2)
 
-# Wait ~90s (Ollama) or ~15s (Anthropic), then query
+BRAIN_API_KEY=$API_KEY npm run demo:agent-memory -w apps/api
+```
+
+This logs a realistic JWT library decision, waits for the pipeline, queries it back, and prints `PASS` when the cited answer comes through. On Ollama the pipeline takes ~60–90s; on Anthropic ~15s.
+
+### Option B — web UI
+
+Open **http://localhost:3000** and follow the three-step onboarding loop.
+
+**Step 1 — Log a decision (~30 seconds).** Fill in **What was decided?** and **Why?** Click **Log decision →**.
+
+Example: `Use Redis for session cache, not Memcached` / `Redis supports TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.`
+
+**Step 2 — Wait for the pipeline.** The decision flows normalizer → extractor → brain-writer → Qdrant + Neo4j. The UI polls automatically and unlocks step 3 when queryable. Ollama: ~60–90s. Anthropic: ~15s.
+
+**Step 3 — Ask the brain.** A query is pre-filled. Submit it. You should see a prose answer with citations, a source card, and `corpus_size: 1`.
+
+### Option C — curl
+
+```bash
+# Pull your key and project ID from the generated files — no hunting required:
+API_KEY=$(grep BRAIN_API_KEY apps/mcp/.env | cut -d= -f2)
+PROJECT=$(grep DEFAULT_PROJECT_ID apps/api/.env | cut -d= -f2)
+
+# Log a decision
+curl -s -X POST http://localhost:3001/brain/agent-log \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d "{
+    \"session_id\": \"first-test\",
+    \"project_id\": \"$PROJECT\",
+    \"agent_id\": \"me\",
+    \"work_completed\": \"Chose Redis over Memcached for session cache\",
+    \"decisions\": [{
+      \"id\": \"session-cache\",
+      \"description\": \"Use Redis for session cache, not Memcached\",
+      \"rationale\": \"TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.\",
+      \"alternatives_considered\": [\"Memcached\", \"in-memory LRU\"],
+      \"confidence\": \"high\"
+    }]
+  }"
+
+# Wait ~60–90s (Ollama) or ~15s (Anthropic) for the pipeline, then:
 curl -s -X POST http://localhost:3001/brain/query \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: <your-key>" \
-  -d '{"query": "what was decided about the cache layer?", "project_id": "<your-project-id>"}' \
+  -H "X-API-Key: $API_KEY" \
+  -d "{\"query\": \"what was decided about the cache layer?\", \"project_id\": \"$PROJECT\"}" \
   | python3 -m json.tool
 ```
+
+A response with `citations` and `answer` text is the core loop working. If `citations` is empty, the pipeline is still processing — wait 30s and retry.
 
 ---
 
@@ -299,6 +310,67 @@ Paste into `~/.claude/settings.json`:
 Add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
 
 > **Note:** The example hook scripts in `.claude/hooks/` use `skalrn_purpl_brain` as the project ID. Change `PROJECT_ID` at the top of each script to match your own project. Running `setup.sh` does this automatically.
+
+---
+
+## Orchestration agents (REST API)
+
+If you control the orchestration layer — LangGraph, CrewAI, a CI bot, a Python script — use the REST API directly. The agent never needs to know about purpl-brain; brain calls are explicit nodes in your workflow.
+
+**The pattern:**
+
+```
+before dispatch:    GET context → POST /brain/query    (inject into agent prompt)
+after completion:   extract decisions → POST /brain/agent-log
+before big change:  POST /brain/query  { mode: "impact" }  (optional hard gate)
+```
+
+**Minimal Python:**
+
+```python
+import httpx, uuid
+
+BRAIN = "http://localhost:3001"
+KEY   = "your-api-key"           # from apps/mcp/.env: BRAIN_API_KEY
+PROJECT = "your_project"         # from apps/api/.env: DEFAULT_PROJECT_ID
+
+def brain_query(task: str) -> str:
+    try:
+        r = httpx.post(f"{BRAIN}/brain/query",
+                       headers={"X-API-Key": KEY},
+                       json={"query": task, "project_id": PROJECT},
+                       timeout=60)
+        return r.json().get("answer", "") if r.is_success else ""
+    except Exception:
+        return ""   # brain unavailable — proceed without context
+
+def brain_log(task: str, decisions: list[dict]) -> None:
+    try:
+        httpx.post(f"{BRAIN}/brain/agent-log",
+                   headers={"X-API-Key": KEY},
+                   json={"session_id": f"agent-{uuid.uuid4().hex[:8]}",
+                         "project_id": PROJECT,
+                         "agent_id": "my-agent",
+                         "work_completed": task[:200],
+                         "decisions": decisions},
+                   timeout=30)
+    except Exception:
+        pass    # log failure is non-fatal
+
+def run_task(task: str) -> str:
+    context = brain_query(task)
+    prompt = f"Prior decisions:\n{context}\n\n---\n\n{task}" if context else task
+    result = call_llm(prompt)                      # your LLM call here
+    brain_log(task, extract_decisions(result))     # your decision extraction here
+    return result
+```
+
+**Key rules:**
+- Use the task description as the query — not a generic "recent decisions". Specific queries return what matters; broad queries flood context.
+- Log immediately after each task, not just at session end. A decision lost when a session crashes is unrecoverable.
+- Never raise on brain failure. The brain enhances context; it is not a dependency.
+
+For LangGraph nodes, a CI PR review pattern, and the full REST reference: **[docs/technical/orchestration-guide.md](docs/technical/orchestration-guide.md)**.
 
 ---
 

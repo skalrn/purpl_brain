@@ -7,7 +7,6 @@ import Changelog from "../../components/Changelog";
 import DriftInbox from "../../components/DriftInbox";
 import SessionList from "../../components/SessionList";
 import BrainHealthBadge from "../../components/BrainHealthBadge";
-import DriftGraph from "../../components/DriftGraph";
 import TasksPanel from "../../components/TasksPanel";
 import DecisionFeed from "../../components/DecisionFeed";
 import ImpactAnalyzer from "../../components/ImpactAnalyzer";
@@ -154,10 +153,7 @@ export default function ProjectBrainView({
           </>
         )}
         {activeTab === "drift" && (
-          <>
-            <DriftInbox projectId={projectId} />
-            <DriftGraph projectId={projectId} />
-          </>
+          <DriftInbox projectId={projectId} />
         )}
         {activeTab === "sessions" && <SessionList projectId={projectId} />}
         {activeTab === "tasks" && <TasksPanel projectId={projectId} />}

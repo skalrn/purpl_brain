@@ -136,8 +136,8 @@ if change_is_significant:
 import httpx, uuid
 
 BRAIN_URL = "http://localhost:3001"
-BRAIN_KEY = "your-api-key"
-PROJECT_ID = "your_project"
+BRAIN_KEY = "your-api-key"   # grep BRAIN_API_KEY apps/mcp/.env | cut -d= -f2
+PROJECT_ID = "your_project"  # grep DEFAULT_PROJECT_ID apps/api/.env | cut -d= -f2
 
 headers = {"X-API-Key": BRAIN_KEY, "Content-Type": "application/json"}
 
