@@ -74,7 +74,8 @@ export async function resolveDriftAlert(
   alert_id: string,
   resolution: "keep" | "under_review" | "reopen" | "escalate",
   resolved_at: string,
-  resolution_reason?: string
+  resolution_reason?: string,
+  resolved_by?: string
 ): Promise<void> {
   // "escalate" moves a confirmation back to pending conflict for human review
   const storedResolution = resolution === "escalate" ? "pending" : resolution;
@@ -84,7 +85,8 @@ export async function resolveDriftAlert(
       `MATCH (a:DriftAlert {alert_id: $alert_id})
        SET a.resolution = $resolution,
            a.resolved_at = $resolved_at,
-           a.resolution_reason = $resolution_reason
+           a.resolution_reason = $resolution_reason,
+           a.resolved_by = $resolved_by
        WITH a
        MATCH (a)-[:CHALLENGES]->(d:Decision)
        SET d.status = CASE $resolution
@@ -92,7 +94,13 @@ export async function resolveDriftAlert(
          WHEN "reopen" THEN "changed"
          ELSE d.status
        END`,
-      { alert_id, resolution: storedResolution, resolved_at, resolution_reason: resolution_reason ?? null }
+      {
+        alert_id,
+        resolution: storedResolution,
+        resolved_at,
+        resolution_reason: resolution_reason ?? null,
+        resolved_by: resolved_by ?? null,
+      }
     );
   } finally {
     await session.close();
@@ -168,15 +176,22 @@ export async function getDecisionsByEventIds(eventIds: string[]): Promise<Array<
  */
 export async function writeSupersedesEdge(
   newerDecisionId: string,
-  olderDecisionId: string
+  olderDecisionId: string,
+  reasoning?: string
 ): Promise<void> {
   const session = getSession();
   try {
     await session.run(
       `MATCH (newer:Decision {decision_id: $newer_id})
        MATCH (older:Decision {decision_id: $older_id})
-       MERGE (newer)-[:SUPERSEDES]->(older)`,
-      { newer_id: newerDecisionId, older_id: olderDecisionId }
+       MERGE (newer)-[r:SUPERSEDES]->(older)
+       ON CREATE SET r.reasoning = $reasoning, r.created_at = $now`,
+      {
+        newer_id: newerDecisionId,
+        older_id: olderDecisionId,
+        reasoning: reasoning ?? null,
+        now: new Date().toISOString(),
+      }
     );
   } finally {
     await session.close();
@@ -1587,6 +1602,7 @@ export async function getDecisionChain(decisionId: string): Promise<Array<{
   valid_from: string;
   confidence: string;
   status: string;
+  supersedes_reasoning: string | null;
   drift_alerts: Array<{
     alert_id: string;
     reason: string | null;
@@ -1609,8 +1625,9 @@ export async function getDecisionChain(decisionId: string): Promise<Array<{
        WITH older_chain + [target] + newer_chain AS chain
        UNWIND chain AS d
        WITH DISTINCT d
+       OPTIONAL MATCH (d)-[sr:SUPERSEDES]->(prev_d:Decision)
        OPTIONAL MATCH (a:DriftAlert)-[:CHALLENGES]->(d)
-       WITH d, collect(DISTINCT CASE WHEN a.alert_id IS NOT NULL THEN {
+       WITH d, sr, collect(DISTINCT CASE WHEN a.alert_id IS NOT NULL THEN {
          alert_id:          a.alert_id,
          reason:            a.reason,
          content:           a.content,
@@ -1625,17 +1642,19 @@ export async function getDecisionChain(decisionId: string): Promise<Array<{
               d.valid_from AS valid_from,
               coalesce(d.confidence, 'medium') AS confidence,
               coalesce(d.status, 'confirmed') AS status,
+              sr.reasoning AS supersedes_reasoning,
               raw_alerts
        ORDER BY d.valid_from ASC`,
       { decision_id: decisionId }
     );
     return result.records.map((r) => ({
-      decision_id: r.get("decision_id") as string,
-      summary:     (r.get("summary") as string) ?? "",
-      rationale:   (r.get("rationale") as string | null) ?? null,
-      valid_from:  r.get("valid_from") as string,
-      confidence:  (r.get("confidence") as string) ?? "medium",
-      status:      (r.get("status") as string) ?? "confirmed",
+      decision_id:          r.get("decision_id") as string,
+      summary:              (r.get("summary") as string) ?? "",
+      rationale:            (r.get("rationale") as string | null) ?? null,
+      valid_from:           r.get("valid_from") as string,
+      confidence:           (r.get("confidence") as string) ?? "medium",
+      status:               (r.get("status") as string) ?? "confirmed",
+      supersedes_reasoning: (r.get("supersedes_reasoning") as string | null) ?? null,
       drift_alerts: ((r.get("raw_alerts") as Array<Record<string, unknown>>) ?? [])
         .filter((a) => a && a.alert_id != null)
         .map((a) => ({
@@ -1688,8 +1707,8 @@ export async function getDecisionDetail(decisionId: string): Promise<{
     created_at: string;
   }>;
   // Lineage — what this decision replaced and what replaced it
-  supersedes: { decision_id: string; summary: string; valid_from: string } | null;
-  superseded_by: { decision_id: string; summary: string; valid_from: string } | null;
+  supersedes: { decision_id: string; summary: string; valid_from: string; reasoning: string | null } | null;
+  superseded_by: { decision_id: string; summary: string; valid_from: string; reasoning: string | null } | null;
 } | null> {
   const session = getSession();
   try {
@@ -1698,8 +1717,8 @@ export async function getDecisionDetail(decisionId: string): Promise<{
        MATCH (e)-[:AUTHORED_BY]->(p:Person)
        OPTIONAL MATCH (a:DriftAlert)-[:CHALLENGES]->(d)
        OPTIONAL MATCH (t:FollowUpTask)-[:ADDRESSES]->(d)
-       OPTIONAL MATCH (d)-[:SUPERSEDES]->(older:Decision)
-       OPTIONAL MATCH (newer:Decision)-[:SUPERSEDES]->(d)
+       OPTIONAL MATCH (d)-[sr:SUPERSEDES]->(older:Decision)
+       OPTIONAL MATCH (newer:Decision)-[sn:SUPERSEDES]->(d)
        WITH d, e, p, older, newer,
             collect(DISTINCT {
               alert_id:   a.alert_id,
@@ -1736,12 +1755,14 @@ export async function getDecisionDetail(decisionId: string): Promise<{
               CASE WHEN older IS NOT NULL THEN {
                 decision_id: older.decision_id,
                 summary: older.summary,
-                valid_from: older.valid_from
+                valid_from: older.valid_from,
+                reasoning: sr.reasoning
               } END AS supersedes,
               CASE WHEN newer IS NOT NULL THEN {
                 decision_id: newer.decision_id,
                 summary: newer.summary,
-                valid_from: newer.valid_from
+                valid_from: newer.valid_from,
+                reasoning: sn.reasoning
               } END AS superseded_by`,
       { decision_id: decisionId }
     );
@@ -1774,8 +1795,8 @@ export async function getDecisionDetail(decisionId: string): Promise<{
       follow_up_tasks:         filterNull(r.get("raw_tasks") as Array<Record<string, unknown>>, "task_id") as Array<{
         task_id: string; title: string; description: string | null; status: string; created_at: string;
       }>,
-      supersedes:              (r.get("supersedes") as { decision_id: string; summary: string; valid_from: string } | null) ?? null,
-      superseded_by:           (r.get("superseded_by") as { decision_id: string; summary: string; valid_from: string } | null) ?? null,
+      supersedes:              (r.get("supersedes") as { decision_id: string; summary: string; valid_from: string; reasoning: string | null } | null) ?? null,
+      superseded_by:           (r.get("superseded_by") as { decision_id: string; summary: string; valid_from: string; reasoning: string | null } | null) ?? null,
     };
   } finally {
     await session.close();

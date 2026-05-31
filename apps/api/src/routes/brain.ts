@@ -73,7 +73,7 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen" | "escalate", new Date().toISOString(), resolution_reason);
+        await resolveDriftAlert(id, resolution as "keep" | "under_review" | "reopen" | "escalate", new Date().toISOString(), resolution_reason, req.actor?.person_id ?? undefined);
 
         // "reopen" means the decision is no longer valid — create a follow-up task
         // so the team has an actionable item to resolve the contradiction.

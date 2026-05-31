@@ -58,7 +58,7 @@ export interface CanonicalEvent {
 
 // Drift detection
 
-export type DriftResolution = "pending" | "keep" | "under_review" | "reopen" | "confirms";
+export type DriftResolution = "pending" | "keep" | "under_review" | "reopen" | "confirms" | "escalate" | "superseded";
 
 export interface DriftAlert {
   alert_id: string;

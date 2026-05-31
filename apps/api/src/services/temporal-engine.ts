@@ -185,7 +185,7 @@ interface SupersedesConfirmation {
 async function confirmSupersession(
   newer: DecisionRow,
   candidates: Array<PriorMatch & { rationale?: string }>
-): Promise<PriorMatch | null> {
+): Promise<{ prior: PriorMatch; reasoning: string } | null> {
   if (candidates.length === 0) return null;
 
   const candidatesBlock = candidates
@@ -220,7 +220,9 @@ Does the newer decision supersede any of these?`;
     );
 
     if (!result.superseded_id) return null;
-    return candidates.find((c) => c.decision_id === result.superseded_id) ?? null;
+    const prior = candidates.find((c) => c.decision_id === result.superseded_id);
+    if (!prior) return null;
+    return { prior, reasoning: result.reasoning };
   } catch (e) {
     console.error("[temporal-engine] stage-C confirmation failed:", e);
     return null;
@@ -296,7 +298,7 @@ async function fetchPriorDecisions(
 async function findPriorVersion(
   projectId: string,
   decision: DecisionRow
-): Promise<PriorMatch | null> {
+): Promise<(PriorMatch & { reasoning: string }) | null> {
   // Stage A: get candidates — prefer Neo4j direct query for small corpora
   let candidates: Array<PriorMatch & { rationale?: string }>;
 
@@ -385,7 +387,9 @@ async function findPriorVersion(
   if (candidates.length === 0) return null;
 
   // Stage C: LLM confirms which candidate (if any) is actually superseded
-  return confirmSupersession(decision, candidates);
+  const confirmed = await confirmSupersession(decision, candidates);
+  if (!confirmed) return null;
+  return { ...confirmed.prior, reasoning: confirmed.reasoning };
 }
 
 function formatDelta(entries: ChangelogEntry[]): string {
@@ -451,7 +455,7 @@ export async function runTemporalQuery(
     if (prior) {
       // Persist supersession and reconcile stale drift alerts — best-effort
       await Promise.all([
-        writeSupersedesEdge(d.decision_id, prior.decision_id),
+        writeSupersedesEdge(d.decision_id, prior.decision_id, prior.reasoning),
         resolveAlertsForSupersededDecision(prior.decision_id),
       ]).catch((err) =>
         console.error("[temporal-engine] supersedes write failed:", err)
