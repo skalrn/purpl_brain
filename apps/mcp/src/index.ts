@@ -20,6 +20,7 @@
  *   BRAIN_AGENT_ID  — identifier written into agent-log entries (default: claude-code)
  *   MCP_TRANSPORT   — "stdio" (default) | "http"
  *   MCP_PORT        — port for HTTP transport (default: 3002)
+ *   MCP_BIND_HOST   — bind address for HTTP transport (default: 127.0.0.1; use 0.0.0.0 in Docker)
  */
 import "dotenv/config";
 import { randomUUID } from "crypto";
@@ -243,7 +244,20 @@ function buildServer(): McpServer {
         query: change_description,
       });
 
+      // Deterministic verdict — gives agents a machine-readable action without
+      // requiring them to reason over the full report.
+      const VERDICT_MAP: Record<string, { recommended_action: string; one_line: string }> = {
+        critical: { recommended_action: "BLOCK",       one_line: "Stop — this change directly breaks an existing architectural decision." },
+        high:     { recommended_action: "BLOCK",       one_line: "High risk — significant rework likely; consult team before proceeding." },
+        medium:   { recommended_action: "FLAG",        one_line: "Medium risk — possible friction; log acknowledgment and proceed carefully." },
+        low:      { recommended_action: response.affected_decisions.length > 0 ? "ACKNOWLEDGE" : "LOG_CLEAN", one_line: response.affected_decisions.length > 0 ? "Low risk — review affected decisions before proceeding." : "No conflicts found — safe to proceed." },
+      };
+      const verdict = VERDICT_MAP[response.overall_risk] ?? VERDICT_MAP["low"];
+
       const lines: string[] = [
+        `## VERDICT: ${verdict.recommended_action}`,
+        `> ${verdict.one_line}`,
+        "",
         `## Impact Analysis — ${response.overall_risk.toUpperCase()} risk`,
         "",
         response.summary,
@@ -429,8 +443,9 @@ if (process.env.MCP_TRANSPORT === "http") {
     }
   });
 
-  httpServer.listen(port, "127.0.0.1", () => {
-    console.log(`[purpl-brain-mcp] Streamable HTTP transport on 127.0.0.1:${port}`);
+  const bindHost = process.env.MCP_BIND_HOST ?? "127.0.0.1";
+  httpServer.listen(port, bindHost, () => {
+    console.log(`[purpl-brain-mcp] Streamable HTTP transport on ${bindHost}:${port}`);
     console.log(`[purpl-brain-mcp] Brain API: ${API_URL}`);
     console.log(`[purpl-brain-mcp] Endpoint: http://localhost:${port}/mcp`);
   });

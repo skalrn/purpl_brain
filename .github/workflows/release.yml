@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain-api
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain
 
 jobs:
   build-and-push:

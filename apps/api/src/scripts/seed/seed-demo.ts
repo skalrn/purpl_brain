@@ -109,6 +109,54 @@ async function seedAll() {
     process.exit(1);
   }
 
+  // Verify Ollama is reachable — always required for embeddings regardless of LLM provider.
+  // When LLM_PROVIDER=anthropic, only the embed model is needed from Ollama.
+  const LLM_PROVIDER = process.env.LLM_PROVIDER ?? "ollama";
+  const ollamaBase   = (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1").replace(/\/v1\/?$/, "");
+  const embedModel   = process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text:v1.5";
+  const fastModel    = process.env.OLLAMA_FAST_MODEL  ?? "qwen2.5:7b";
+  const smartModel   = process.env.OLLAMA_SMART_MODEL ?? "llama3.1:8b";
+  const required     = LLM_PROVIDER === "anthropic"
+    ? [embedModel]
+    : [...new Set([embedModel, fastModel, smartModel])];
+
+  let available: Set<string>;
+  try {
+    const res = await fetch(`${ollamaBase}/api/tags`);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const body = await res.json() as { models: Array<{ name: string }> };
+    available = new Set(body.models.map((m) => m.name));
+  } catch {
+    console.error("  ERROR  Cannot reach Ollama at", ollamaBase);
+    if (LLM_PROVIDER === "anthropic") {
+      console.error("         Ollama is required for embeddings even when using Anthropic.");
+      console.error("         Install from https://ollama.ai, start it, then:\n");
+      console.error(`           ollama pull ${embedModel}`);
+    } else {
+      console.error("         Install from https://ollama.ai and start it, then pull:\n");
+      for (const m of required) console.error(`           ollama pull ${m}`);
+    }
+    console.error("\n         Then re-run: docker compose -f docker-compose.demo.yml up\n");
+    process.exit(1);
+  }
+
+  const missing = required.filter((m) => !available.has(m) && !available.has(m.split(":")[0]));
+  if (missing.length > 0) {
+    console.error("  ERROR  Missing Ollama models. Pull them first:\n");
+    for (const m of missing) console.error(`           ollama pull ${m}`);
+    console.error("\n         Then re-run: docker compose -f docker-compose.demo.yml up\n");
+    process.exit(1);
+  }
+
+  console.log(`  Ollama    : ${ollamaBase} ✓`);
+  console.log(`  Models    : ${required.join(", ")} ✓`);
+  if (LLM_PROVIDER !== "anthropic") {
+    console.log(`  Note      : queries take ~14s on Ollama. For ~2s responses:`);
+    console.log(`              ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic \\`);
+    console.log(`              docker compose -f docker-compose.demo.yml up`);
+  }
+  console.log("");
+
   // ── 1. ADR document (8 weeks ago) ─────────────────────────────────────────
   console.log("  [1/8] ADR-001: Checkout and Cart Architecture");
 
@@ -594,6 +642,19 @@ in 2 weeks specifically about this scenario. Feels like the right time.`,
   console.log("  1. Early preparation email contradicts 'email only after both confirmed'");
   console.log("  2. Partial refund PR contradicts 'full refunds only in v1'");
   console.log("  3. Aria's Apple Pay session contradicts 'wallet payments out of scope for v1'");
+
+  console.log("\n  ── Connect Claude Code ──────────────────────────────────────\n");
+  console.log("  Add to ~/.claude/settings.json:\n");
+  console.log('  {');
+  console.log('    "mcpServers": {');
+  console.log('      "purpl-brain": {');
+  console.log('        "url": "http://localhost:3002/mcp"');
+  console.log('      }');
+  console.log('    }');
+  console.log('  }\n');
+  console.log("  Then open any Claude Code session — brain_query, brain_log_decision,");
+  console.log("  brain_analyze_impact, and brain_log_signal are available as tools.");
+  console.log("  Start with: brain_query 'What did we decide about refunds?' project_id=orion_commerce");
   console.log("\n─────────────────────────────────────────────────────────────────\n");
 }
 

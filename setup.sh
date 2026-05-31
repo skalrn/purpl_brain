@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+# Resolve script directory so paths are correct regardless of where the script is invoked from
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
@@ -27,6 +31,12 @@ echo ""
 echo -e "${YELLOW}GitHub and Slack are optional — connect them later.${RESET}"
 echo ""
 
+# ── Repo root check ──────────────────────────────────────────────────────────
+if [[ ! -f "apps/api/package.json" ]]; then
+  echo -e "${RED}❌  Run this script from the purpl_brain repo root.${RESET}"
+  exit 1
+fi
+
 # ── Prerequisites check ───────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
   echo -e "${RED}❌  Node.js is not installed. Install v20+ from https://nodejs.org${RESET}"
@@ -45,6 +55,13 @@ if ! docker info &>/dev/null; then
   exit 1
 fi
 echo -e "${GREEN}✓ Docker is running${RESET}"
+
+if ! docker compose version &>/dev/null; then
+  echo -e "${RED}❌  Docker Compose V2 is required. Update Docker Desktop or install the compose plugin.${RESET}"
+  echo "    See: https://docs.docker.com/compose/install/"
+  exit 1
+fi
+echo -e "${GREEN}✓ Docker Compose V2${RESET}"
 
 # ── LLM provider ─────────────────────────────────────────────────────────────
 echo ""
@@ -191,7 +208,7 @@ echo -e "${GREEN}✓ Written .env${RESET}"
 # ── Install dependencies ──────────────────────────────────────────────────────
 echo ""
 echo -e "${YELLOW}── Installing dependencies ──────────────────────────────${RESET}"
-npm install --silent
+npm install
 echo -e "${GREEN}✓ Dependencies installed${RESET}"
 
 # ── Build MCP server ──────────────────────────────────────────────────────────
@@ -205,7 +222,11 @@ echo -e "${GREEN}✓ MCP server built at apps/mcp/dist/index.js${RESET}"
 echo ""
 echo -e "${YELLOW}── Starting infrastructure + API + workers ──────────────${RESET}"
 echo "(First run builds the API image — typically 2-3 minutes)"
-docker compose up -d --build
+if ! docker compose up -d --build; then
+  echo -e "${RED}❌  Docker Compose failed. Last 20 lines of logs:${RESET}"
+  docker compose logs --tail=20 2>/dev/null || true
+  exit 1
+fi
 echo -e "${GREEN}✓ All services started${RESET}"
 
 # Wait for the API to be healthy before running migrations
@@ -224,11 +245,32 @@ until curl -sf http://localhost:3001/health >/dev/null 2>&1; do
 done
 echo -e "${GREEN}✓ API is healthy (${API_ELAPSED}s)${RESET}"
 
+# Wait for Neo4j Bolt port before running migrations — API can be healthy while Neo4j is still starting
+echo ""
+echo -e "${YELLOW}── Waiting for Neo4j to be ready ────────────────────────${RESET}"
+NEO4J_TIMEOUT=60
+NEO4J_ELAPSED=0
+until nc -z localhost 7687 2>/dev/null; do
+  if [[ $NEO4J_ELAPSED -ge $NEO4J_TIMEOUT ]]; then
+    echo -e "${RED}❌  Neo4j Bolt port did not open within ${NEO4J_TIMEOUT}s.${RESET}"
+    echo "    Check logs: docker compose logs neo4j"
+    exit 1
+  fi
+  sleep 2
+  NEO4J_ELAPSED=$((NEO4J_ELAPSED + 2))
+done
+sleep 3  # brief pause after port opens — Neo4j needs a moment before accepting queries
+echo -e "${GREEN}✓ Neo4j is ready (${NEO4J_ELAPSED}s)${RESET}"
+
 # Apply Neo4j schema constraints (idempotent — safe to re-run)
 echo ""
 echo -e "${YELLOW}── Applying Neo4j schema constraints ───────────────────${RESET}"
-npm run migrate:constraints -w apps/api 2>&1 | grep -v "^$" || true
-npm run migrate:m5 -w apps/api 2>&1 | grep -v "^$" || true
+if ! npm run migrate:constraints -w apps/api 2>&1 | grep -v "^$"; then
+  echo -e "${YELLOW}⚠️   migrate:constraints reported an error — check Neo4j logs if queries are slow.${RESET}"
+fi
+if ! npm run migrate:m5 -w apps/api 2>&1 | grep -v "^$"; then
+  echo -e "${YELLOW}⚠️   migrate:m5 reported an error — identity fields may be missing.${RESET}"
+fi
 echo -e "${GREEN}✓ Schema constraints and identity fields applied${RESET}"
 
 echo ""
@@ -239,7 +281,7 @@ echo "  - Qdrant:        http://localhost:6333"
 echo "  - Workers:       normalizer, extractor, brain-writer, drift-detector"
 
 # ── Print MCP config ──────────────────────────────────────────────────────────
-MCP_ABS_PATH="$(pwd)/apps/mcp/dist/index.js"
+MCP_ABS_PATH="${SCRIPT_DIR}/apps/mcp/dist/index.js"
 
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${RESET}"
@@ -302,7 +344,7 @@ echo ""
 echo "Copy this file into your project repo:"
 echo ""
 echo "  mkdir -p .claude/commands"
-echo "  cp $(pwd)/.claude/commands/analyze-impact.md .claude/commands/"
+echo "  cp ${SCRIPT_DIR}/.claude/commands/analyze-impact.md .claude/commands/"
 echo ""
 echo "Then in any Claude Code session:"
 echo ""

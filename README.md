@@ -289,7 +289,19 @@ Twenty well-chosen decisions from an internal project will outperform two hundre
 
 ## Wiring the MCP server
 
-Paste into `~/.claude/settings.json`:
+**If you used `docker-compose.demo.yml` (pre-built image):** the MCP server is already running on port 3002. Paste into `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "purpl-brain": {
+      "url": "http://localhost:3002/mcp"
+    }
+  }
+}
+```
+
+**If you used `setup.sh` (built from source):** paste the stdio config printed by `setup.sh` into `~/.claude/settings.json`:
 
 ```json
 {

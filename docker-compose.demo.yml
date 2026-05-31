@@ -20,8 +20,12 @@
 #   "Show me open drift alerts"
 #
 # Ollama (local LLM) must be running on the host before starting.
-#   ollama pull nomic-embed-text:v1.5
-#   ollama pull gemma3n:e2b
+#   ollama pull nomic-embed-text:v1.5   # embeddings — always required
+#   ollama pull qwen2.5:7b              # fast extraction
+#   ollama pull llama3.1:8b             # query answering
+#
+# For ~2s responses instead of ~14s, use Anthropic for LLM tasks (embeddings still use Ollama):
+#   ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
 
 services:
   redis:
@@ -62,7 +66,7 @@ services:
       start_period: 30s
 
   api:
-    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
     ports:
       - "3001:3001"
     environment:
@@ -74,8 +78,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-gemma3n:e2b}
-      OLLAMA_SMART_MODEL: ${OLLAMA_SMART_MODEL:-gemma3n:e2b}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-qwen2.5:7b}
+      OLLAMA_SMART_MODEL: ${OLLAMA_SMART_MODEL:-llama3.1:8b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       DEV_API_KEY: demo-key
@@ -103,7 +107,7 @@ services:
       start_period: 10s
 
   normalizer:
-    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
     environment:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
@@ -112,7 +116,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-gemma3n:e2b}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-qwen2.5:7b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SESSION_SECRET: demo-session-secret-not-for-production
@@ -125,7 +129,7 @@ services:
     stop_grace_period: 20s
 
   extractor:
-    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
     environment:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
@@ -134,7 +138,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-gemma3n:e2b}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-qwen2.5:7b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SESSION_SECRET: demo-session-secret-not-for-production
@@ -147,7 +151,7 @@ services:
     stop_grace_period: 30s
 
   brain-writer:
-    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
     environment:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
@@ -156,7 +160,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-gemma3n:e2b}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-qwen2.5:7b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SESSION_SECRET: demo-session-secret-not-for-production
@@ -173,7 +177,7 @@ services:
     stop_grace_period: 30s
 
   drift-detector:
-    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
     environment:
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
@@ -182,7 +186,7 @@ services:
       QDRANT_URL: http://qdrant:6333
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-gemma3n:e2b}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-qwen2.5:7b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SESSION_SECRET: demo-session-secret-not-for-production
@@ -200,14 +204,39 @@ services:
     command: ["node", "dist/workers/drift-detector.js"]
     stop_grace_period: 30s
 
+  # MCP server — connects Claude Code to the brain via HTTP transport.
+  # Add to ~/.claude/settings.json:
+  #   { "mcpServers": { "purpl-brain": { "url": "http://localhost:3002/mcp" } } }
+  mcp:
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
+    ports:
+      - "3002:3002"
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3002"
+      MCP_BIND_HOST: "0.0.0.0"
+      BRAIN_API_URL: http://api:3001
+      BRAIN_API_KEY: demo-key
+      BRAIN_AGENT_ID: claude-code
+    depends_on:
+      api:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "/app/apps/mcp/dist/index.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   # web: not yet released — API-only beta
-  # Query the brain via: curl http://localhost:3001/brain/query ...
-  # or connect Claude Code via MCP (see README).
 
   # Runs once on startup, seeds the Orion Commerce demo dataset, then exits.
   # The restart:no policy ensures Docker does not restart it after completion.
   demo-seeder:
-    image: ghcr.io/skalrn/purpl-brain-api:beta-latest
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
     environment:
       API_BASE: http://api:3001
       REDIS_URL: redis://redis:6379
