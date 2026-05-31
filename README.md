@@ -108,7 +108,7 @@ The value proposition when the graph is complete: a new agent session loads thre
 
 ## Real numbers
 
-Measured against the builder's own eval suite — not independently verified.
+Measured against the builder's own eval suite — not independently verified. All scenarios are synthetic: decisions are seeded programmatically, contradictions are planted, and agent sessions are simulated. These evals verify that the mechanism works correctly under controlled conditions. They do not measure performance against real team decision histories.
 
 ### Guardrail scenario ([`eval:multi-agent`](apps/api/src/scripts/eval/eval-multi-agent.ts))
 
@@ -471,6 +471,8 @@ npm run eval:multi-agent -w apps/api   # 58 checks, guardrail scenario (~4 min)
 ## Is purpl-brain the right tool?
 
 **If you're running one agent on one codebase, a markdown decisions file may be all you need.** A `decisions/` folder with dated markdown files, vectorized with any embedding tool, covers cross-session recall with zero infrastructure. The eval-cross-session result (100% recall) is achievable with a good RAG tool. Don't run Neo4j and Qdrant if you don't need them.
+
+At small scale that works. As the number of agents, sessions, and decisions grows, a flat file has no contradiction detection, no queryability across sessions, and no enforcement: it depends entirely on whoever — or whatever — writes to it remembering to keep it current. The maintenance burden scales with the team; the value of the guardrail scales with the number of agents that can contradict each other.
 
 **If you want a hosted solution with zero infrastructure, consider mem0 or Zep.** mem0 auto-ingests from agent conversations without requiring explicit decision logging. Zep builds a knowledge graph from conversations with entity extraction and temporal reasoning. Both are production-tested and require no self-hosting. If `brain_analyze_impact` and proactive drift alerting aren't features your workflow needs, either is a serious alternative.
 
