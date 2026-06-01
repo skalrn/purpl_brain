@@ -223,8 +223,11 @@ That's it. No `.env` file, no seed commands. The demo starts with a pre-loaded d
 - **API key:** `demo-key`
 - **Project ID:** `orion_commerce`
 - **MCP:** already running on port 3002 — see [Wiring the MCP server](#wiring-the-mcp-server)
+- **LLM:** Ollama by default (~14s queries). The image also supports Anthropic (~2s) — no rebuild needed:
 
-> **Ollama latency:** queries take ~14s (p50) to ~28s (p95). For ~2s responses use Anthropic: `ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up`
+  ```bash
+  ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
+  ```
 
 ---
 
