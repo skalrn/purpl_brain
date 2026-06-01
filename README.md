@@ -10,6 +10,8 @@
 **Stack:** TypeScript · Node.js · Neo4j · Qdrant · Redis Streams · Docker · MCP  
 **Scope:** REST API · 4 async workers · MCP server · Next.js web UI · 5 ingestion connectors — solo-built
 
+**→ [Jump to Quick Start](#quick-start)** if you want to try it first.
+
 purpl-brain is a shared decision memory for codebases worked on by multiple independent coding agents (refactor agents, feature agents, dependency upgraders) across separate sessions.
 
 Four operations: agents log decisions as they make them, query past decisions across any agent or session, check the impact of a proposed change against what was previously decided, and signal when a finding contradicts an existing decision. Decisions logged by agents carry rationale, attribution, and confidence, retrievable by any other agent via MCP or REST.
