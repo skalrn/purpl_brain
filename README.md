@@ -217,12 +217,15 @@ Two paths: **pre-built images** (fastest, no Node.js required, MCP included) or 
 
 ```bash
 curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/docker-compose.demo.yml
+
+# Ollama (default, ~14s queries):
 docker compose -f docker-compose.demo.yml up
+
+# Anthropic (~2s queries) — alternative to the line above:
+ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
 ```
 
 No `.env`, no seed commands. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · MCP on port 3002.
-
-> For ~2s responses: `ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up`
 
 #### Connect your own project (~5 minutes)
 
