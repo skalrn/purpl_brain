@@ -1,6 +1,7 @@
 name: Release — build and push to GHCR
 
-# Triggers on push to release-* or release-beta-* branches.
+# Triggers on push to release-* branches.
+# release-beta-* is a subset of release-* — both are caught intentionally.
 # Examples:
 #   release-beta-0.1.0  → image tags: beta-0.1.0, beta-latest
 #   release-0.1.0       → image tags: 0.1.0, latest
@@ -14,8 +15,71 @@ env:
   API_IMAGE: ghcr.io/${{ github.repository_owner }}/purpl-brain
 
 jobs:
-  build-and-push:
+  # ── Build each platform natively — no QEMU emulation ──────────────────────
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            artifact_suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            artifact_suffix: arm64
+
+    runs-on: ${{ matrix.runner }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile.release
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.API_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.artifact_suffix }}
+          cache-to: type=gha,scope=${{ matrix.artifact_suffix }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.artifact_suffix }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Merge platform digests into a single multi-platform manifest ───────────
+  merge:
+    name: Merge manifest and publish tags
     runs-on: ubuntu-latest
+    needs: build
+
     permissions:
       contents: read
       packages: write
@@ -26,22 +90,37 @@ jobs:
 
       - name: Derive version and channel from branch name
         id: meta
+        shell: bash
         run: |
           BRANCH="${GITHUB_REF_NAME}"
+
           if [[ "$BRANCH" == release-beta-* ]]; then
             VERSION="${BRANCH#release-beta-}"
-            CHANNEL="beta"
+            API_VERSION_TAG="beta-${VERSION}"
             LATEST_TAG="beta-latest"
-          else
+            CHANNEL="beta"
+          elif [[ "$BRANCH" == release-* ]]; then
             VERSION="${BRANCH#release-}"
-            CHANNEL="stable"
+            API_VERSION_TAG="${VERSION}"
             LATEST_TAG="latest"
+            CHANNEL="stable"
+          else
+            echo "Unsupported branch: $BRANCH"
+            exit 1
           fi
-          echo "version=${VERSION}"    >> "$GITHUB_OUTPUT"
-          echo "channel=${CHANNEL}"   >> "$GITHUB_OUTPUT"
-          echo "latest_tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
-          echo "api_version_tag=${CHANNEL}-${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Branch: $BRANCH | Channel: $CHANNEL | Version: $VERSION"
+
+          echo "version=${VERSION}"             >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}"             >> "$GITHUB_OUTPUT"
+          echo "latest_tag=${LATEST_TAG}"       >> "$GITHUB_OUTPUT"
+          echo "api_version_tag=${API_VERSION_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Branch: $BRANCH | Channel: $CHANNEL | Version: $VERSION | Tags: ${API_VERSION_TAG}, ${LATEST_TAG}"
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -50,28 +129,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push API image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/api/Dockerfile.release
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.api_version_tag }}
-            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create and push multi-platform manifest
+        working-directory: /tmp/digests
+        shell: bash
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.API_IMAGE }}:${{ steps.meta.outputs.api_version_tag }} \
+            -t ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }} \
+            $(printf '${{ env.API_IMAGE }}@sha256:%s ' *)
 
-      # ── Security checks (H3) ───────────────────────────────────────────────
+      - name: Inspect manifest
+        run: |
+          docker buildx imagetools inspect ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }}
 
-      - name: "H3 — verify Neo4j ports not exposed in prod compose"
+      - name: Verify Neo4j ports not exposed in prod compose
+        shell: bash
         run: |
           if docker compose -f docker-compose.prod.yml config 2>/dev/null \
             | awk '/^  neo4j:/{found=1} found && /ports:/{inports=1} inports && /published:/{print; inports=0} /^  [a-z]/{if(found && !/neo4j/)exit}' \
@@ -82,14 +157,17 @@ jobs:
           echo "PASS: Neo4j ports not bound to host"
 
       - name: Summary
+        shell: bash
         run: |
-          echo "## Release built ✓" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Image | Tags |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|-------|------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| API | \`${{ steps.meta.outputs.api_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Tester pull command:" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`bash" >> "$GITHUB_STEP_SUMMARY"
-          echo "docker pull ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Release built ✓"
+            echo
+            echo "| Image | Tags | Platforms |"
+            echo "|-------|------|-----------|"
+            echo "| API | \`${{ steps.meta.outputs.api_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` | linux/amd64, linux/arm64 |"
+            echo
+            echo "Pull command:"
+            echo "\`\`\`bash"
+            echo "docker pull ${{ env.API_IMAGE }}:${{ steps.meta.outputs.latest_tag }}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
