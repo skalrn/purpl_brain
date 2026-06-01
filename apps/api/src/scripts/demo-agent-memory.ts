@@ -143,12 +143,12 @@ async function main() {
 
   const ingestBody = (await ingestRes.json().catch(() => ({}))) as Record<string, unknown>;
   check(
-    "agent-log returns 200 ok",
-    ingestRes.status === 200 && ingestBody.ok === true,
+    "agent-log returns 200/202 ok",
+    [200, 202].includes(ingestRes.status) && ingestBody.ok === true,
     `status=${ingestRes.status} body=${JSON.stringify(ingestBody).slice(0, 200)}`
   );
 
-  if (ingestRes.status !== 200) {
+  if (![200, 202].includes(ingestRes.status)) {
     console.error("\n  Cannot continue without successful ingest. Aborting.\n");
     process.exit(1);
   }
@@ -174,7 +174,7 @@ async function main() {
     try {
       qRes = await fetch(`${API_BASE}/brain/query`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
         body: JSON.stringify({ query: QUERY, project_id: PROJECT_ID }),
       });
     } catch (e) {
