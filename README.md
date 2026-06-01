@@ -216,6 +216,7 @@ Two paths: **pre-built images** (fastest, no Node.js required, MCP included) or 
 #### Try the demo (2 minutes, zero config)
 
 ```bash
+mkdir -p ~/purpl-brain-demo && cd ~/purpl-brain-demo
 curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/docker-compose.demo.yml
 
 # Ollama (default, ~14s queries):
