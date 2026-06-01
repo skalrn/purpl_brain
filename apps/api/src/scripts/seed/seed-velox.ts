@@ -12,7 +12,7 @@
  *
  * Env:
  *   BRAIN_API_KEY   — required (default: dev-local for local dev)
- *   API_BASE        — default http://localhost:3001
+ *   API_BASE        — default http://localhost:3741
  *   PROJECT_ID      — default eval_velox_<timestamp>; printed on exit
  *                     so eval script can pick it up
  */
@@ -21,7 +21,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { fileURLToPath } from "url";
 
-const API_BASE  = process.env.API_BASE      ?? "http://localhost:3001";
+const API_BASE  = process.env.API_BASE      ?? "http://localhost:3741";
 const API_KEY   = process.env.BRAIN_API_KEY ?? "dev-local";
 const RUN_ID    = Date.now();
 const PROJECT_ID = process.env.PROJECT_ID  ?? `eval_velox_${RUN_ID}`;

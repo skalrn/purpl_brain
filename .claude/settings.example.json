@@ -5,7 +5,7 @@
       "command": "npx",
       "args": ["tsx", "apps/mcp/src/index.ts"],
       "env": {
-        "BRAIN_API_URL": "http://localhost:3001",
+        "BRAIN_API_URL": "http://localhost:3741",
         "BRAIN_API_KEY": "",
         "MCP_TRANSPORT": "stdio"
       }

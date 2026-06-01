@@ -5,7 +5,7 @@
  * Supports two transports:
  *   stdio (default) — for local Claude Code / Cursor use
  *   http            — for remote clients connecting to cloud-hosted brain
- *                     Start with: MCP_TRANSPORT=http MCP_PORT=3002 node dist/index.js
+ *                     Start with: MCP_TRANSPORT=http MCP_PORT=3742 node dist/index.js
  *
  * Tools:
  *   brain_query          — natural language query, returns cited answer
@@ -15,7 +15,7 @@
  *   brain://project/{project_id} — project snapshot (recent decisions + open drift alerts)
  *
  * Configuration (env or .env):
- *   BRAIN_API_URL   — base URL of the Purpl Brain API  (default: http://localhost:3001)
+ *   BRAIN_API_URL   — base URL of the Purpl Brain API  (default: http://localhost:3741)
  *   BRAIN_API_KEY   — bearer token for authenticated deployments
  *   BRAIN_AGENT_ID  — identifier written into agent-log entries (default: claude-code)
  *   MCP_TRANSPORT   — "stdio" (default) | "http"
@@ -30,7 +30,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { z } from "zod";
 
-const API_URL = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.BRAIN_API_URL ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";
 const AGENT_ID = process.env.BRAIN_AGENT_ID ?? "claude-code";
 

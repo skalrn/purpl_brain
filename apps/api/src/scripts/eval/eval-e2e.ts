@@ -25,7 +25,7 @@
  *
  * Env:
  *   BRAIN_API_KEY or DEV_API_KEY  — required for authed REST calls
- *   API_BASE                      — defaults to http://localhost:3001
+ *   API_BASE                      — defaults to http://localhost:3741
  *   MCP_BASE                      — if set, eval reuses an already-running
  *                                   MCP server at this URL instead of
  *                                   spawning a child process
@@ -47,7 +47,7 @@ import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 
 const MCP_PORT = parseInt(process.env.MCP_PORT ?? "3099");

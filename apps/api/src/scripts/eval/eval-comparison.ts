@@ -31,7 +31,7 @@
  * Env:
  *   ANTHROPIC_API_KEY  — required for doc-mode LLM calls
  *   BRAIN_API_KEY / DEV_API_KEY  — for brain REST calls
- *   API_BASE           — defaults to http://localhost:3001
+ *   API_BASE           — defaults to http://localhost:3741
  *   GITHUB_TOKEN       — optional; avoids GitHub rate limits when fetching docs
  *   HONO_PROJECT_ID    — defaults to honojs_hono
  */
@@ -40,7 +40,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const API_BASE     = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE     = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY      = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN ?? "";
 const PROJECT_ID   = process.env.HONO_PROJECT_ID ?? "honojs_hono";

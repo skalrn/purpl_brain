@@ -21,14 +21,14 @@
  *
  * Run: npm run eval:integration
  * Env: BRAIN_API_KEY required for ingest endpoints (set in .env as DEV_API_KEY)
- *      API_BASE overrides http://localhost:3001
+ *      API_BASE overrides http://localhost:3741
  *      PIPELINE_WAIT_MS overrides default wait between phases (default 90000)
  */
 import "dotenv/config";
 import neo4j from "neo4j-driver";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "150000");
 const RUN_ID = Date.now();

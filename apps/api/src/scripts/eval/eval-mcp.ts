@@ -8,7 +8,7 @@
  */
 import "dotenv/config";
 
-const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API = process.env.BRAIN_API_URL ?? "http://localhost:3741";
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API}${path}`, {

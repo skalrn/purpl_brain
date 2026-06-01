@@ -15,7 +15,7 @@ const STEPS = [
     "command": "node",
     "args": ["/path/to/purpl_brain/apps/mcp/dist/index.js"],
     "env": {
-      "BRAIN_API_URL": "http://localhost:3001",
+      "BRAIN_API_URL": "http://localhost:3741",
       "BRAIN_API_KEY": "your-api-key",
       "BRAIN_AGENT_ID": "claude-code",
       "BRAIN_OPERATOR_NAME": "Your Name"

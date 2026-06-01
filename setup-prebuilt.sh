@@ -180,7 +180,7 @@ done
 if [[ "$PORTS_OK" == "false" ]]; then
   echo ""
   echo "    Stop the conflicting process and re-run, or override the MCP port:"
-  echo "      MCP_HOST_PORT=3003 bash setup-prebuilt.sh"
+  echo "      MCP_HOST_PORT=3743 bash setup-prebuilt.sh"
   exit 1
 fi
 echo -e "${GREEN}✓ Ports 3001 and 3002 are available${RESET}"
@@ -200,7 +200,7 @@ echo ""
 echo -e "${YELLOW}── Waiting for API to be healthy ────────────────────────${RESET}"
 API_TIMEOUT=120
 API_ELAPSED=0
-until curl -sf http://localhost:3001/health >/dev/null 2>&1; do
+until curl -sf http://localhost:3741/health >/dev/null 2>&1; do
   if [[ $API_ELAPSED -ge $API_TIMEOUT ]]; then
     echo -e "${RED}❌  API did not become healthy within ${API_TIMEOUT}s.${RESET}"
     echo "    Check logs: docker compose -f docker-compose.prod.yml logs api"
@@ -221,7 +221,7 @@ cat << MCPCONFIG
 {
   "mcpServers": {
     "purpl-brain": {
-      "url": "http://localhost:3002/mcp"
+      "url": "http://localhost:3742/mcp"
     }
   }
 }
@@ -253,7 +253,7 @@ echo ""
 echo "  API key:    ${API_KEY}"
 echo "  Project ID: ${PROJECT_ID}"
 echo "  API:        http://localhost:3001"
-echo "  MCP:        http://localhost:3002/mcp"
+echo "  MCP:        http://localhost:3742/mcp"
 echo ""
 echo "Next steps:"
 echo "  1. Paste the MCP config above into ~/.claude/settings.json"

@@ -27,7 +27,7 @@
  *   npm run eval:multi-agent -w apps/api
  * Env:
  *   BRAIN_API_KEY or DEV_API_KEY — required for ingest
- *   API_BASE                     — defaults to http://localhost:3001
+ *   API_BASE                     — defaults to http://localhost:3741
  *   PIPELINE_WAIT_MS             — pipeline propagation wait (default 90000)
  *   DRIFT_WAIT_MS                — shorter wait for signal-triggered drift (default 45000)
  */
@@ -35,7 +35,7 @@ import "dotenv/config";
 import neo4j from "neo4j-driver";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "90000");
 const DRIFT_WAIT_MS = parseInt(process.env.DRIFT_WAIT_MS ?? "45000");

@@ -20,7 +20,7 @@ import "dotenv/config";
 import { Redis } from "ioredis";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
-const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API = process.env.BRAIN_API_URL ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const PROJECT = "eval_link_following";

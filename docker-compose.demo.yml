@@ -5,7 +5,7 @@
 #
 # Usage:
 #   docker compose -f docker-compose.demo.yml up
-#   open http://localhost:3000
+#   open http://localhost:3741/health  # API health check
 #
 # The demo-seeder service runs once on startup and populates the brain
 # with 8 weeks of realistic e-commerce engineering decisions. It exits
@@ -67,7 +67,7 @@ services:
   api:
     image: ghcr.io/skalrn/purpl-brain:beta-latest
     ports:
-      - "3001:3001"
+      - "3741:3001"
     environment:
       NODE_ENV: demo
       REDIS_URL: redis://redis:6379
@@ -205,12 +205,12 @@ services:
 
   # MCP server — connects Claude Code to the brain via HTTP transport.
   # Add to ~/.claude/settings.json:
-  #   { "mcpServers": { "purpl-brain": { "url": "http://localhost:3002/mcp" } } }
-  # If port 3002 is busy: MCP_HOST_PORT=3003 docker compose -f docker-compose.demo.yml up
+  #   { "mcpServers": { "purpl-brain": { "url": "http://localhost:3742/mcp" } } }
+  # If port 3002 is busy: MCP_HOST_PORT=3743 docker compose -f docker-compose.demo.yml up
   mcp:
     image: ghcr.io/skalrn/purpl-brain:beta-latest
     ports:
-      - "${MCP_HOST_PORT:-3002}:3002"
+      - "${MCP_HOST_PORT:-3742}:3002"
     environment:
       MCP_TRANSPORT: http
       MCP_PORT: "3002"

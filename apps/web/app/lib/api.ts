@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3741";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {

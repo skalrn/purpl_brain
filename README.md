@@ -262,7 +262,7 @@ bash setup.sh
 
 ### If you used Option A (pre-built demo)
 
-Data is already loaded — no need to seed anything. The brain is pre-populated with **Orion Commerce**, a synthetic e-commerce engineering team (fictional company, fictional people, realistic decisions). Open **http://localhost:3000** and try these queries:
+Data is already loaded — no need to seed anything. The brain is pre-populated with **Orion Commerce**, a synthetic e-commerce engineering team (fictional company, fictional people, realistic decisions). Open **http://localhost:3740** and try these queries:
 
 - `"Why does the order confirmation email require both payment and inventory?"`
 - `"What did Priya decide about refunds?"`
@@ -290,7 +290,7 @@ This logs a JWT library decision, waits for the pipeline, queries it back, and p
 
 **Web UI:**
 
-Open **http://localhost:3000** and follow the three-step onboarding loop.
+Open **http://localhost:3740** and follow the three-step onboarding loop.
 
 1. **Log a decision** — fill in what was decided and why, click **Log decision →**
 2. **Wait for the pipeline** — Ollama: ~60–90s · Anthropic: ~15s. The UI polls automatically.
@@ -302,7 +302,7 @@ Open **http://localhost:3000** and follow the three-step onboarding loop.
 API_KEY=$(grep DEV_API_KEY apps/api/.env | cut -d= -f2)
 PROJECT=$(grep DEFAULT_PROJECT_ID apps/api/.env | cut -d= -f2)
 
-curl -s -X POST http://localhost:3001/brain/agent-log \
+curl -s -X POST http://localhost:3741/brain/agent-log \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY" \
   -d "{
@@ -320,7 +320,7 @@ curl -s -X POST http://localhost:3001/brain/agent-log \
   }"
 
 # Wait ~60–90s (Ollama) or ~15s (Anthropic), then:
-curl -s -X POST http://localhost:3001/brain/query \
+curl -s -X POST http://localhost:3741/brain/query \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY" \
   -d "{\"query\": \"what was decided about the cache layer?\", \"project_id\": \"$PROJECT\"}" \
@@ -349,7 +349,7 @@ In practice, twenty well-chosen decisions from an internal project are likely to
 {
   "mcpServers": {
     "purpl-brain": {
-      "url": "http://localhost:3002/mcp"
+      "url": "http://localhost:3742/mcp"
     }
   }
 }
@@ -379,7 +379,7 @@ The purpl-brain MCP is connected.
       "command": "node",
       "args": ["/absolute/path/to/purpl_brain/apps/mcp/dist/index.js"],
       "env": {
-        "BRAIN_API_URL": "http://localhost:3001",
+        "BRAIN_API_URL": "http://localhost:3741",
         "BRAIN_API_KEY": "<your-key-from-setup.sh>",
         "BRAIN_AGENT_ID": "claude-code"
       }
@@ -415,7 +415,7 @@ before big change:  POST /brain/query  { mode: "impact" }  (optional hard gate)
 ```python
 import httpx, uuid
 
-BRAIN = "http://localhost:3001"
+BRAIN = "http://localhost:3741"
 KEY   = "your-api-key"           # from apps/mcp/.env: BRAIN_API_KEY
 PROJECT = "your_project"         # from apps/api/.env: DEFAULT_PROJECT_ID
 
@@ -493,7 +493,7 @@ Attribution resolved from git history. Linked GitHub PR threads are automaticall
 ### Meeting transcripts
 
 ```bash
-curl -X POST http://localhost:3001/brain/ingest/transcript \
+curl -X POST http://localhost:3741/brain/ingest/transcript \
   -H "x-api-key: <key>" \
   -H "Content-Type: application/json" \
   -d '{"text": "...", "title": "Auth design review", "project_id": "my_project"}'
@@ -585,7 +585,7 @@ At small scale that works. As the number of agents, sessions, and decisions grow
 
 ```bash
 docker compose up -d redis neo4j qdrant   # infra only
-npm run dev -w apps/api                   # API on :3001
+npm run dev -w apps/api                   # API on :3741
 npm run worker:normalizer -w apps/api
 npm run worker:extractor -w apps/api
 npm run worker:brain-writer -w apps/api

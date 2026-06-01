@@ -5,7 +5,7 @@
 # to call brain_log_decision before the session truly closes.
 
 PROJECT_ID="skalrn_purpl_brain"
-BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3001}"
+BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3741}"
 HEALTH_URL="${BRAIN_API_URL}/health"
 LOOKBACK_HOURS=2
 COOLDOWN_MINUTES=15

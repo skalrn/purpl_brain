@@ -22,7 +22,7 @@
 import "dotenv/config";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
-const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API = process.env.BRAIN_API_URL ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? "dev-local";
 const RUN_ID = Date.now();
 const PROJECT = `eval_xsess_${RUN_ID}`;

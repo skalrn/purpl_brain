@@ -37,7 +37,7 @@ import OpenAI from "openai";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const API_BASE   = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE   = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY    = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const PROJECT_ID = "honojs_hono";
 
@@ -399,7 +399,7 @@ async function main() {
   }
   if (skipped > 0) {
     console.log(`\n  ${skipped} task(s) had no brain context — corpus signal is thin for those queries.`);
-    console.log(`  Corpus quality: curl -s "http://localhost:3001/brain/corpus-stats?project_id=${PROJECT_ID}" -H "X-API-Key: <key>"`);
+    console.log(`  Corpus quality: curl -s "http://localhost:3741/brain/corpus-stats?project_id=${PROJECT_ID}" -H "X-API-Key: <key>"`);
   }
 
   process.exit(failed > 0 ? 1 : 0);

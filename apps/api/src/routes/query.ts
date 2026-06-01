@@ -96,7 +96,7 @@ export const queryRoutes: FastifyPluginAsync = async (app) => {
 
       const requestOrigin = request.headers.origin ?? "";
       const allowedOrigins = new Set(
-        (process.env.CORS_ALLOWED_ORIGINS ?? process.env.UI_BASE_URL ?? "http://localhost:3000")
+        (process.env.CORS_ALLOWED_ORIGINS ?? process.env.UI_BASE_URL ?? "http://localhost:3740")
           .split(",").map((o) => o.trim()).filter(Boolean)
       );
       if (requestOrigin && !allowedOrigins.has(requestOrigin)) {

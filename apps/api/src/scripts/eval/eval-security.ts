@@ -13,15 +13,15 @@
  *   npm run eval:security -w apps/api
  *
  * Required env:
- *   API_BASE       — defaults to http://localhost:3001
+ *   API_BASE       — defaults to http://localhost:3741
  *   BRAIN_API_KEY  — a valid API key (DEV_API_KEY value is fine for dev)
- *   CORS_ALLOWED_ORIGINS — must match API config (defaults to http://localhost:3000)
+ *   CORS_ALLOWED_ORIGINS — must match API config (defaults to http://localhost:3740)
  */
 import "dotenv/config";
 
-const API_BASE  = process.env.API_BASE  ?? "http://localhost:3001";
+const API_BASE  = process.env.API_BASE  ?? "http://localhost:3741";
 const API_KEY   = process.env.BRAIN_API_KEY ?? "dev-local";
-const ALLOWED_ORIGIN = (process.env.CORS_ALLOWED_ORIGINS ?? "http://localhost:3000").split(",")[0].trim();
+const ALLOWED_ORIGIN = (process.env.CORS_ALLOWED_ORIGINS ?? "http://localhost:3740").split(",")[0].trim();
 const BLOCKED_ORIGIN = "https://evil.example.com";
 const RUN_ID    = Date.now();
 const PROJECT   = `eval_sec_${RUN_ID}`;
@@ -276,7 +276,7 @@ const manual = [
   {
     id: "H5",
     check: "Session cookie has Secure attribute by default",
-    cmd: "curl -v 'http://localhost:3001/auth/github/callback?code=test' 2>&1 | grep -i set-cookie",
+    cmd: "curl -v 'http://localhost:3741/auth/github/callback?code=test' 2>&1 | grep -i set-cookie",
     expect: "Set-Cookie: ... Secure",
   },
   {
@@ -288,16 +288,16 @@ const manual = [
   {
     id: "H6",
     check: "DEV_API_KEY blocked when NODE_ENV=production",
-    cmd: `NODE_ENV=production DEV_API_KEY=dev-local curl -H "x-api-key: dev-local" http://localhost:3001/brain/tasks?project_id=x`,
+    cmd: `NODE_ENV=production DEV_API_KEY=dev-local curl -H "x-api-key: dev-local" http://localhost:3741/brain/tasks?project_id=x`,
     expect: '{"statusCode":401,"error":"Unauthorized","message":"Invalid API key"}',
   },
   {
     id: "C1",
     check: "MCP HTTP transport rejects requests without MCP_AUTH_TOKEN bearer",
     cmd: `MCP_TRANSPORT=http MCP_AUTH_TOKEN=secret node apps/mcp/dist/index.js &
-curl -s http://localhost:3002/mcp -d '{}' -H 'Content-Type: application/json'
-curl -s http://localhost:3002/mcp -d '{}' -H 'Content-Type: application/json' -H 'Authorization: Bearer wrong'
-curl -s http://localhost:3002/mcp -d '{}' -H 'Content-Type: application/json' -H 'Authorization: Bearer secret'`,
+curl -s http://localhost:3742/mcp -d '{}' -H 'Content-Type: application/json'
+curl -s http://localhost:3742/mcp -d '{}' -H 'Content-Type: application/json' -H 'Authorization: Bearer wrong'
+curl -s http://localhost:3742/mcp -d '{}' -H 'Content-Type: application/json' -H 'Authorization: Bearer secret'`,
     expect: "First two: 401. Third: MCP protocol response.",
   },
   {

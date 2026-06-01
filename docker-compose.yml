@@ -55,7 +55,7 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - "3001:3001"
+      - "3741:3741"
     env_file:
       - apps/api/.env
     environment:
@@ -75,7 +75,7 @@ services:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/index.js"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3741/health || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -191,9 +191,9 @@ services:
         # Only NEXT_PUBLIC_API_URL is baked at build time. API keys are never
         # baked into the image — they are issued per-user via OAuth and retrieved
         # at runtime from /auth/me (session-scoped). See apps/web/Dockerfile.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3741}
     ports:
-      - "3000:3000"
+      - "3740:3740"
     depends_on:
       api:
         condition: service_healthy

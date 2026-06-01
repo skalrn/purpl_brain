@@ -19,7 +19,7 @@
  * Env:
  *   GITHUB_TOKEN   — recommended PAT (public repo scope, no special permissions)
  *   REDIS_URL      — default redis://localhost:6379
- *   API_BASE       — default http://localhost:3001
+ *   API_BASE       — default http://localhost:3741
  *   BRAIN_API_KEY  — default dev-local
  *   MAX_PRS        — default 60
  *   MAX_ISSUES     — default 40
@@ -31,7 +31,7 @@ import type { CanonicalEvent, EventType } from "@purpl/types";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const REDIS_URL    = process.env.REDIS_URL    ?? "redis://localhost:6379";
-const API_BASE     = process.env.API_BASE     ?? "http://localhost:3001";
+const API_BASE     = process.env.API_BASE     ?? "http://localhost:3741";
 const API_KEY      = process.env.BRAIN_API_KEY ?? "dev-local";
 const MAX_PRS      = parseInt(process.env.MAX_PRS    ?? "60");
 const MAX_ISSUES   = parseInt(process.env.MAX_ISSUES ?? "40");

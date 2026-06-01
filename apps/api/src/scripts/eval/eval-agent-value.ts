@@ -27,7 +27,7 @@
  *   OLLAMA_BASE_URL   — use Ollama (defaults to http://localhost:11434/v1)
  *                       Models: OLLAMA_SMART_MODEL (agent), OLLAMA_FAST_MODEL (judge)
  *   BRAIN_API_KEY / DEV_API_KEY — brain REST API auth
- *   API_BASE — defaults to http://localhost:3001
+ *   API_BASE — defaults to http://localhost:3741
  *
  * Run: npm run eval:agent-value -w apps/api
  */
@@ -39,7 +39,7 @@ import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const API_BASE    = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE    = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY     = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const RUN_ID      = Date.now();
 const PROJECT_ID  = `eval_agent_value_${RUN_ID}`;

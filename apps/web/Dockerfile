@@ -5,7 +5,7 @@ WORKDIR /app
 # NEXT_PUBLIC_API_URL is the only build-time var needed.
 # API keys are never baked into the image — they are issued per-user via OAuth
 # and retrieved at runtime from /auth/me (session-scoped).
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_API_URL=http://localhost:3741
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY package*.json ./

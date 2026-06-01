@@ -2,7 +2,7 @@
   "_comment": {
     "purpose": "Add purpl-brain MCP server to Claude Code. Merge the `mcpServers` block below into your ~/.claude/settings.json. Replace the absolute path under `args` with the actual path to dist/index.js in your checkout.",
     "env_vars": {
-      "BRAIN_API_URL": "Base URL of the running purpl-brain API. Default http://localhost:3001 for local dev; set to your deployed brain URL otherwise.",
+      "BRAIN_API_URL": "Base URL of the running purpl-brain API. Default http://localhost:3741 for local dev; set to your deployed brain URL otherwise.",
       "BRAIN_API_KEY": "Bearer/X-API-Key token issued by the brain. Required for /brain/agent-log (decision write-back) and any other authenticated endpoints.",
       "BRAIN_AGENT_ID": "Identifier written into every decision this client logs. Use 'claude-code' so logged decisions show up as Claude Code sessions in the brain UI."
     }
@@ -12,7 +12,7 @@
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/purpl_brain/apps/mcp/dist/index.js"],
       "env": {
-        "BRAIN_API_URL": "http://localhost:3001",
+        "BRAIN_API_URL": "http://localhost:3741",
         "BRAIN_API_KEY": "your-api-key-here",
         "BRAIN_AGENT_ID": "claude-code"
       }

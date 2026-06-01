@@ -12,7 +12,7 @@
 import "dotenv/config";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const PROJECT_ID = `eval_transcript_${Date.now()}`;
 
 const MEETING_VTT = `WEBVTT

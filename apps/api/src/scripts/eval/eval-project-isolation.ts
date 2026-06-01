@@ -23,7 +23,7 @@
  */
 import "dotenv/config";
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";
 const RUN_ID = Date.now();
 const PROJECT_A = `eval_iso_A_${RUN_ID}`;

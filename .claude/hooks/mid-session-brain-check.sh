@@ -4,7 +4,7 @@
 # Uses a cooldown file to fire at most once per 45 minutes.
 
 PROJECT_ID="skalrn_purpl_brain"
-BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3001}"
+BRAIN_API_URL="${BRAIN_API_URL:-http://localhost:3741}"
 COOLDOWN_MINUTES=45
 COOLDOWN_FILE="/tmp/purpl-brain-mid-session-${PROJECT_ID}"
 LOOKBACK_MINUTES=$COOLDOWN_MINUTES

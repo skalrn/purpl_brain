@@ -14,7 +14,7 @@ const { values: args } = parseArgs({
 });
 
 const PROJECT_ID = args.project as string;
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 
 // Synthetic VTT transcript of an architecture decision meeting
 const MEETING_VTT = `WEBVTT

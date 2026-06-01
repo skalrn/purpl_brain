@@ -9,8 +9,8 @@
  * GitHub OAuth app setup (one-time, in your GitHub account):
  *   1. Go to: https://github.com/settings/developers → OAuth Apps → New OAuth App
  *   2. Application name: Purpl Brain
- *   3. Homepage URL: http://localhost:3000
- *   4. Authorization callback URL: http://localhost:3001/auth/github/callback
+ *   3. Homepage URL: http://localhost:3740
+ *   4. Authorization callback URL: http://localhost:3741/auth/github/callback
  *   5. Click "Register application"
  *   6. Copy Client ID → GITHUB_CLIENT_ID in .env
  *   7. Generate a client secret → GITHUB_CLIENT_SECRET in .env
@@ -100,7 +100,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       auth: (fastifyOauth2 as unknown as { GITHUB_CONFIGURATION: unknown }).GITHUB_CONFIGURATION as fastifyOauth2.ProviderConfiguration,
     },
     startRedirectPath: "/auth/github",
-    callbackUri: process.env.GITHUB_CALLBACK_URL ?? "http://localhost:3001/auth/github/callback",
+    callbackUri: process.env.GITHUB_CALLBACK_URL ?? "http://localhost:3741/auth/github/callback",
   });
 
   // ── Callback — exchange code → GitHub user → upsert Person → session ──────
@@ -140,8 +140,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
       app.log.info({ github_login: ghUser.login, person_id: person.person_id }, "OAuth login");
 
-      // Redirect to UI — in local dev this is :3000
-      const uiBase = process.env.UI_BASE_URL ?? "http://localhost:3000";
+      // Redirect to UI — in local dev this is :3740
+      const uiBase = process.env.UI_BASE_URL ?? "http://localhost:3740";
       return reply.redirect(`${uiBase}?login=ok`);
     } catch (e) {
       app.log.error(e, "OAuth callback failed");

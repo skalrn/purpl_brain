@@ -43,7 +43,7 @@
  *   npm run eval:enterprise -w apps/api
  * Env:
  *   BRAIN_API_KEY or DEV_API_KEY — required
- *   API_BASE                     — defaults to http://localhost:3001
+ *   API_BASE                     — defaults to http://localhost:3741
  *   PIPELINE_WAIT_MS             — pipeline propagation wait (default 75000)
  *   DRIFT_WAIT_MS                — signal-triggered drift wait (default 45000)
  *   NEO4J_URI/USER/PASSWORD      — Neo4j connection
@@ -57,7 +57,7 @@ import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const PIPELINE_WAIT_MS = parseInt(process.env.PIPELINE_WAIT_MS ?? "75000");
 const DRIFT_WAIT_MS = parseInt(process.env.DRIFT_WAIT_MS ?? "45000");

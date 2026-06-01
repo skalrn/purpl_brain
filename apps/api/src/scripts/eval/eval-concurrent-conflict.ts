@@ -28,7 +28,7 @@
  *
  * Env:
  *   BRAIN_API_KEY or DEV_API_KEY — required
- *   API_BASE                     — defaults to http://localhost:3001
+ *   API_BASE                     — defaults to http://localhost:3741
  *   ALPHA_WAIT_MS                — wait after Alpha logs before Beta queries (default 20000)
  *   DRIFT_WAIT_MS                — wait for drift detector (default 60000)
  */
@@ -36,7 +36,7 @@ import "dotenv/config";
 import neo4j from "neo4j-driver";
 import { cleanupEvalProjects } from "../../lib/eval-cleanup.js";
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY  = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "";
 const ALPHA_WAIT_MS = parseInt(process.env.ALPHA_WAIT_MS ?? "20000");
 const DRIFT_WAIT_MS = parseInt(process.env.DRIFT_WAIT_MS ?? "60000");

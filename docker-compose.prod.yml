@@ -58,7 +58,7 @@ services:
   api:
     image: ghcr.io/skalrn/purpl-brain:beta-latest
     ports:
-      - "3001:3001"
+      - "3741:3001"
     env_file: .env
     environment:
       NODE_ENV: production
@@ -170,12 +170,12 @@ services:
 
   # MCP server — connects Claude Code to the brain via HTTP transport.
   # Add to ~/.claude/settings.json:
-  #   { "mcpServers": { "purpl-brain": { "url": "http://localhost:3002/mcp" } } }
-  # If port 3002 is busy: MCP_HOST_PORT=3003 docker compose -f docker-compose.prod.yml up -d
+  #   { "mcpServers": { "purpl-brain": { "url": "http://localhost:3742/mcp" } } }
+  # If port 3002 is busy: MCP_HOST_PORT=3743 docker compose -f docker-compose.prod.yml up -d
   mcp:
     image: ghcr.io/skalrn/purpl-brain:beta-latest
     ports:
-      - "${MCP_HOST_PORT:-3002}:3002"
+      - "${MCP_HOST_PORT:-3742}:3002"
     environment:
       MCP_TRANSPORT: http
       MCP_PORT: "3002"

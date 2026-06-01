@@ -19,7 +19,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { randomUUID } from "crypto";
 
-const API_URL   = process.env.BRAIN_API_URL  ?? "http://localhost:3001";
+const API_URL   = process.env.BRAIN_API_URL  ?? "http://localhost:3741";
 const API_KEY   = process.env.BRAIN_API_KEY  ?? "dev-local";
 const MCP_PORT  = 3099;
 const MCP_URL   = `http://localhost:${MCP_PORT}/mcp`;

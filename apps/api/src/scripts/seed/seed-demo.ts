@@ -27,7 +27,7 @@ import { Redis } from "ioredis";
 import { randomUUID } from "crypto";
 import type { CanonicalEvent } from "@purpl/types";
 
-const API_BASE  = process.env.API_BASE  ?? "http://localhost:3001";
+const API_BASE  = process.env.API_BASE  ?? "http://localhost:3741";
 const API_KEY   = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "dev-local";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const PROJECT   = "orion_commerce";
@@ -648,7 +648,7 @@ in 2 weeks specifically about this scenario. Feels like the right time.`,
   console.log('  {');
   console.log('    "mcpServers": {');
   console.log('      "purpl-brain": {');
-  console.log('        "url": "http://localhost:3002/mcp"');
+  console.log('        "url": "http://localhost:3742/mcp"');
   console.log('      }');
   console.log('    }');
   console.log('  }\n');

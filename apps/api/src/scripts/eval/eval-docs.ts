@@ -8,7 +8,7 @@
  */
 import "dotenv/config";
 
-const API = process.env.BRAIN_API_URL ?? "http://localhost:3001";
+const API = process.env.BRAIN_API_URL ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? "";
 const PROJECT = "eval_docs_project";
 

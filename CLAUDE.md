@@ -53,7 +53,7 @@ The purpl-brain MCP server exposes 4 tools to any agent connected to the brain:
          "command": "node",
          "args": ["/ABSOLUTE/PATH/TO/purpl_brain/apps/mcp/dist/index.js"],
          "env": {
-           "BRAIN_API_URL": "http://localhost:3001",
+           "BRAIN_API_URL": "http://localhost:3741",
            "BRAIN_API_KEY": "your-api-key-here",
            "BRAIN_AGENT_ID": "claude-code"
          }
@@ -72,7 +72,7 @@ The purpl-brain MCP server exposes 4 tools to any agent connected to the brain:
 
 **Remote setup (HTTP transport):**
 ```bash
-MCP_TRANSPORT=http MCP_PORT=3002 node apps/mcp/dist/index.js
+MCP_TRANSPORT=http MCP_PORT=3742 node apps/mcp/dist/index.js
 ```
 Set `BRAIN_API_URL` to your deployed brain URL.
 

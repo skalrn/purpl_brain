@@ -39,7 +39,7 @@ import { fileURLToPath } from "url";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 
-const API_BASE   = process.env.API_BASE      ?? "http://localhost:3001";
+const API_BASE   = process.env.API_BASE      ?? "http://localhost:3741";
 const API_KEY    = process.env.BRAIN_API_KEY ?? process.env.DEV_API_KEY ?? "dev-local";
 const PROJECT_ID = process.env.PROJECT_ID    ?? "eval_velox_baseline";
 

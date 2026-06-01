@@ -17,7 +17,7 @@
  *   - Final answer mentions `node-jsonwebtoken` or `jsonwebtoken`
  *   - Response has at least one citation
  *
- * Requires a live stack: API on :3001 + Redis + Neo4j + Qdrant + all three
+ * Requires a live stack: API on :3741 + Redis + Neo4j + Qdrant + all three
  * pipeline workers (normalizer, extractor, brain-writer).
  *
  * Run from apps/api:
@@ -26,7 +26,7 @@
 import "dotenv/config";
 import { randomUUID } from "crypto";
 
-const API_BASE = process.env.API_BASE ?? "http://localhost:3001";
+const API_BASE = process.env.API_BASE ?? "http://localhost:3741";
 const API_KEY = process.env.BRAIN_API_KEY ?? process.env.PURPL_API_KEY ?? "";
 
 const PROJECT_ID = "demo_auth_service";
