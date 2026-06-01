@@ -340,7 +340,7 @@ In practice, twenty well-chosen decisions from an internal project are likely to
 
 ## Wiring the MCP server
 
-**If you used `docker-compose.demo.yml` (pre-built image):** the MCP server is already running on port 3002. Paste into `~/.claude/settings.json`:
+**If you used `docker-compose.demo.yml` (pre-built image):** the MCP server is already running on port 3002 (or whichever port you set via `MCP_HOST_PORT`). Paste into `~/.claude/settings.json`:
 
 ```json
 {
