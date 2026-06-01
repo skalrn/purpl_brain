@@ -14,28 +14,18 @@ The core insight: AI agents are first-class actors that both read from and write
 docs/
   technical/
     architecture.md    # Full system design: ingestion → processing → brain store → query → interface
-    llm-cost-controls.md          # Prompt caching patterns, breakpoint placement, anti-patterns
     adrs/
-      001-hybrid-brain-store.md        # Vector DB + Graph DB rationale
-      002-mcp-server-interface.md      # Why MCP over bespoke agent SDK
-      003-event-driven-ingestion.md    # Webhook-first with Redis Streams queue
       004-agent-decision-trails.md     # Agent log schema and write-back design
       005-embedding-model.md           # Embedding model selection rationale
 ```
 
 ## Key Architectural Decisions
 
-- **Brain store:** Hybrid — Qdrant (vector) for semantic retrieval + Neo4j (graph) for causal/relational reasoning. See ADR-001.
-- **Ingestion:** Webhook-first, event-driven. Redis Streams pipeline: RAW → NORMALIZED → EXTRACTED. See ADR-003.
-- **Agent interface:** Two paths — (1) MCP server for Claude Code; (2) REST API directly for any HTTP-capable agent. All four operations (query, log-decision, analyze-impact, log-signal) are available on both paths. See ADR-002, ADR-004.
+- **Brain store:** Hybrid — Qdrant (vector) for semantic retrieval + Neo4j (graph) for causal/relational reasoning.
+- **Ingestion:** Webhook-first, event-driven. Redis Streams pipeline: RAW → NORMALIZED → EXTRACTED.
+- **Agent interface:** Two paths — (1) MCP server for Claude Code; (2) REST API directly for any HTTP-capable agent. All four operations (query, log-decision, analyze-impact, log-signal) are available on both paths.
 - **Query:** RAG + graph traversal combined. Every answer is grounded with citations to source (URL, timestamp, actor).
 - **Drift detection:** Two-stage — Qdrant semantic similarity (Stage A) + LLM confirmation (Stage C). Writes `DriftAlert` nodes.
-
-## Phase Status
-
-- **Phase 1** ✓ complete — GitHub ingestion → brain update → natural language query with citations
-- **Phase 2** ✓ complete — Multi-source ingestion (Slack, meetings, agent logs), drift detection, temporal diff, impact analysis, streaming LLM responses
-- **Phase 3** in progress — MCP server (M1 ✓), agent write-back (M2 ✓), MCP eval (M3 ✓), beta setup polish (M4), identity resolution (M5)
 
 ## MCP Setup (Claude Code)
 
@@ -73,7 +63,9 @@ The purpl-brain MCP server exposes 4 tools to any agent connected to the brain:
    ```
    See `apps/mcp/claude-code-config.example.json` for the full template.
 
-3. Start the brain API (must be running for MCP tools to work):
+3. Set your project ID. The Brain Tool Usage Protocol examples use `<your_project_id>` as a placeholder — replace it with the `project_id` you registered when setting up your brain instance. If you're running locally, check the value in your `.env` or the brain API config.
+
+4. Start the brain API (must be running for MCP tools to work):
    ```bash
    docker compose up -d
    ```
@@ -94,7 +86,7 @@ Call `brain_query` before touching any file or making any recommendation:
 
 ```
 query: "What are the most recent decisions and open questions for <area of work>?"
-project_id: skalrn_purpl_brain
+project_id: <your_project_id>
 ```
 
 If the task is scoped to a specific layer (ingestion, query, auth, workers), include that in the query. Do not proceed without loading context — the brain may have a constraint you don't know about.
@@ -113,7 +105,7 @@ Before starting any change that touches ingestion workers, the brain store, quer
 
 ```
 change_description: plain-English description of what you are about to change
-project_id: skalrn_purpl_brain
+project_id: <your_project_id>
 ```
 
 Do not skip this even if the change looks small. The brain may surface a downstream dependency or prior decision that changes the approach entirely.
@@ -163,33 +155,6 @@ optional top-level: `files_modified` (string[]), `next_steps` (string[]), `unres
 
 ---
 
-
-## Session Handoff Protocol
-
-When the user says anything like "new session", "switching sessions", "let's start a new session", or "I'll continue this later":
-
-1. **Before they leave**, review the current conversation for non-obvious insights that aren't already in memory or code — things like: why a bug happened, ordering constraints between tasks, positioning arguments, patterns to avoid.
-2. **Ask the user** which of those are worth saving. List them as short bullet points.
-3. **Save the ones they confirm** to the memory system (`~/.claude/projects/.../memory/`).
-4. **Remind them** what their next session should start with (the highest-priority pending task).
-
-Do not skip this even if the session was short. The cost of asking is low; the cost of losing a non-obvious insight is re-deriving it next session.
-
-## Build Order
-
-Phase 1 → Phase 2 → Phase 3 → Phase 4.
-
-## Skill Management
-
-When creating a new Claude Code skill (a `.md` file intended as a slash command):
-
-1. **Project-specific skills** (depend on this repo's MCP tools, file paths, or tooling) → save to `.claude/commands/` in this repo and commit here.
-2. **Reusable skills** (pure prompting, no project dependency) → save to `~/.claude/commands/` AND commit to `~/aiplayground/skalrn-claude-skills/commands/`, then push to `github.com/skalrn/skalrn-claude-skills`.
-
-For reusable skills, always do both steps — the local symlink makes it available immediately, the repo commit makes it available on any machine and preserves it across reinstalls.
-
-The `skalrn-claude-skills` repo is symlinked to `~/.claude/commands/` via `install.sh`. Any file added to `skalrn-claude-skills/commands/` is automatically picked up by Claude Code on the next restart.
-
 ## Feature Design Review
 
 Before implementing any new feature that touches ingestion, workers, the brain store, or the query layer — pause and raise failure modes before writing code, not after.
@@ -210,7 +175,7 @@ These lenses apply to any feature — the specific failure modes they surface wi
 
 ## LLM Cost Controls
 
-Every Anthropic SDK call in this codebase must apply prompt caching. See `docs/technical/llm-cost-controls.md` for full patterns and anti-patterns.
+Every Anthropic SDK call in this codebase must apply prompt caching.
 
 **Rules enforced when writing SDK code:**
 

@@ -16,7 +16,7 @@ apps/docs/build/
 apps/docs/.docusaurus/
 apps/docs/apps/
 
-# Private content — lives in purpl_brain_private repo
+# Private content
 memory/
 docs/articles/
 docs/scenarios/
