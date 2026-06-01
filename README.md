@@ -246,47 +246,48 @@ bash setup.sh
 
 ## First 10 minutes
 
+### If you used Option A (pre-built demo)
+
+Data is already loaded — no need to seed anything. Open **http://localhost:3000** and try these queries:
+
+- `"Why does the order confirmation email require both payment and inventory?"`
+- `"What did Priya decide about refunds?"`
+- `"What changed in the order management approach over the last two months?"`
+- `"Show me open drift alerts"`
+
+You should see cited answers with source attribution. That's the core loop working.
+
+**API key:** `demo-key` · **Project ID:** `orion_commerce`
+
+---
+
+### If you used Option B (build from source)
+
 Verify the core loop: log a decision, wait for the pipeline, query it back with a cited answer.
 
-**Your API key and project ID:**
-- Pre-built path — printed at the end of the setup block above
-- Source build path — printed by `setup.sh`, also in `apps/api/.env` as `DEV_API_KEY`
-
-```bash
-# Set these from whichever path you used:
-API_KEY=<your-api-key>
-PROJECT=<your-project-id>
-```
-
-### Option A — single command (fastest, source build only)
+**Single command (fastest):**
 
 ```bash
 API_KEY=$(grep DEV_API_KEY apps/api/.env | cut -d= -f2)
 BRAIN_API_KEY=$API_KEY npm run demo:agent-memory -w apps/api
 ```
 
-This logs a realistic JWT library decision, waits for the pipeline, queries it back, and prints `PASS` when the cited answer comes through. On Ollama the pipeline takes ~60–90s; on Anthropic ~15s.
+This logs a JWT library decision, waits for the pipeline, queries it back, and prints `PASS`. Ollama: ~60–90s. Anthropic: ~15s.
 
-### Option B — web UI
+**Web UI:**
 
 Open **http://localhost:3000** and follow the three-step onboarding loop.
 
-**Step 1 — Log a decision (~30 seconds).** Fill in **What was decided?** and **Why?** Click **Log decision →**.
+1. **Log a decision** — fill in what was decided and why, click **Log decision →**
+2. **Wait for the pipeline** — Ollama: ~60–90s · Anthropic: ~15s. The UI polls automatically.
+3. **Ask the brain** — submit the pre-filled query. You should see a prose answer with citations.
 
-Example: `Use Redis for session cache, not Memcached` / `Redis supports TTL-native eviction and pub/sub for cache invalidation. Memcached requires a separate eviction job.`
-
-**Step 2 — Wait for the pipeline.** The decision flows normalizer → extractor → brain-writer → Qdrant + Neo4j. The UI polls automatically and unlocks step 3 when queryable. Ollama: ~60–90s. Anthropic: ~15s.
-
-**Step 3 — Ask the brain.** A query is pre-filled. Submit it. You should see a prose answer with citations, a source card, and `corpus_size: 1`.
-
-### Option C — curl
+**curl:**
 
 ```bash
-# Pull your key and project ID from the generated files — no hunting required:
-API_KEY=$(grep BRAIN_API_KEY apps/mcp/.env | cut -d= -f2)
+API_KEY=$(grep DEV_API_KEY apps/api/.env | cut -d= -f2)
 PROJECT=$(grep DEFAULT_PROJECT_ID apps/api/.env | cut -d= -f2)
 
-# Log a decision
 curl -s -X POST http://localhost:3001/brain/agent-log \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY" \
@@ -304,7 +305,7 @@ curl -s -X POST http://localhost:3001/brain/agent-log \
     }]
   }"
 
-# Wait ~60–90s (Ollama) or ~15s (Anthropic) for the pipeline, then:
+# Wait ~60–90s (Ollama) or ~15s (Anthropic), then:
 curl -s -X POST http://localhost:3001/brain/query \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY" \
@@ -312,7 +313,7 @@ curl -s -X POST http://localhost:3001/brain/query \
   | python3 -m json.tool
 ```
 
-A response with `citations` and `answer` text is the core loop working. If `citations` is empty, the pipeline is still processing — wait 30s and retry.
+A response with `citations` and `answer` is the core loop working. If `citations` is empty, the pipeline is still processing — wait 30s and retry.
 
 ---
 
