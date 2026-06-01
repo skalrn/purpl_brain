@@ -215,56 +215,16 @@ Two paths: **pre-built images** (fastest, no Node.js required) or **build from s
 
 ```bash
 curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/docker-compose.demo.yml
+docker compose -f docker-compose.demo.yml up
 ```
 
-Generate credentials and start all services:
+That's it. No `.env` file, no seed commands. The demo starts with a pre-loaded dataset (Orion Commerce — 8 weeks of realistic engineering decisions). Open **http://localhost:3000** when the services are healthy.
 
-```bash
-API_KEY="pbk_$(openssl rand -hex 16)"
-NEO4J_PASS="$(openssl rand -hex 12)"
-PROJECT_ID="my_project"
+- **API key:** `demo-key`
+- **Project ID:** `orion_commerce`
+- **MCP:** already running on port 3002 — see [Wiring the MCP server](#wiring-the-mcp-server)
 
-cat > .env << EOF
-NEO4J_AUTH=neo4j/${NEO4J_PASS}
-NEXT_PUBLIC_API_URL=http://localhost:3001
-OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
-DRIFT_SEMANTIC_THRESHOLD=0.55
-EOF
-
-cat > apps/api/.env << EOF
-PORT=3001
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
-OLLAMA_FAST_MODEL=llama3.1:8b
-OLLAMA_SMART_MODEL=llama3.1:8b
-OLLAMA_EMBED_MODEL=nomic-embed-text:v1.5
-NEO4J_URI=bolt://neo4j:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=${NEO4J_PASS}
-NEO4J_AUTH=neo4j/${NEO4J_PASS}
-QDRANT_URL=http://qdrant:6333
-QDRANT_COLLECTION=brain_chunks
-QDRANT_VECTOR_SIZE=768
-REDIS_URL=redis://redis:6379
-DEV_API_KEY=${API_KEY}
-SESSION_SECRET=$(openssl rand -hex 32)
-SESSION_COOKIE_SECURE=false
-DEFAULT_PROJECT_ID=${PROJECT_ID}
-QUERY_TOP_K=20
-QUERY_CONTEXT_BUDGET=6000
-QUERY_MIN_SCORE=0.50
-DRIFT_SEMANTIC_THRESHOLD=0.55
-DRIFT_TOP_K=3
-EOF
-
-docker compose -f docker-compose.demo.yml up -d
-echo "API key: ${API_KEY}"
-echo "Project ID: ${PROJECT_ID}"
-```
-
-> **Ollama latency:** queries take ~14s (p50) to ~28s (p95). Normal — the LLM is running locally. Add `ANTHROPIC_API_KEY=sk-ant-...` to `apps/api/.env` and set `LLM_PROVIDER=anthropic` for ~2s responses.
-
-Your API key and project ID are printed at the end — keep them, you'll need them in the next step.
+> **Ollama latency:** queries take ~14s (p50) to ~28s (p95). For ~2s responses use Anthropic: `ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up`
 
 ---
 
