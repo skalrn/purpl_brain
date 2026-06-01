@@ -205,6 +205,72 @@ Four tools, not fifty-three. Intentional. A smaller, opinionated surface is much
 
 ## Quick start
 
+Two paths: **pre-built images** (fastest, no Node.js required) or **build from source** (full setup with MCP).
+
+---
+
+### Option A — Pre-built images (fastest)
+
+**Prerequisites:** Docker Desktop, [Ollama](https://ollama.ai) with `llama3.1:8b` and `nomic-embed-text:v1.5` pulled
+
+```bash
+git clone https://github.com/skalrn/purpl_brain
+cd purpl_brain
+```
+
+Generate credentials and start all services:
+
+```bash
+API_KEY="pbk_$(openssl rand -hex 16)"
+NEO4J_PASS="$(openssl rand -hex 12)"
+PROJECT_ID="my_project"
+
+cat > .env << EOF
+NEO4J_AUTH=neo4j/${NEO4J_PASS}
+NEXT_PUBLIC_API_URL=http://localhost:3001
+OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+DRIFT_SEMANTIC_THRESHOLD=0.55
+EOF
+
+cat > apps/api/.env << EOF
+PORT=3001
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+OLLAMA_FAST_MODEL=llama3.1:8b
+OLLAMA_SMART_MODEL=llama3.1:8b
+OLLAMA_EMBED_MODEL=nomic-embed-text:v1.5
+NEO4J_URI=bolt://neo4j:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=${NEO4J_PASS}
+NEO4J_AUTH=neo4j/${NEO4J_PASS}
+QDRANT_URL=http://qdrant:6333
+QDRANT_COLLECTION=brain_chunks
+QDRANT_VECTOR_SIZE=768
+REDIS_URL=redis://redis:6379
+DEV_API_KEY=${API_KEY}
+SESSION_SECRET=$(openssl rand -hex 32)
+SESSION_COOKIE_SECURE=false
+DEFAULT_PROJECT_ID=${PROJECT_ID}
+QUERY_TOP_K=20
+QUERY_CONTEXT_BUDGET=6000
+QUERY_MIN_SCORE=0.50
+DRIFT_SEMANTIC_THRESHOLD=0.55
+DRIFT_TOP_K=3
+EOF
+
+docker compose -f docker-compose.demo.yml up -d
+echo "API key: ${API_KEY}"
+echo "Project ID: ${PROJECT_ID}"
+```
+
+> **Ollama latency:** queries take ~14s (p50) to ~28s (p95). Normal — the LLM is running locally. Add `ANTHROPIC_API_KEY=sk-ant-...` to `apps/api/.env` and set `LLM_PROVIDER=anthropic` for ~2s responses.
+
+Your API key and project ID are printed at the end — keep them, you'll need them in the next step.
+
+---
+
+### Option B — Build from source
+
 **Prerequisites:** Docker Desktop, Node.js 20+, [Ollama](https://ollama.ai) with `llama3.1:8b` and `nomic-embed-text:v1.5` pulled
 
 ```bash
@@ -217,26 +283,26 @@ bash setup.sh
 
 > **Ollama latency:** queries take ~14s (p50) to ~28s (p95). Normal — the LLM is running locally. Switch to `LLM_PROVIDER=anthropic` in `apps/api/.env` for ~2s responses.
 
-### Pre-built images
-
-```bash
-docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
-cp .env.example .env
-docker compose -f docker-compose.demo.yml up -d
-```
-
 ---
 
 ## First 10 minutes
 
-After `setup.sh` completes, verify the core loop: log a decision, wait for the pipeline, query it back with a cited answer.
+Verify the core loop: log a decision, wait for the pipeline, query it back with a cited answer.
 
-### Option A — single command (fastest)
+**Your API key and project ID:**
+- Pre-built path — printed at the end of the setup block above
+- Source build path — printed by `setup.sh`, also in `apps/api/.env` as `DEV_API_KEY`
 
 ```bash
-# API key was printed by setup.sh and is also in apps/mcp/.env:
-API_KEY=$(grep BRAIN_API_KEY apps/mcp/.env | cut -d= -f2)
+# Set these from whichever path you used:
+API_KEY=<your-api-key>
+PROJECT=<your-project-id>
+```
 
+### Option A — single command (fastest, source build only)
+
+```bash
+API_KEY=$(grep DEV_API_KEY apps/api/.env | cut -d= -f2)
 BRAIN_API_KEY=$API_KEY npm run demo:agent-memory -w apps/api
 ```
 
