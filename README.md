@@ -205,7 +205,7 @@ Four tools, not fifty-three. Intentional. A smaller, opinionated surface is much
 
 ## Quick start
 
-Two paths: **pre-built images** (fastest, no Node.js required) or **build from source** (full setup with MCP).
+Two paths: **pre-built images** (fastest, no Node.js required, MCP included) or **build from source** (connect to your own project).
 
 ---
 
