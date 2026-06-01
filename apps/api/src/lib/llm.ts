@@ -22,7 +22,7 @@ export const MODELS = {
   // Fast model for extraction and intent parsing — override via EXTRACTION_MODEL env var
   EXTRACTION: PROVIDER === "anthropic"
     ? (process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5-20251001")
-    : (process.env.OLLAMA_FAST_MODEL ?? "qwen2.5:7b"),
+    : (process.env.OLLAMA_FAST_MODEL ?? "llama3.1:8b"),
   // Full model for query answering — override via LLM_MODEL env var
   QUERY: PROVIDER === "anthropic"
     ? (process.env.LLM_MODEL ?? "claude-sonnet-4-6")

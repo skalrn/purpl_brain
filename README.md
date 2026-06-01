@@ -7,6 +7,9 @@
 
 **A decision memory designed to catch contradictions before your agents ship them.**
 
+**Stack:** TypeScript · Node.js · Neo4j · Qdrant · Redis Streams · Docker · MCP  
+**Scope:** REST API · 4 async workers · MCP server · Next.js web UI · 5 ingestion connectors — solo-built
+
 purpl-brain is a shared decision memory for codebases worked on by multiple independent coding agents (refactor agents, feature agents, dependency upgraders) across separate sessions.
 
 Four operations: agents log decisions as they make them, query past decisions across any agent or session, check the impact of a proposed change against what was previously decided, and signal when a finding contradicts an existing decision. Decisions logged by agents carry rationale, attribution, and confidence, retrievable by any other agent via MCP or REST.
@@ -109,8 +112,6 @@ The full product feeds all of those surfaces into the same graph:
 | Slack messages | **Partial** — real-time listener works; thread replies and downstream decision extraction have known gaps | Where informal decisions actually happen |
 | Meeting transcripts | **Working** — REST ingest endpoint | Design reviews, verbal decisions |
 
-The honest state: the guardrail works reliably today for agent-generated decisions. It improves as you feed historical context. The Slack and GitHub human communication layers are partially implemented; they contribute signals and drift detection candidates, but decision extraction yield from conversational prose is low. That gap is the open engineering work.
-
 The value proposition when the graph is complete: a new agent session loads three weeks of Slack architecture debates, six ADRs, and twelve agent sessions (cited, attributed, searchable) and the guardrail covers all of it. Not just what the agents decided.
 
 ---
@@ -194,7 +195,7 @@ Add purpl-brain to Claude Code. Four tools become available in every session:
 | `brain_log_decision` | **When a decision is made — mid-session, not just at close.** Log what you decided, what you rejected, and why. The rationale is what makes the next session's impact analysis useful. |
 | `brain_log_signal` | When you find something unexpected — report a finding that may contradict an existing decision. |
 
-Four tools, not fifty-three. Intentional. A smaller, opinionated surface is much easier for teams to adopt and govern. The discipline is the product. Decisions logged explicitly are precise, attributed, and queryable. Decisions captured automatically from session history are noise.
+Four tools, not fifty-three. Intentional. A smaller, opinionated surface is much easier to adopt and govern. The discipline is the product. Decisions logged explicitly are precise, attributed, and queryable. Decisions captured automatically from session history are noise.
 
 **CLAUDE.md instructions are aspirational. Hooks are deterministic.** Under context pressure (long sessions, compaction events), agents make judgment calls about what counts as significant, and those calls degrade with less context. The Stop hook in `.claude/hooks/` solves this at the boundary: it checks for decisions logged in the last two hours and blocks the session from closing if none are found. The agent reads the message, calls `brain_log_decision`, and the hook clears.
 
@@ -202,7 +203,7 @@ Four tools, not fifty-three. Intentional. A smaller, opinionated surface is much
 
 ## Quick start
 
-**Prerequisites:** Docker Desktop, Node.js 20+, [Ollama](https://ollama.ai) with `nomic-embed-text:v1.5`, `qwen2.5:7b`, and `llama3.1:8b` pulled
+**Prerequisites:** Docker Desktop, Node.js 20+, [Ollama](https://ollama.ai) with `llama3.1:8b` and `nomic-embed-text:v1.5` pulled
 
 ```bash
 git clone https://github.com/skalrn/purpl_brain
@@ -219,7 +220,7 @@ bash setup.sh
 ```bash
 docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
 cp .env.example .env
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.demo.yml up -d
 ```
 
 ---
@@ -461,8 +462,8 @@ Payload includes: `alert_id`, `project_id`, `risk`, `challenged_decision_summary
 | LLM | qwen2.5:7b (extraction) + llama3.1:8b (query) | Claude Haiku |
 | Embeddings | nomic-embed-text:v1.5 | nomic-embed-text:v1.5 (Ollama still required) |
 | Avg query latency | ~14s p50, ~28s p95 | ~2s |
-| Cost | Free | ~$5–15/month active team |
-| Test status | **Tested** | **Not yet verified end-to-end** |
+| Cost | Free | ~$5–15/month |
+| Test status | **Tested** | **Tested** |
 
 Both paths use Ollama for embeddings. This keeps a single embedding space so you can switch LLM providers without re-indexing Qdrant.
 

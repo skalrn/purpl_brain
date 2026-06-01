@@ -68,7 +68,7 @@ echo ""
 echo -e "${YELLOW}── LLM provider ─────────────────────────────────────────${RESET}"
 echo ""
 echo "  1) Ollama  — runs locally, no API key needed. Slower (~14s/query)."
-echo "               Requires: ollama pull llama3.1:8b qwen2.5:7b nomic-embed-text:v1.5"
+echo "               Requires: ollama pull llama3.1:8b nomic-embed-text:v1.5"
 echo "  2) Anthropic — cloud API, fast (~2s/query). Requires an API key."
 echo ""
 read -rp "Choose provider [1/2, default 1]: " LLM_CHOICE
@@ -90,7 +90,6 @@ else
     echo -e "${YELLOW}⚠️   Ollama not detected at http://localhost:11434.${RESET}"
     echo "    Install from https://ollama.ai, then pull the required models:"
     echo "      ollama pull llama3.1:8b"
-    echo "      ollama pull qwen2.5:7b"
     echo "      ollama pull nomic-embed-text:v1.5"
     echo ""
     read -rp "Continue anyway? [y/N]: " CONTINUE
@@ -99,7 +98,7 @@ else
     echo -e "${GREEN}✓ Ollama is running${RESET}"
     # Check for required models
     MISSING_MODELS=()
-    for MODEL in "llama3.1:8b" "qwen2.5:7b" "nomic-embed-text:v1.5"; do
+    for MODEL in "llama3.1:8b" "nomic-embed-text:v1.5"; do
       if ! curl -sf http://localhost:11434/api/tags | grep -q "\"$MODEL\"" 2>/dev/null; then
         MISSING_MODELS+=("$MODEL")
       fi
@@ -162,9 +161,9 @@ QDRANT_VECTOR_SIZE=768
 LLM_PROVIDER=${LLM_PROVIDER}
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 LLM_MODEL=$([ "$LLM_PROVIDER" = "anthropic" ] && echo "claude-sonnet-4-6" || echo "llama3.1:8b")
-EXTRACTION_MODEL=$([ "$LLM_PROVIDER" = "anthropic" ] && echo "claude-haiku-4-5-20251001" || echo "qwen2.5:7b")
+EXTRACTION_MODEL=$([ "$LLM_PROVIDER" = "anthropic" ] && echo "claude-haiku-4-5-20251001" || echo "llama3.1:8b")
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_FAST_MODEL=qwen2.5:7b
+OLLAMA_FAST_MODEL=llama3.1:8b
 OLLAMA_SMART_MODEL=llama3.1:8b
 OLLAMA_EMBED_MODEL=nomic-embed-text:v1.5
 
