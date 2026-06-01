@@ -229,6 +229,14 @@ That's it. No `.env` file, no seed commands. The demo starts with a pre-loaded d
   ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
   ```
 
+- **Port conflict:** if 3002 is busy, override it:
+
+  ```bash
+  MCP_HOST_PORT=3003 docker compose -f docker-compose.demo.yml up
+  ```
+
+  Then use `http://localhost:3003/mcp` in your `~/.claude/settings.json`.
+
 ---
 
 ### Option B — Build from source
