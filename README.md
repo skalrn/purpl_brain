@@ -214,8 +214,7 @@ Two paths: **pre-built images** (fastest, no Node.js required) or **build from s
 **Prerequisites:** Docker Desktop, [Ollama](https://ollama.ai) with `llama3.1:8b` and `nomic-embed-text:v1.5` pulled
 
 ```bash
-git clone https://github.com/skalrn/purpl_brain
-cd purpl_brain
+curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/docker-compose.demo.yml
 ```
 
 Generate credentials and start all services:
