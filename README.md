@@ -225,7 +225,7 @@ docker compose -f docker-compose.demo.yml up
 ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
 ```
 
-No `.env`, no seed commands. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · MCP on port 3002.
+No `.env`, no seed commands. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · MCP on port 3742.
 
 #### Connect your own project (~5 minutes)
 
@@ -234,11 +234,11 @@ curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-prebuilt
 bash setup-prebuilt.sh
 ```
 
-`setup-prebuilt.sh` generates credentials, writes `.env`, downloads and patches the Claude Code hooks with your project ID, starts all services, and prints a ready-to-paste MCP config and CLAUDE.md snippet. No Node.js needed.
+`setup-prebuilt.sh` generates credentials, writes `.env`, downloads the Claude Code Stop hooks (scripts that run when a Claude Code session ends and prompt the agent to log decisions if it hasn't), starts all services, and prints a ready-to-paste MCP config and CLAUDE.md snippet. No Node.js needed.
 
-- **Port conflict:** if 3002 is busy: `MCP_HOST_PORT=3003 docker compose -f docker-compose.prod.yml up -d`
+- **Port conflict:** if 3742 is busy: `MCP_HOST_PORT=3743 docker compose -f docker-compose.prod.yml up -d`
 
-  Then use `http://localhost:3003/mcp` in your `~/.claude/settings.json`.
+  Then use `http://localhost:3743/mcp` in your `~/.claude/settings.json`.
 
 ---
 
@@ -343,7 +343,7 @@ In practice, twenty well-chosen decisions from an internal project are likely to
 
 ## Wiring the MCP server
 
-**If you used `docker-compose.demo.yml` (pre-built image):** the MCP server is already running on port 3002 (or whichever port you set via `MCP_HOST_PORT`). Paste into `~/.claude/settings.json`:
+**If you used `docker-compose.demo.yml` (pre-built image):** the MCP server is already running on port 3742 (or whichever port you set via `MCP_HOST_PORT`). Paste into `~/.claude/settings.json`:
 
 ```json
 {
