@@ -234,7 +234,7 @@ curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-prebuilt
 bash setup-prebuilt.sh
 ```
 
-`setup-prebuilt.sh` generates credentials, writes `.env`, downloads the Claude Code Stop hooks (scripts that run when a Claude Code session ends and prompt the agent to log decisions if it hasn't), starts all services, and prints a ready-to-paste MCP config and CLAUDE.md snippet. No Node.js needed.
+`setup-prebuilt.sh` generates credentials, writes `.env`, downloads the Claude Code Stop hooks into `~/.claude/hooks/` (scripts that run when a Claude Code session ends and prompt the agent to log decisions if it hasn't), starts all services, and prints a ready-to-paste MCP config and CLAUDE.md snippet. No Node.js needed.
 
 - **Port conflict:** if 3742 is busy: `MCP_HOST_PORT=3743 docker compose -f docker-compose.prod.yml up -d`
 

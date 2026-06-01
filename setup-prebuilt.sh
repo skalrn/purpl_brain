@@ -154,16 +154,18 @@ ENVEOF
 echo -e "${GREEN}✓ Written .env${RESET}"
 
 # ── Download and patch hooks ──────────────────────────────────────────────────
+# Hooks go to ~/.claude/hooks/ so Claude Code picks them up across all sessions.
 echo ""
 echo -e "${YELLOW}── Setting up Claude Code hooks ─────────────────────────${RESET}"
-mkdir -p .claude/hooks
+HOOKS_DIR="$HOME/.claude/hooks"
+mkdir -p "$HOOKS_DIR"
 for HOOK in "check-brain-decisions.sh" "mid-session-brain-check.sh"; do
-  curl -fsSL "$REPO_RAW/.claude/hooks/$HOOK" -o ".claude/hooks/$HOOK"
-  sed -i.bak "s/PROJECT_ID=\"skalrn_purpl_brain\"/PROJECT_ID=\"${PROJECT_ID}\"/" ".claude/hooks/$HOOK"
-  rm -f ".claude/hooks/${HOOK}.bak"
-  chmod +x ".claude/hooks/$HOOK"
+  curl -fsSL "$REPO_RAW/.claude/hooks/$HOOK" -o "$HOOKS_DIR/$HOOK"
+  sed -i.bak "s/PROJECT_ID=\"skalrn_purpl_brain\"/PROJECT_ID=\"${PROJECT_ID}\"/" "$HOOKS_DIR/$HOOK"
+  rm -f "$HOOKS_DIR/${HOOK}.bak"
+  chmod +x "$HOOKS_DIR/$HOOK"
 done
-echo -e "${GREEN}✓ Hooks downloaded and patched with project ID: ${PROJECT_ID}${RESET}"
+echo -e "${GREEN}✓ Hooks installed to ~/.claude/hooks/ with project ID: ${PROJECT_ID}${RESET}"
 
 # ── Port conflict check ───────────────────────────────────────────────────────
 echo ""
