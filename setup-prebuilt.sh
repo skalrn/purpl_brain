@@ -165,6 +165,26 @@ for HOOK in "check-brain-decisions.sh" "mid-session-brain-check.sh"; do
 done
 echo -e "${GREEN}✓ Hooks downloaded and patched with project ID: ${PROJECT_ID}${RESET}"
 
+# ── Port conflict check ───────────────────────────────────────────────────────
+echo ""
+echo -e "${YELLOW}── Checking ports ───────────────────────────────────────${RESET}"
+MCP_PORT_CHECK="${MCP_HOST_PORT:-3002}"
+PORTS_OK=true
+for PORT in 3001 "$MCP_PORT_CHECK"; do
+  if lsof -i ":${PORT}" >/dev/null 2>&1; then
+    PROCESS=$(lsof -ti ":${PORT}" | xargs ps -p 2>/dev/null | tail -1 | awk '{print $4}' || echo "unknown")
+    echo -e "${RED}❌  Port ${PORT} is already in use by: ${PROCESS}${RESET}"
+    PORTS_OK=false
+  fi
+done
+if [[ "$PORTS_OK" == "false" ]]; then
+  echo ""
+  echo "    Stop the conflicting process and re-run, or override the MCP port:"
+  echo "      MCP_HOST_PORT=3003 bash setup-prebuilt.sh"
+  exit 1
+fi
+echo -e "${GREEN}✓ Ports 3001 and 3002 are available${RESET}"
+
 # ── Start services ────────────────────────────────────────────────────────────
 echo ""
 echo -e "${YELLOW}── Starting services (pulling images on first run) ──────${RESET}"
