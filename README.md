@@ -357,8 +357,10 @@ Then add this to `CLAUDE.md` in whichever repo you want to use the brain from:
 ```markdown
 ## Brain (purpl-brain MCP)
 
-The purpl-brain MCP is connected. Use `project_id: orion_commerce` in all tool calls.
+The purpl-brain MCP is connected.
 
+- **Project ID:** `orion_commerce` (the pre-loaded demo) — or create your own by logging
+  decisions with a new `project_id`. Any project ID you write to becomes queryable immediately.
 - **Session start:** call `brain_query` to recall prior decisions and open drift alerts.
 - **Before a significant change:** call `brain_analyze_impact`.
 - **When a decision is made:** call `brain_log_decision`.
