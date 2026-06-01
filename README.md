@@ -248,7 +248,7 @@ bash setup.sh
 
 ### If you used Option A (pre-built demo)
 
-Data is already loaded — no need to seed anything. Open **http://localhost:3000** and try these queries:
+Data is already loaded — no need to seed anything. The brain is pre-populated with **Orion Commerce**, a synthetic e-commerce engineering team (fictional company, fictional people, realistic decisions). Open **http://localhost:3000** and try these queries:
 
 - `"Why does the order confirmation email require both payment and inventory?"`
 - `"What did Priya decide about refunds?"`
