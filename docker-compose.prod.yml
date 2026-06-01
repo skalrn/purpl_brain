@@ -1,20 +1,15 @@
-# docker-compose.prod.yml — for testers running purpl-brain locally.
-# Pulls pre-built images from GHCR instead of building from source.
+# docker-compose.prod.yml — real project setup using pre-built GHCR images.
+# No Node.js required. Use setup-prebuilt.sh for automated credential generation.
 #
-# Usage:
-#   docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_PAT
-#   cp .env.example .env && nano .env      # choose Anthropic or Ollama provider
-#   docker compose -f docker-compose.prod.yml up -d
-#   open http://localhost:3000             # Web UI
-#   open http://localhost:3001/health      # API health check
+# Usage (manual):
+#   curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-prebuilt.sh
+#   bash setup-prebuilt.sh
 #
 # Ollama users: Ollama must be running on the host before starting.
-#   Install: https://ollama.com
 #   Required models:
 #     ollama pull nomic-embed-text:v1.5   # embeddings — always required
-#     ollama pull qwen2.5:7b             # fast extraction  (LLM_PROVIDER=ollama)
-#     ollama pull llama3.1:8b            # query answering  (LLM_PROVIDER=ollama)
-#   Then set LLM_PROVIDER=ollama in .env (leave ANTHROPIC_API_KEY blank).
+#     ollama pull llama3.1:8b             # extraction + query answering
+#   For ~2s responses: set LLM_PROVIDER=anthropic and ANTHROPIC_API_KEY in .env
 
 services:
   # ── Infrastructure (public images — no login required) ────────────────────
@@ -172,6 +167,34 @@ services:
       - "host.docker.internal:host-gateway"
     command: ["node", "dist/workers/slack-listener.js"]
     restart: on-failure
+
+  # MCP server — connects Claude Code to the brain via HTTP transport.
+  # Add to ~/.claude/settings.json:
+  #   { "mcpServers": { "purpl-brain": { "url": "http://localhost:3002/mcp" } } }
+  # If port 3002 is busy: MCP_HOST_PORT=3003 docker compose -f docker-compose.prod.yml up -d
+  mcp:
+    image: ghcr.io/skalrn/purpl-brain:beta-latest
+    ports:
+      - "${MCP_HOST_PORT:-3002}:3002"
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3002"
+      MCP_BIND_HOST: "0.0.0.0"
+      BRAIN_API_URL: http://api:3001
+      BRAIN_API_KEY: ${DEV_API_KEY}
+      BRAIN_AGENT_ID: claude-code
+    depends_on:
+      api:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["node", "/app/apps/mcp/dist/index.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   # web: not yet released — API-only beta
 

@@ -209,31 +209,31 @@ Two paths: **pre-built images** (fastest, no Node.js required, MCP included) or 
 
 ---
 
-### Option A — Pre-built images (fastest)
+### Option A — Pre-built images (no Node.js required)
 
 **Prerequisites:** Docker Desktop, [Ollama](https://ollama.ai) with `llama3.1:8b` and `nomic-embed-text:v1.5` pulled
+
+#### Try the demo (2 minutes, zero config)
 
 ```bash
 curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/docker-compose.demo.yml
 docker compose -f docker-compose.demo.yml up
 ```
 
-That's it. No `.env` file, no seed commands. The demo starts with a pre-loaded dataset (Orion Commerce — 8 weeks of realistic engineering decisions). Open **http://localhost:3000** when the services are healthy.
+No `.env`, no seed commands. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · MCP on port 3002.
 
-- **API key:** `demo-key`
-- **Project ID:** `orion_commerce`
-- **MCP:** already running on port 3002 — see [Wiring the MCP server](#wiring-the-mcp-server)
-- **LLM:** Ollama by default (~14s queries). The image also supports Anthropic (~2s) — no rebuild needed:
+> For ~2s responses: `ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up`
 
-  ```bash
-  ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
-  ```
+#### Connect your own project (~5 minutes)
 
-- **Port conflict:** if 3002 is busy, override it:
+```bash
+curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-prebuilt.sh
+bash setup-prebuilt.sh
+```
 
-  ```bash
-  MCP_HOST_PORT=3003 docker compose -f docker-compose.demo.yml up
-  ```
+`setup-prebuilt.sh` generates credentials, writes `.env`, downloads and patches the Claude Code hooks with your project ID, starts all services, and prints a ready-to-paste MCP config and CLAUDE.md snippet. No Node.js needed.
+
+- **Port conflict:** if 3002 is busy: `MCP_HOST_PORT=3003 docker compose -f docker-compose.prod.yml up -d`
 
   Then use `http://localhost:3003/mcp` in your `~/.claude/settings.json`.
 
