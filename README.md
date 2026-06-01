@@ -1,5 +1,10 @@
 # purpl-brain
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
+[![Works with Claude Code](https://img.shields.io/badge/Claude_Code-Compatible-blueviolet)](https://claude.ai/code)
+[![Docker](https://img.shields.io/badge/Docker-Required-2496ED?logo=docker&logoColor=white)](https://docker.com)
+
 **A decision memory designed to catch contradictions before your agents ship them.**
 
 purpl-brain is a shared decision memory for codebases worked on by multiple independent coding agents (refactor agents, feature agents, dependency upgraders) across separate sessions.
