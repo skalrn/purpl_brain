@@ -1,20 +1,24 @@
 # purpl-brain
 
-**A decision memory that catches contradictions before your agents ship them.**
+**A decision memory designed to catch contradictions before your agents ship them.**
 
-I built this to solve a specific problem: AI agents working on a codebase contradict prior decisions — their own and the team's — because they start every session cold. purpl-brain gives agents a persistent memory of what was decided and why, and surfaces contradictions proactively before they reach code.
+purpl-brain is a shared decision memory for codebases worked on by multiple independent coding agents (refactor agents, feature agents, dependency upgraders) across separate sessions.
 
-The system is validated end-to-end for teams running agent orchestration. The open question is whether it holds the same value when the team's decision history lives primarily in Slack threads and PR comments that agents never see. If that problem resonates, I'd like to hear from you.
+Four operations: agents log decisions as they make them, query past decisions across any agent or session, check the impact of a proposed change against what was previously decided, and signal when a finding contradicts an existing decision. Decisions logged by agents carry rationale, attribution, and confidence, retrievable by any other agent via MCP or REST.
+
+When an incoming signal contradicts a prior decision, the brain writes a drift alert and can deliver it via webhook in real time. Agents see it on the next query or impact check.
+
+It also ingests human-generated knowledge (GitHub PRs, repo documentation, meeting transcripts) so queries draw on more than what agents logged. GitHub and Slack ingestion is implemented; decision extraction yield from conversational threads is lower than from structured sources like ADRs.
 
 ---
 
 ## The problem
 
-Your agents start cold on a codebase your team has been building for years.
+When multiple agents work on the same codebase across separate sessions, decisions made mid-session don't carry across to the next agent. A refactor agent makes a solid architectural call. A dependency upgrader reverses it a week later, having never seen it.
 
-They don't know the cache layer was bypassed for that one endpoint because it was returning stale data under load. They don't know the retry interval was set to 90 seconds after a staging failure nobody fully documented. They don't know the API field was renamed mid-sprint because a mobile client was already using the old name.
+That is the validated use case: agent-vs-agent decision contradiction across sessions. In the scripted scenarios, the guardrail works consistently for agent-generated decisions today.
 
-Every session, they rediscover — or contradict — decisions your team already made.
+The longer-term target is agent-vs-team contradictions: decisions your team made in Slack threads, PR comments, and design reviews that agents can't see. That layer is partially implemented; decision extraction yield from conversational prose is low. It is the open engineering work, not the day-one use case.
 
 The contradiction problem is worse than the rediscovery problem. Rediscovery wastes time. A contradiction that makes it into code can break a system, fail an audit, or invalidate work a parallel agent just completed.
 
@@ -24,7 +28,7 @@ The contradiction problem is worse than the rediscovery problem. Rediscovery was
 
 `brain_analyze_impact` is the primary use case.
 
-Before an agent makes a significant architectural change, it calls the brain with a plain-English description of what it's about to do. The brain checks the decision graph for contradictions, downstream dependencies, and open drift alerts — and returns a risk assessment with citations.
+Before an agent makes a significant architectural change, it calls the brain with a plain-English description of what it's about to do. The brain checks the decision graph for contradictions, downstream dependencies, and open drift alerts, and returns a risk assessment with citations.
 
 ```
 Agent: "Replace the Redis cache with an in-memory LRU — removes the write-through pattern"
@@ -36,11 +40,11 @@ Brain: risk=high · 3 decisions affected · 1 open drift alert
 
 The agent reads this before writing a line of code. It either adjusts the approach, escalates, or logs a superseding decision with rationale. The contradiction doesn't ship.
 
-This works because the graph has structural links — SUPERSEDES edges, CHALLENGES relationships — that survive across sessions and agents without any of that history being passed in the current context window. RAG retrieves by similarity; the graph retrieves by structure. The two failure modes are different.
+This works because the graph has structural links (SUPERSEDES edges, CHALLENGES relationships) that survive across sessions and agents without any of that history being passed in the current context window. RAG retrieves by similarity; the graph retrieves by structure. The two failure modes are different.
 
 ### What the eval showed
 
-A four-agent scenario — caching architecture migration, Slack signal, GitHub PR contradicting the ADR, parallel agents mid-flight — tested the guardrail end-to-end:
+A four-agent scenario (caching architecture migration, Slack signal, GitHub PR contradicting the ADR, parallel agents mid-flight) tested the guardrail end-to-end:
 
 - `brain_analyze_impact` surfaced the ioredis and cache key decisions before RefactorAgent acted ✓
 - Slack and GitHub signals triggered a confirmed DriftAlert linking to two affected decisions in the graph ✓
@@ -48,7 +52,7 @@ A four-agent scenario — caching architecture migration, Slack signal, GitHub P
 - PRReviewAgent blocked a PR using cross-agent context — it saw RefactorAgent's in-progress package extraction without that context being passed in ✓
 - DependencyUpgradeAgent acted in the drift zone without re-querying — correctly flagged as non-compliant ✓
 
-**58/58 checks passed.** End-to-end, 225 seconds, four agents, one contradiction scenario.
+**58/58 checks passed.** End-to-end, 225 seconds, four agents, one contradiction scenario. Scripted test cases with seeded decisions — verifies the mechanism works under controlled conditions, not against real team decision histories.
 
 ---
 
@@ -74,19 +78,19 @@ brain_log_decision({
 
 **Step 2 — The next agent calls `brain_analyze_impact` before acting.**
 
-Any agent in any session — hours or weeks later — checks the brain before a significant change. The structural graph link means the brain finds the contradiction even if no similarity search would have co-retrieved both decisions.
+Any agent in any session, hours or weeks later, checks the brain before a significant change. The structural graph link means the brain finds the contradiction even if no similarity search would have co-retrieved both decisions.
 
 **Step 3 — Drift alerts fire when signals contradict existing decisions.**
 
 When a Slack message, GitHub PR, or agent signal contradicts a prior decision, the drift detector surfaces a confirmed alert. Agents query it at session start. The alert is visible in the web UI. A webhook delivers it to Slack or a coordinator agent in real time.
 
-That is the full loop. It runs on agent write-back alone — no ADR seeding, no GitHub connector, no Slack listener required to start. Those layers make the guardrail stronger. They are not prerequisites.
+That is the full loop. It runs on agent write-back alone. No ADR seeding, no GitHub connector, no Slack listener required to start. Those layers make the guardrail stronger. They are not prerequisites.
 
 ---
 
 ## Where this goes: the complete decision graph
 
-The guardrail on day one covers agent-vs-agent contradictions. The long-term target is agent-vs-everything contradictions — including decisions your team made before the agents were involved.
+The guardrail on day one covers agent-vs-agent contradictions. The long-term target is agent-vs-everything contradictions, including decisions your team made before the agents were involved.
 
 Most architectural decisions don't live in ADRs. They live in a Slack thread that ended without a summary, a PR review comment that was resolved without a follow-up, a design review meeting nobody wrote up because it felt like an implementation detail. Those decisions still determine how the codebase behaves. And they are invisible to agents.
 
@@ -100,15 +104,17 @@ The full product feeds all of those surfaces into the same graph:
 | Slack messages | **Partial** — real-time listener works; thread replies and downstream decision extraction have known gaps | Where informal decisions actually happen |
 | Meeting transcripts | **Working** — REST ingest endpoint | Design reviews, verbal decisions |
 
-The honest state: the guardrail works reliably today for agent-generated decisions. It improves as you feed historical context. The Slack and GitHub human communication layers are partially implemented — they contribute signals and drift detection candidates, but decision extraction yield from conversational prose is low. That gap is the open engineering work.
+The honest state: the guardrail works reliably today for agent-generated decisions. It improves as you feed historical context. The Slack and GitHub human communication layers are partially implemented; they contribute signals and drift detection candidates, but decision extraction yield from conversational prose is low. That gap is the open engineering work.
 
-The value proposition when the graph is complete: a new agent session loads three weeks of Slack architecture debates, six ADRs, and twelve agent sessions — cited, attributed, searchable — and the guardrail covers all of it. Not just what the agents decided.
+The value proposition when the graph is complete: a new agent session loads three weeks of Slack architecture debates, six ADRs, and twelve agent sessions (cited, attributed, searchable) and the guardrail covers all of it. Not just what the agents decided.
 
 ---
 
 ## Real numbers
 
-Measured against the builder's own eval suite — not independently verified. All scenarios are synthetic: decisions are seeded programmatically, contradictions are planted, and agent sessions are simulated. These evals verify that the mechanism works correctly under controlled conditions. They do not measure performance against real team decision histories.
+Measured against the builder's own eval suite, not independently verified. All scenarios are synthetic: decisions are seeded programmatically, contradictions are planted, and agent sessions are simulated. These evals verify that the mechanism works correctly under controlled conditions. They do not measure performance against real team decision histories.
+
+In a production setting, these evals are preconditions for rollout, not proof of production readiness. The next step would be live monitoring on drift alert volume and false positive rate against real team decision histories.
 
 ### Guardrail scenario ([`eval:multi-agent`](apps/api/src/scripts/eval/eval-multi-agent.ts))
 
@@ -126,14 +132,14 @@ Five decisions logged by three different agents (claude-code, cursor, windsurf) 
 
 ### Agentic value-add ([`eval:agent-value`](apps/api/src/scripts/eval/eval-agent-value.ts))
 
-A/B comparison: same model, same 3 tasks, same LLM judge — only difference is ~400 tokens of brain context injected before dispatch.
+A/B comparison: same model, same 3 tasks, same LLM judge. The only difference is ~400 tokens of brain context injected before dispatch.
 
 | Metric | Cold start | Brain-assisted | Delta |
 |---|---|---|---|
 | Decision alignment rate | 17% (1/6) | **100% (6/6)** | +5 decisions |
 | Contradiction rate | 67% (4/6) | **0% (0/6)** | −4 contradictions |
 
-Without context the agent picked the wrong validation library, wrong rate limiting layer, wrong error format, and wrong auth approach on 4 of 6 relevant decisions. With brain context, all 6 were correct.
+Without context the agent picked the wrong validation library, wrong rate limiting layer, wrong error format, and wrong auth approach on 4 of 6 relevant decisions. With brain context, all 6 were correct. Caveat: several seeded decisions (JWT auth, Zod validation, RFC 7807 error format) are established best practices the model may already lean toward; the delta may partially reflect model priors, not brain context alone.
 
 ### Pipeline and retrieval
 
@@ -141,7 +147,7 @@ Without context the agent picked the wrong validation library, wrong rate limiti
 |---|---|---|
 | Pipeline correctness | **33/33 PASS** | Full pipeline: ingestion → extraction → graph integrity → query → drift detection |
 | MCP tool correctness | **8/8 PASS** | All 4 MCP tools verified against REST API equivalents |
-| Drift detection recall | **≥80%** | Known contradictions caught; <8% false positive rate on benign content |
+| Drift detection recall | **≥80%** | Known contradictions caught; target precision ≥70% (<30% false positive rate on noise) |
 | Citation faithfulness | **0 fabricated** | Every cited source_url and quoted_text verified against source documents |
 | Query latency p50 / p95 | **13.6s / 27.8s** | Ollama local; ~2s on cloud API |
 
@@ -168,7 +174,7 @@ brain_query
   └──▶  embed → Qdrant ANN search → Neo4j graph expand → LLM answer with citations
 ```
 
-**Why two databases:** Qdrant finds semantically related chunks. Neo4j expands from those entry points through structural links — SUPERSEDES edges, CHALLENGES relationships, EXTRACTED_FROM provenance. Qdrant retrieves by similarity. Neo4j retrieves by structure. The guardrail needs both: similarity to find candidates, structure to trace contradictions across sessions that similarity search would never co-retrieve.
+**Why two databases:** Qdrant finds semantically related chunks. Neo4j expands from those entry points through structural links (SUPERSEDES edges, CHALLENGES relationships, EXTRACTED_FROM provenance). Qdrant retrieves by similarity. Neo4j retrieves by structure. The guardrail needs both: similarity to find candidates, structure to trace contradictions across sessions that similarity search would never co-retrieve.
 
 ---
 
@@ -183,9 +189,9 @@ Add purpl-brain to Claude Code. Four tools become available in every session:
 | `brain_log_decision` | **When a decision is made — mid-session, not just at close.** Log what you decided, what you rejected, and why. The rationale is what makes the next session's impact analysis useful. |
 | `brain_log_signal` | When you find something unexpected — report a finding that may contradict an existing decision. |
 
-Four tools, not fifty-three. The discipline is the product. Decisions logged explicitly are precise, attributed, and queryable. Decisions captured automatically from session history are noise.
+Four tools, not fifty-three. Intentional. A smaller, opinionated surface is much easier for teams to adopt and govern. The discipline is the product. Decisions logged explicitly are precise, attributed, and queryable. Decisions captured automatically from session history are noise.
 
-**CLAUDE.md instructions are aspirational. Hooks are deterministic.** Under context pressure — long sessions, compaction events — agents make judgment calls about what counts as significant, and those calls degrade with less context. The Stop hook in `.claude/hooks/` solves this at the boundary: it checks for decisions logged in the last two hours and blocks the session from closing if none are found. The agent reads the message, calls `brain_log_decision`, and the hook clears.
+**CLAUDE.md instructions are aspirational. Hooks are deterministic.** Under context pressure (long sessions, compaction events), agents make judgment calls about what counts as significant, and those calls degrade with less context. The Stop hook in `.claude/hooks/` solves this at the boundary: it checks for decisions logged in the last two hours and blocks the session from closing if none are found. The agent reads the message, calls `brain_log_decision`, and the hook clears.
 
 ---
 
@@ -283,7 +289,7 @@ A response with `citations` and `answer` text is the core loop working. If `cita
 
 **Decision-rich events beat raw activity.** PRs with long review threads, Slack channels where architecture is debated, meeting transcripts from design reviews — these yield decisions the extractor can find. Routine merge commits and trivial fixes yield nothing.
 
-Twenty well-chosen decisions from an internal project will outperform two hundred events from a public repo the model already knows.
+In practice, twenty well-chosen decisions from an internal project are likely to outperform two hundred events from a public repo the model already knows.
 
 ---
 
@@ -327,7 +333,9 @@ Add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it
 
 ## Orchestration agents (REST API)
 
-If you control the orchestration layer — LangGraph, CrewAI, a CI bot, a Python script — use the REST API directly. The agent never needs to know about purpl-brain; brain calls are explicit nodes in your workflow.
+If you control the orchestration layer (a CI bot, a Python script, or any HTTP-capable agent), use the REST API directly. The agent does not need to know about purpl-brain; brain calls are explicit steps in your workflow.
+
+This pattern has been tested with direct HTTP calls. If you use an orchestration framework, the REST API is callable from any of them; framework-specific integration patterns are not yet documented.
 
 **The pattern:**
 
@@ -337,7 +345,9 @@ after completion:   extract decisions → POST /brain/agent-log
 before big change:  POST /brain/query  { mode: "impact" }  (optional hard gate)
 ```
 
-**Minimal Python:**
+**Minimal Python (illustrative — not a tested script):**
+
+`call_llm` and `extract_decisions` are placeholders you replace with your own implementation. The endpoint paths and auth headers are correct; the surrounding pattern has not been run end-to-end.
 
 ```python
 import httpx, uuid
@@ -372,17 +382,19 @@ def brain_log(task: str, decisions: list[dict]) -> None:
 def run_task(task: str) -> str:
     context = brain_query(task)
     prompt = f"Prior decisions:\n{context}\n\n---\n\n{task}" if context else task
+    # Note: brain_query returns "" on failure but a non-empty "no results" message
+    # on an empty corpus. Filter on len(context) > N or parse citations if you
+    # need to distinguish between "brain unavailable" and "no decisions found".
     result = call_llm(prompt)                      # your LLM call here
     brain_log(task, extract_decisions(result))     # your decision extraction here
     return result
 ```
 
 **Key rules:**
-- Use the task description as the query — not a generic "recent decisions". Specific queries return what matters; broad queries flood context.
+- Use the task description as the query, not a generic "recent decisions". Specific queries return what matters; broad queries flood context.
 - Log immediately after each task, not just at session end. A decision lost when a session crashes is unrecoverable.
 - Never raise on brain failure. The brain enhances context; it is not a dependency.
 
-For LangGraph nodes, a CI PR review pattern, and the full REST reference: **[docs/technical/orchestration-guide.md](docs/technical/orchestration-guide.md)**.
 
 ---
 
@@ -426,7 +438,7 @@ curl -X POST http://localhost:3001/brain/ingest/transcript \
 
 ### Drift notifications
 
-When a drift alert is confirmed, the brain can POST to any HTTP endpoint — a Slack webhook, a coordinator agent, a custom URL:
+When a drift alert is confirmed, the brain can POST to any HTTP endpoint (a Slack webhook, a coordinator agent, a custom URL):
 
 ```bash
 # In .env:
@@ -472,28 +484,17 @@ npm run eval:multi-agent -w apps/api   # 58 checks, guardrail scenario (~4 min)
 
 **If you're running one agent on one codebase, a markdown decisions file may be all you need.** A `decisions/` folder with dated markdown files, vectorized with any embedding tool, covers cross-session recall with zero infrastructure. The eval-cross-session result (100% recall) is achievable with a good RAG tool. Don't run Neo4j and Qdrant if you don't need them.
 
-At small scale that works. As the number of agents, sessions, and decisions grows, a flat file has no contradiction detection, no queryability across sessions, and no enforcement: it depends entirely on whoever — or whatever — writes to it remembering to keep it current. The maintenance burden scales with the team; the value of the guardrail scales with the number of agents that can contradict each other.
+At small scale that works. As the number of agents, sessions, and decisions grows, a flat file has no contradiction detection, no queryability across sessions, and no enforcement. It depends entirely on whoever (or whatever) writes to it remembering to keep it current.
 
-**If you want a hosted solution with zero infrastructure, consider mem0 or Zep.** mem0 auto-ingests from agent conversations without requiring explicit decision logging. Zep builds a knowledge graph from conversations with entity extraction and temporal reasoning. Both are production-tested and require no self-hosting. If `brain_analyze_impact` and proactive drift alerting aren't features your workflow needs, either is a serious alternative.
-
-**If your team already uses LangGraph, CrewAI, or AutoGen — purpl-brain is a layer on top, not a replacement.** As of mid-2026, LangGraph has a real OSS cross-thread Store (JSON document store with namespaces and search). That covers shared memory across agent threads. What it does not have — and what none of the major frameworks have — is:
-
-- **Contradiction detection.** No framework natively alerts when two agents in different threads made contradictory decisions. LangGraph's Store retrieves; it does not detect conflict.
-- **Schema enforcement at write time.** LangGraph's Store accepts any JSON. Rationale, alternatives considered, and confidence are on you to enforce. Without them, `brain_analyze_impact` has nothing to reason over.
-- **External REST API.** Non-LangGraph agents — Claude Code, CI bots, Cursor, a Python script — cannot read or write LangGraph's cross-thread Store without custom integration work. purpl-brain's REST API is callable from any agent, any framework, any language.
-- **Human communication surface.** Ingesting Slack messages, GitHub PR comments, and meeting transcripts into the same queryable store is custom integration work on every framework. None of them do it out of the box.
-
-Perplexity research verified this as current in mid-2026: *"If your requirement is decision governance — schema-enforced rationale, alternatives, and automatic contradiction alerts — you will still need custom application logic or an external memory/governance layer on top of any of these frameworks."* purpl-brain is that layer, pre-built.
+**If cross-session recall is all you need, other tools are simpler.** There are hosted memory solutions that auto-ingest from agent conversations without requiring explicit decision logging and need no self-hosting. If `brain_analyze_impact` and proactive drift alerting are not features your workflow needs, those are worth evaluating first.
 
 **purpl-brain earns its complexity when:**
 
-- You run multiple parallel agents that write decisions simultaneously and need contradiction detection across them
-- You need proactive alerts — drift detected and delivered before an agent queries, not after
-- You need `brain_analyze_impact` as a guardrail: structured risk assessment with citations before an agent acts, not a similarity search over memory blobs
-- You want a stable integration point that survives framework changes — agents in LangGraph, Claude Code, and CI bots all writing to the same decision graph
-- You want the full human+agent graph eventually: Slack, GitHub PRs, meeting transcripts, and agent sessions in one queryable store with consistent attribution
-
-The short version: **LangGraph knows what your agents decided in this run. purpl-brain knows what everyone decided since the project started — and tells you when you're about to contradict it.**
+- You run multiple agents working on the same codebase across separate sessions and need contradictions surfaced before they ship
+- You need proactive alerts: drift detected and delivered before an agent queries, not after
+- You need `brain_analyze_impact` as a guardrail: structured risk assessment with citations before an agent acts
+- You want decisions stored with rationale and alternatives, not just facts, so impact analysis has something to reason over
+- You want the same queryable store to eventually cover agent sessions, ADRs, and human signals (Slack, PRs, meetings) in one place
 
 ---
 
@@ -512,12 +513,8 @@ The short version: **LangGraph knows what your agents decided in this run. purpl
 | Audience | Document |
 |----------|----------|
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
-| Orchestration integration | [docs/technical/orchestration-guide.md](docs/technical/orchestration-guide.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
 | Embedding model selection | [docs/technical/adrs/005-embedding-model.md](docs/technical/adrs/005-embedding-model.md) |
-| Drift coordination flow | [docs/technical/drift-flow.md](docs/technical/drift-flow.md) |
-| LLM cost controls | [docs/technical/llm-cost-controls.md](docs/technical/llm-cost-controls.md) |
-| Design tradeoffs | [docs/technical/architecture-tradeoffs.md](docs/technical/architecture-tradeoffs.md) |
 
 ---
 

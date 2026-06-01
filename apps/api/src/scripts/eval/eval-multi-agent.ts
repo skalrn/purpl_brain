@@ -21,6 +21,7 @@
  *   4. DriftAlert visible in brain_query response path
  *   5. Cross-agent decision visibility through the graph
  *   6. No mechanism to detect non-compliant agents (DependencyUpgradeAgent)
+ *   7. Governance layer surfaces contradictions even when agents skip pre-flight (FastRefactorAgent)
  *
  * Usage:
  *   npm run eval:multi-agent -w apps/api
@@ -51,6 +52,7 @@ const REFACTOR_SESSION = `sess_ma_refactor_${RUN_ID}`;
 const DEPUPGRADE_SESSION = `sess_ma_depupgrade_${RUN_ID}`;
 const SECURITY_SESSION = `sess_ma_security_${RUN_ID}`;
 const PRREVIEW_SESSION = `sess_ma_prreview_${RUN_ID}`;
+const FAST_REFACTOR_SESSION = `sess_ma_fastrefactor_${RUN_ID}`;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,6 +79,11 @@ function phase(n: number | string, label: string) {
   console.log(`\n${"─".repeat(64)}`);
   console.log(`Phase ${n}: ${label}`);
   console.log(`${"─".repeat(64)}`);
+}
+
+function jitter(baseMs: number, pct = 0.2): number {
+  const delta = baseMs * pct;
+  return Math.round(baseMs + (Math.random() * 2 - 1) * delta);
 }
 
 async function sleep(ms: number, label?: string) {
@@ -233,6 +240,31 @@ const DEPUPGRADE_LOG = {
   ],
   work_completed: "Bumped ioredis to 5.4.1 in all packages. Opened PR #846.",
   files_modified: ["package-lock.json", "packages/cache/package.json"],
+};
+
+// FastRefactorAgent's decision — logged WITHOUT calling brain_analyze_impact first.
+// Models a non-ideal agent that acts immediately and logs after. The brain should
+// still surface this contradiction to any compliant agent that runs impact analysis.
+const FAST_REFACTOR_LOG = {
+  schema_version: "1.0",
+  session_id: FAST_REFACTOR_SESSION,
+  agent_id: "fast-refactor-agent-v1",
+  project_id: PROJECT_ID,
+  task_id: "emergency-cache-fix",
+  codebase: "acme-payments-api",
+  timestamp_start: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+  timestamp_end: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+  decisions: [
+    {
+      id: "fast-refactor-001",
+      description: "Add in-memory LRU as L1 cache in front of Redis on /api/charge — 256MB bounded, 30s TTL, Redis demoted to L2 write-behind",
+      rationale: "Redis eviction at 12% during burst test is causing cache miss storms. Adding in-memory LRU as L1 reduces Redis pressure immediately. Redis remains as L2. No pipeline changes needed.",
+      alternatives_considered: ["increase Redis memory allocation", "tune allkeys-lru eviction policy"],
+      confidence: "high" as const,
+    },
+  ],
+  work_completed: "Added in-memory LRU to /api/charge hot path. Skipped brain_analyze_impact — acted immediately on monitoring alert.",
+  files_modified: ["apps/api/src/lib/cache.ts"],
 };
 
 // SecurityAuditAgent's REJECTION decision — logged after observing DriftAlert
@@ -506,6 +538,51 @@ async function main() {
     // rejection or pivot despite the DriftAlert that follows.
   }
 
+  // ── Phase 6B: FastRefactorAgent — non-ideal agent, no pre-flight (A_FR) ───────
+  phase("6B", "A_FR — FastRefactorAgent logs without impact analysis; governance still surfaces it");
+
+  let fastRefactorLogOk = false;
+  if (!seedOk) {
+    skip("A_FR FastRefactorAgent", "seed did not succeed");
+  } else {
+    // FastRefactorAgent acts immediately — no brain_analyze_impact call before logging
+    const fastLog = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(
+      "/brain/agent-log", FAST_REFACTOR_LOG, true
+    );
+    check("A_FR1: FastRefactorAgent decision logged without pre-flight (200 or 202)",
+      [200, 202].includes(fastLog.status),
+      `status=${fastLog.status}`);
+    fastRefactorLogOk = [200, 202].includes(fastLog.status);
+
+    if (fastRefactorLogOk) {
+      await sleep(5000, "fast-refactor decision landing in Qdrant");
+
+      // A compliant agent now runs brain_analyze_impact on the same direction.
+      // The contradiction should be visible even though FastRefactorAgent skipped pre-flight.
+      const governanceCheck = await post<{
+        overall_risk: string;
+        affected_decisions: Array<{ decision_id: string; risk_tier: string; summary?: string; rationale?: string }>;
+      }>(
+        "/brain/query",
+        {
+          query: "Add in-memory LRU as L1 cache layer in front of Redis on the /api/charge hot path",
+          project_id: PROJECT_ID,
+          mode: "impact",
+          change_description: "Add in-memory LRU bounded at 256MB as L1 cache. Redis demoted to L2 write-behind. Changes write-through pattern established in cache-001.",
+        },
+        true
+      );
+      check("A_FR2: governance impact check returns 200", governanceCheck.status === 200,
+        `status=${governanceCheck.status}`);
+      check("A_FR3: ≥1 affected decision found — contradiction visible despite skipped pre-flight",
+        (governanceCheck.body.affected_decisions ?? []).length >= 1,
+        `affected=${governanceCheck.body.affected_decisions?.length}`);
+      check("A_FR4: overall_risk is medium or above — governance layer is active",
+        ["medium", "high", "critical"].includes(governanceCheck.body.overall_risk ?? ""),
+        `overall_risk=${governanceCheck.body.overall_risk}`);
+    }
+  }
+
   // ── Phase 7: External signals — Slack + GitHub PR in parallel (A5, A6) ────────
   phase(7, "A5/A6 — Slack burst-test warning + GitHub PR in parallel");
 
@@ -515,8 +592,8 @@ async function main() {
   if (!seedOk) {
     skip("A5/A6 external signals", "seed did not succeed");
   } else {
-    const slackOccurredAt = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    const ghOccurredAt = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    const slackOccurredAt = new Date(Date.now() - jitter(30 * 60 * 1000)).toISOString();
+    const ghOccurredAt = new Date(Date.now() - jitter(20 * 60 * 1000)).toISOString();
 
     const [slack, github] = await Promise.all([
       // Priya's Slack message in #platform

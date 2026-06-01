@@ -127,6 +127,15 @@ fi
 # Normalise to underscore slug
 PROJECT_ID="${PROJECT_ID//[^a-zA-Z0-9]/_}"
 
+# ── Patch .claude hooks with user's project ID ────────────────────────────────
+for HOOK_FILE in ".claude/hooks/check-brain-decisions.sh" ".claude/hooks/mid-session-brain-check.sh"; do
+  if [[ -f "$HOOK_FILE" ]]; then
+    sed -i.bak "s/PROJECT_ID=\"skalrn_purpl_brain\"/PROJECT_ID=\"${PROJECT_ID}\"/" "$HOOK_FILE"
+    rm -f "${HOOK_FILE}.bak"
+  fi
+done
+echo -e "${GREEN}✓ .claude hooks patched with project ID: ${PROJECT_ID}${RESET}"
+
 # Generate random credentials for local use
 API_KEY="pbk_$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)"
 NEO4J_PASSWORD_GEN="$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)"
