@@ -341,6 +341,19 @@ In practice, twenty well-chosen decisions from an internal project are likely to
 }
 ```
 
+Then add this to `CLAUDE.md` in whichever repo you want to use the brain from:
+
+```markdown
+## Brain (purpl-brain MCP)
+
+The purpl-brain MCP is connected. Use `project_id: orion_commerce` in all tool calls.
+
+- **Session start:** call `brain_query` to recall prior decisions and open drift alerts.
+- **Before a significant change:** call `brain_analyze_impact`.
+- **When a decision is made:** call `brain_log_decision`.
+- **When something unexpected surfaces:** call `brain_log_signal`.
+```
+
 **If you used `setup.sh` (built from source):** paste the stdio config printed by `setup.sh` into `~/.claude/settings.json`:
 
 ```json
