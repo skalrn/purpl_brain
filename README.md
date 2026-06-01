@@ -230,6 +230,7 @@ No `.env`, no seed commands. Pre-loaded with **Orion Commerce** — a synthetic 
 #### Connect your own project (~5 minutes)
 
 ```bash
+mkdir -p ~/purpl-brain && cd ~/purpl-brain
 curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-prebuilt.sh
 bash setup-prebuilt.sh
 ```
