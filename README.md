@@ -385,7 +385,7 @@ The purpl-brain MCP is connected.
 }
 ```
 
-Add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent.
+Add the CLAUDE.md snippet printed by `setup.sh` to your project repo. Without it, tool calls depend on model judgment and will be inconsistent. (Option A users: use the snippet provided above instead.)
 
 > **Note:** The example hook scripts in `.claude/hooks/` use `skalrn_purpl_brain` as the project ID. Change `PROJECT_ID` at the top of each script to match your own project. Running `setup.sh` does this automatically.
 
