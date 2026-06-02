@@ -263,8 +263,14 @@ bash setup.sh
 
 Data is already loaded — no need to seed anything. The brain is pre-populated with **Orion Commerce**, a synthetic e-commerce engineering team (fictional company, fictional people, realistic decisions). Open **http://localhost:3740** and try these queries:
 
+Try `brain_analyze_impact` first — it shows the guardrail in action:
+
+- Change: `"Move inventory reservation step into an async call from the order flow to simplify checkout latency"` → the brain surfaces conflicts with the order confirmation and inventory architecture decisions
+- Change: `"Remove the payment confirmation step before sending the order email"` → catches the email policy decision
+
+Or query the brain directly:
+
 - `"Why does the order confirmation email require both payment and inventory?"`
-- `"What did Priya decide about refunds?"`
 - `"What changed in the order management approach over the last two months?"`
 - `"Show me open drift alerts"`
 

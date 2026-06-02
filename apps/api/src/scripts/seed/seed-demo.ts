@@ -658,7 +658,7 @@ in 2 weeks specifically about this scenario. Feels like the right time.`,
   console.log('  }\n');
   console.log("  Then open any Claude Code session — brain_query, brain_log_decision,");
   console.log("  brain_analyze_impact, and brain_log_signal are available as tools.");
-  console.log("  Start with: brain_query 'What did we decide about refunds?' project_id=orion_commerce");
+  console.log("  Start with: brain_analyze_impact 'Move inventory reservation step into an async call from the order flow to simplify checkout latency' project_id=orion_commerce");
   console.log("\n─────────────────────────────────────────────────────────────────\n");
 }
 
