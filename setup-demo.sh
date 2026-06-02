@@ -123,7 +123,6 @@ done
 
 cat > ".claude/settings.json" << CLAUDESETTINGS
 {
-  "enableAllProjectMcpServers": true,
   "hooks": {
     "Stop": [
       {
@@ -138,7 +137,19 @@ cat > ".claude/settings.json" << CLAUDESETTINGS
   }
 }
 CLAUDESETTINGS
-echo -e "${GREEN}✓ .claude/settings.json written — MCP and Stop hook wired${RESET}"
+
+# Register MCP server in local config (~/.claude.json, project-scoped)
+# HTTP transport requires claude mcp add — .mcp.json only supports stdio servers
+if command -v claude &>/dev/null; then
+  claude mcp add --transport http purpl-brain-demo "http://localhost:${MCP_PORT}/mcp" 2>/dev/null && \
+    echo -e "${GREEN}✓ MCP server registered (purpl-brain-demo)${RESET}" || \
+    echo -e "${YELLOW}⚠  Could not register MCP automatically. Run manually:${RESET}"
+  echo -e "${YELLOW}   claude mcp add --transport http purpl-brain-demo http://localhost:${MCP_PORT}/mcp${RESET}"
+else
+  echo -e "${YELLOW}── MCP setup (run after installing Claude Code) ─────────${RESET}"
+  echo "  claude mcp add --transport http purpl-brain-demo http://localhost:${MCP_PORT}/mcp"
+fi
+echo -e "${GREEN}✓ .claude/settings.json written — Stop hook wired${RESET}"
 
 # ── Port conflict check ───────────────────────────────────────────────────────
 echo ""
