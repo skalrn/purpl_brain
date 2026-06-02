@@ -1,6 +1,5 @@
-# Release build — identical to Dockerfile but runs obfuscation after tsc.
-# Used by GitHub Actions on release-* and release-beta-* branches.
-# Local dev uses Dockerfile (no obfuscation — faster rebuilds, readable stack traces).
+# Release build — used by GitHub Actions on release-* branches.
+# Builds apps/api + apps/mcp into a single image.
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -8,15 +7,19 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/
 COPY apps/api/package*.json ./apps/api/
+COPY apps/mcp/package*.json ./apps/mcp/
 
-RUN npm ci --workspace=packages/types --workspace=apps/api
+RUN npm ci --workspace=packages/types --workspace=apps/api --workspace=apps/mcp
 
 COPY packages/types/ ./packages/types/
 COPY apps/api/src/ ./apps/api/src/
 COPY apps/api/tsconfig.json ./apps/api/
+COPY apps/mcp/src/ ./apps/mcp/src/
+COPY apps/mcp/tsconfig.json ./apps/mcp/
 
-# Build types, then compile + obfuscate API
-RUN npm run build -w packages/types && npm run build:release -w apps/api
+RUN npm run build -w packages/types \
+ && npm run build -w apps/api \
+ && npm run build -w apps/mcp
 
 # ── Runtime image ─────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
@@ -25,13 +28,15 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
+COPY apps/mcp/package*.json ./apps/mcp/
 
-RUN npm ci --omit=dev --workspace=apps/api
+RUN npm ci --omit=dev --workspace=apps/api --workspace=apps/mcp
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/mcp/dist ./apps/mcp/dist
 
 WORKDIR /app/apps/api
 
-EXPOSE 3001
+EXPOSE 3741
 
 CMD ["node", "dist/index.js"]

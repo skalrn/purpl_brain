@@ -247,7 +247,7 @@ services:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: ["node", "dist/scripts/seed-demo.js"]
+    command: ["node", "dist/scripts/seed/seed-demo.js"]
     restart: "no"
 
 volumes:
