@@ -114,7 +114,7 @@ async function seedAll() {
   const LLM_PROVIDER = process.env.LLM_PROVIDER ?? "ollama";
   const ollamaBase   = (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1").replace(/\/v1\/?$/, "");
   const embedModel   = process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text:v1.5";
-  const fastModel    = process.env.OLLAMA_FAST_MODEL  ?? "qwen2.5:7b";
+  const fastModel    = process.env.OLLAMA_FAST_MODEL  ?? "llama3.1:8b";
   const smartModel   = process.env.OLLAMA_SMART_MODEL ?? "llama3.1:8b";
   const required     = LLM_PROVIDER === "anthropic"
     ? [embedModel]

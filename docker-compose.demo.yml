@@ -217,6 +217,11 @@ services:
       MCP_BIND_HOST: "0.0.0.0"
       BRAIN_API_URL: http://api:3001
       BRAIN_API_KEY: demo-key
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-llama3.1:8b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       BRAIN_AGENT_ID: claude-code
     depends_on:
       api:
@@ -241,6 +246,11 @@ services:
       API_BASE: http://api:3001
       REDIS_URL: redis://redis:6379
       BRAIN_API_KEY: demo-key
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_FAST_MODEL: ${OLLAMA_FAST_MODEL:-llama3.1:8b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text:v1.5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       SESSION_SECRET: demo-session-secret-not-for-production
     depends_on:
       api:
