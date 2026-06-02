@@ -121,13 +121,20 @@ for HOOK in "check-brain-decisions.sh" "mid-session-brain-check.sh"; do
   chmod +x ".claude/hooks/$HOOK"
 done
 
-cat > ".claude/settings.json" << CLAUDESETTINGS
+# .mcp.json — project-level MCP server definition (picked up by Claude Code)
+cat > ".mcp.json" << MCPJSON
 {
   "mcpServers": {
     "purpl-brain-demo": {
       "url": "http://localhost:${MCP_PORT}/mcp"
     }
-  },
+  }
+}
+MCPJSON
+
+# .claude/settings.json — hooks only (MCP definition moved to .mcp.json)
+cat > ".claude/settings.json" << CLAUDESETTINGS
+{
   "hooks": {
     "Stop": [
       {
@@ -142,7 +149,7 @@ cat > ".claude/settings.json" << CLAUDESETTINGS
   }
 }
 CLAUDESETTINGS
-echo -e "${GREEN}✓ .claude/settings.json written — MCP and Stop hook wired${RESET}"
+echo -e "${GREEN}✓ .mcp.json and .claude/settings.json written — MCP and Stop hook wired${RESET}"
 
 # ── Port conflict check ───────────────────────────────────────────────────────
 echo ""
