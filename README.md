@@ -217,13 +217,11 @@ Two paths: **pre-built images** (fastest, no Node.js required, MCP included) or 
 
 ```bash
 mkdir ~/purpl-brain-demo && cd ~/purpl-brain-demo
-curl -fsSL https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-demo.sh | bash
-
-# Anthropic (~2s queries instead of ~14s) — optional:
-ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic bash setup-demo.sh
+curl -fsSL https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-demo.sh -o setup-demo.sh
+bash setup-demo.sh
 ```
 
-No `.env`, no seed commands, no manual config. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · Web UI on port 3740 · MCP on port 3742.
+No `.env`, no seed commands, no manual config. The script prompts for LLM provider — choose Ollama (no API key, ~14s queries) or Anthropic (~2s queries, key entered interactively). Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · Web UI on port 3740 · MCP on port 3742.
 
 `setup-demo.sh` downloads the compose file, writes `.claude/settings.json` and Stop hooks scoped to the demo folder, and starts all services. Open Claude Code from `~/purpl-brain-demo` — MCP and hooks are already wired.
 
