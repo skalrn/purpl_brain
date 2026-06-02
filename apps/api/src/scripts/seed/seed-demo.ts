@@ -643,7 +643,11 @@ in 2 weeks specifically about this scenario. Feels like the right time.`,
   console.log("  2. Partial refund PR contradicts 'full refunds only in v1'");
   console.log("  3. Aria's Apple Pay session contradicts 'wallet payments out of scope for v1'");
 
-  console.log("\n  ── Connect Claude Code ──────────────────────────────────────\n");
+  console.log("\n  ── Open the brain UI ────────────────────────────────────────\n");
+  console.log("  http://localhost:3740");
+  console.log("  Select the 'orion_commerce' project and start asking questions.\n");
+
+  console.log("  ── Connect Claude Code ──────────────────────────────────────\n");
   console.log("  Add to ~/.claude/settings.json:\n");
   console.log('  {');
   console.log('    "mcpServers": {');

@@ -5,7 +5,8 @@
 #
 # Usage:
 #   docker compose -f docker-compose.demo.yml up
-#   open http://localhost:3741/health  # API health check
+#   open http://localhost:3740          # web UI (auto-seeded with demo data)
+#   open http://localhost:3741/health   # API health check
 #
 # The demo-seeder service runs once on startup and populates the brain
 # with 8 weeks of realistic e-commerce engineering decisions. It exits
@@ -236,7 +237,21 @@ services:
       retries: 10
       start_period: 5s
 
-  # web: not yet released — API-only beta
+  web:
+    image: ghcr.io/skalrn/purpl-brain-web:demo-latest
+    ports:
+      - "${WEB_HOST_PORT:-3740}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   # Runs once on startup, seeds the Orion Commerce demo dataset, then exits.
   # The restart:no policy ensures Docker does not restart it after completion.

@@ -2,11 +2,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# NEXT_PUBLIC_API_URL is the only build-time var needed.
-# API keys are never baked into the image — they are issued per-user via OAuth
-# and retrieved at runtime from /auth/me (session-scoped).
+# Build-time vars baked into the Next.js bundle.
+# NEXT_PUBLIC_API_KEY is empty by default — set to a demo key for demo images.
 ARG NEXT_PUBLIC_API_URL=http://localhost:3741
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_KEY=""
+ENV NEXT_PUBLIC_API_KEY=$NEXT_PUBLIC_API_KEY
 
 COPY package*.json ./
 COPY packages/types/package*.json ./packages/types/

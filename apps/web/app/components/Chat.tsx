@@ -93,7 +93,7 @@ export default function Chat({ projectId: propProjectId }: { projectId?: string 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState(process.env.NEXT_PUBLIC_API_KEY ?? "");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
