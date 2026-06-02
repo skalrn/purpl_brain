@@ -167,22 +167,27 @@ export async function analyzeImpact(
     with_payload: true,
   }) as Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>;
 
-  const relevantEventIds = [
-    ...new Set(
-      results
-        .filter((r) => r.score >= RELEVANCE_THRESHOLD && r.payload?.graph_node_id)
-        .map((r) => String(r.payload!.graph_node_id))
-    ),
-  ];
+  // Build max-score-per-event map so decisions inherit the strongest relevance signal
+  // from their source event's chunks. Option A: event proxy score — no extra embed calls.
+  // Option B (higher accuracy): embed each decision summary individually against changeDescription.
+  const relevantChunks = results.filter(
+    (r) => r.score >= RELEVANCE_THRESHOLD && r.payload?.graph_node_id
+  );
+  const eventMaxScore = new Map<string, number>();
+  for (const r of relevantChunks) {
+    const eid = String(r.payload!.graph_node_id);
+    eventMaxScore.set(eid, Math.max(eventMaxScore.get(eid) ?? 0, r.score));
+  }
+  const relevantEventIds = [...new Set(relevantChunks.map((r) => String(r.payload!.graph_node_id)))];
 
   // 2. Fetch decisions + ticket refs from graph
   const decisionsRaw = await getDecisionsWithTicketsByEventIds(relevantEventIds, projectId);
 
-  // Sort by Qdrant relevance order — deterministic tiebreaker on decision_id for same-event decisions
-  const eventRank = new Map(relevantEventIds.map((id, i) => [id, i]));
+  // Sort by max chunk score of source event descending — best available per-decision relevance signal.
+  // Deterministic tiebreaker on decision_id for decisions from the same event.
   const decisionsWithTickets = decisionsRaw.sort(
     (a, b) =>
-      ((eventRank.get(a.event_id) ?? 999) - (eventRank.get(b.event_id) ?? 999)) ||
+      ((eventMaxScore.get(b.event_id) ?? 0) - (eventMaxScore.get(a.event_id) ?? 0)) ||
       a.decision_id.localeCompare(b.decision_id)
   );
 
