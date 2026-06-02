@@ -154,10 +154,11 @@ ENVEOF
 echo -e "${GREEN}✓ Written .env${RESET}"
 
 # ── Download and patch hooks ──────────────────────────────────────────────────
-# Hooks go to ~/.claude/hooks/ so Claude Code picks them up across all sessions.
+# Hooks go into the project .claude/hooks/ folder so they only fire when
+# Claude Code is opened from this directory — not across all sessions.
 echo ""
 echo -e "${YELLOW}── Setting up Claude Code hooks ─────────────────────────${RESET}"
-HOOKS_DIR="$HOME/.claude/hooks"
+HOOKS_DIR="${SCRIPT_DIR}/.claude/hooks"
 mkdir -p "$HOOKS_DIR"
 for HOOK in "check-brain-decisions.sh" "mid-session-brain-check.sh"; do
   curl -fsSL "$REPO_RAW/.claude/hooks/$HOOK" -o "$HOOKS_DIR/$HOOK"
@@ -165,7 +166,37 @@ for HOOK in "check-brain-decisions.sh" "mid-session-brain-check.sh"; do
   rm -f "$HOOKS_DIR/${HOOK}.bak"
   chmod +x "$HOOKS_DIR/$HOOK"
 done
-echo -e "${GREEN}✓ Hooks installed to ~/.claude/hooks/ with project ID: ${PROJECT_ID}${RESET}"
+echo -e "${GREEN}✓ Hooks installed to .claude/hooks/ with project ID: ${PROJECT_ID}${RESET}"
+
+# ── Write project-level Claude Code settings ─────────────────────────────────
+# Creates .claude/settings.json in the current directory so opening Claude Code
+# here automatically connects to the brain MCP and enables the Stop hook.
+echo ""
+echo -e "${YELLOW}── Configuring Claude Code settings ─────────────────────${RESET}"
+MCP_PORT="${MCP_HOST_PORT:-3742}"
+mkdir -p ".claude"
+cat > ".claude/settings.json" << CLAUDESETTINGS
+{
+  "mcpServers": {
+    "purpl-brain": {
+      "url": "http://localhost:${MCP_PORT}/mcp"
+    }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${SCRIPT_DIR}/.claude/hooks/check-brain-decisions.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+CLAUDESETTINGS
+echo -e "${GREEN}✓ .claude/settings.json written — MCP and Stop hook wired${RESET}"
 
 # ── Port conflict check ───────────────────────────────────────────────────────
 echo ""
