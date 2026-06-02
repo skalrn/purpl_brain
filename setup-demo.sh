@@ -208,7 +208,7 @@ echo "  Try: brain_query 'What did Priya decide about refunds?' project_id=orion
 echo ""
 if [[ "$LLM_PROVIDER" == "ollama" ]]; then
   echo -e "${YELLOW}  ⏱  Ollama query latency: ~14s p50, ~28s p95. This is normal.${RESET}"
-  echo -e "${YELLOW}     Set LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... and re-run for ~2s.${RESET}"
+  echo -e "${YELLOW}     For ~2s responses: re-run setup-demo.sh and choose Anthropic when prompted.${RESET}"
 fi
 echo ""
 echo -e "${YELLOW}Tail logs:${RESET}"
