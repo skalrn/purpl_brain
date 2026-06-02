@@ -126,6 +126,7 @@ cat > ".mcp.json" << MCPJSON
 {
   "mcpServers": {
     "purpl-brain-demo": {
+      "type": "http",
       "url": "http://localhost:${MCP_PORT}/mcp"
     }
   }
