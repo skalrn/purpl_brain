@@ -176,7 +176,13 @@ export async function analyzeImpact(
   ];
 
   // 2. Fetch decisions + ticket refs from graph
-  const decisionsWithTickets = await getDecisionsWithTicketsByEventIds(relevantEventIds, projectId);
+  const decisionsRaw = await getDecisionsWithTicketsByEventIds(relevantEventIds, projectId);
+
+  // Sort by Qdrant relevance order so the cap keeps the most relevant decisions
+  const eventRank = new Map(relevantEventIds.map((id, i) => [id, i]));
+  const decisionsWithTickets = decisionsRaw.sort(
+    (a, b) => (eventRank.get(a.event_id) ?? 999) - (eventRank.get(b.event_id) ?? 999)
+  );
 
   if (decisionsWithTickets.length === 0) {
     return {
