@@ -167,6 +167,36 @@ for HOOK in "check-brain-decisions.sh" "mid-session-brain-check.sh"; do
 done
 echo -e "${GREEN}✓ Hooks installed to ~/.claude/hooks/ with project ID: ${PROJECT_ID}${RESET}"
 
+# ── Write project-level Claude Code settings ─────────────────────────────────
+# Creates .claude/settings.json in the current directory so opening Claude Code
+# here automatically connects to the brain MCP and enables the Stop hook.
+echo ""
+echo -e "${YELLOW}── Configuring Claude Code settings ─────────────────────${RESET}"
+MCP_PORT="${MCP_HOST_PORT:-3742}"
+mkdir -p ".claude"
+cat > ".claude/settings.json" << CLAUDESETTINGS
+{
+  "mcpServers": {
+    "purpl-brain": {
+      "url": "http://localhost:${MCP_PORT}/mcp"
+    }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/check-brain-decisions.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+CLAUDESETTINGS
+echo -e "${GREEN}✓ .claude/settings.json written — MCP and Stop hook wired${RESET}"
+
 # ── Port conflict check ───────────────────────────────────────────────────────
 echo ""
 echo -e "${YELLOW}── Checking ports ───────────────────────────────────────${RESET}"
