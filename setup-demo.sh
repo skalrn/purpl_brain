@@ -151,6 +151,26 @@ else
 fi
 echo -e "${GREEN}✓ .claude/settings.json written — Stop hook wired${RESET}"
 
+# ── Write CLAUDE.md ───────────────────────────────────────────────────────────
+cat > "CLAUDE.md" << CLAUDEMD
+# Orion Commerce — Brain-connected demo
+
+This folder contains the purpl-brain demo pre-loaded with 8 weeks of Orion Commerce engineering decisions.
+
+## Brain tool usage
+
+The purpl-brain MCP is connected as \`purpl-brain-demo\`. Use \`project_id: ${PROJECT_ID}\` in all tool calls.
+
+**Before any significant change:** call \`brain_analyze_impact\` with a plain-English description of what you are about to do. This checks the decision graph for conflicts, downstream dependencies, and open drift alerts.
+
+**To query past decisions:** call \`brain_query\` with a natural language question.
+
+**When a decision is made:** call \`brain_log_decision\` to write it back so future sessions can see it.
+
+**When something unexpected surfaces:** call \`brain_log_signal\` to report a finding that may contradict an existing decision.
+CLAUDEMD
+echo -e "${GREEN}✓ CLAUDE.md written — brain tool instructions loaded at session start${RESET}"
+
 # ── Port conflict check ───────────────────────────────────────────────────────
 echo ""
 echo -e "${YELLOW}── Checking ports ───────────────────────────────────────${RESET}"
