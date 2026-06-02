@@ -21,8 +21,8 @@ function ruleFloor(confidence: string, openDriftCount: number): RiskTier {
 }
 
 const TOP_K = 15;
-// Cap decisions sent to LLM — avoids token overflow on large corpora
-const LLM_DECISION_CAP = 10;
+// Cap decisions sent to LLM — avoids token overflow on large corpora; tunable via env
+const LLM_DECISION_CAP = Number(process.env.IMPACT_LLM_DECISION_CAP ?? 10);
 
 // Minimum Qdrant score to treat a chunk as relevant to the change
 const RELEVANCE_THRESHOLD = 0.55;
@@ -167,16 +167,29 @@ export async function analyzeImpact(
     with_payload: true,
   }) as Array<{ id: string | number; score: number; payload?: Record<string, unknown> }>;
 
-  const relevantEventIds = [
-    ...new Set(
-      results
-        .filter((r) => r.score >= RELEVANCE_THRESHOLD && r.payload?.graph_node_id)
-        .map((r) => String(r.payload!.graph_node_id))
-    ),
-  ];
+  // Build max-score-per-event map so decisions inherit the strongest relevance signal
+  // from their source event's chunks. Option A: event proxy score — no extra embed calls.
+  // Option B (higher accuracy): embed each decision summary individually against changeDescription.
+  const relevantChunks = results.filter(
+    (r) => r.score >= RELEVANCE_THRESHOLD && r.payload?.graph_node_id
+  );
+  const eventMaxScore = new Map<string, number>();
+  for (const r of relevantChunks) {
+    const eid = String(r.payload!.graph_node_id);
+    eventMaxScore.set(eid, Math.max(eventMaxScore.get(eid) ?? 0, r.score));
+  }
+  const relevantEventIds = [...new Set(relevantChunks.map((r) => String(r.payload!.graph_node_id)))];
 
   // 2. Fetch decisions + ticket refs from graph
-  const decisionsWithTickets = await getDecisionsWithTicketsByEventIds(relevantEventIds, projectId);
+  const decisionsRaw = await getDecisionsWithTicketsByEventIds(relevantEventIds, projectId);
+
+  // Sort by max chunk score of source event descending — best available per-decision relevance signal.
+  // Deterministic tiebreaker on decision_id for decisions from the same event.
+  const decisionsWithTickets = decisionsRaw.sort(
+    (a, b) =>
+      ((eventMaxScore.get(b.event_id) ?? 0) - (eventMaxScore.get(a.event_id) ?? 0)) ||
+      a.decision_id.localeCompare(b.decision_id)
+  );
 
   if (decisionsWithTickets.length === 0) {
     return {
@@ -188,8 +201,11 @@ export async function analyzeImpact(
     };
   }
 
-  // 3. LLM risk assessment
-  const assessment = await assessImpact(changeDescription, decisionsWithTickets);
+  // 3. LLM risk assessment — only top N decisions; remainder get floor-only assessment
+  const llmDecisions = decisionsWithTickets.slice(0, LLM_DECISION_CAP);
+  const remainderDecisions = decisionsWithTickets.slice(LLM_DECISION_CAP);
+  const assessment = await assessImpact(changeDescription, llmDecisions);
+  const assessmentDegraded = assessment.summary.includes("unavailable") || remainderDecisions.length > 0;
 
   // 4. Enrich each ticket with live Jira data (parallel, best-effort)
   const allTicketRefs = [...new Set(decisionsWithTickets.flatMap((d) => d.ticket_refs))];
@@ -206,24 +222,7 @@ export async function analyzeImpact(
     assessment.assessments.map((a) => [a.decision_id, a])
   );
 
-  // 5. Apply deterministic floor over LLM tier per decision, then derive overall_risk
-  const floored = decisionsWithTickets.map((d) => {
-    const assess = riskByDecision.get(d.decision_id);
-    const llmTier = (assess?.risk_tier ?? "low") as RiskTier;
-    const floor = ruleFloor(d.confidence, d.open_drift_count);
-    return {
-      d,
-      riskTier: maxTier(llmTier, floor),
-      reason: assess?.reason ?? "",
-    };
-  });
-
-  const overall_risk = floored.reduce<RiskTier>(
-    (acc, { riskTier }) => maxTier(acc, riskTier),
-    assessment.overall_risk as RiskTier
-  );
-
-  const affectedDecisions: ImpactDecision[] = floored.map(({ d, riskTier, reason }) => {
+  function buildDecision(d: typeof decisionsWithTickets[number], riskTier: RiskTier, reason: string): ImpactDecision {
     const affectedTickets: ImpactTask[] = d.ticket_refs.map((ref) => {
       const info = jiraInfoMap.get(ref);
       return {
@@ -236,21 +235,37 @@ export async function analyzeImpact(
         reason,
       };
     });
+    return { decision_id: d.decision_id, summary: d.summary, rationale: d.rationale, status: d.status, affected_tickets: affectedTickets };
+  }
 
-    return {
-      decision_id: d.decision_id,
-      summary: d.summary,
-      rationale: d.rationale,
-      status: d.status,
-      affected_tickets: affectedTickets,
-    };
+  // 5. Apply deterministic floor over LLM tier — LLM-assessed decisions only
+  const floored = llmDecisions.map((d) => {
+    const assess = riskByDecision.get(d.decision_id);
+    const llmTier = (assess?.risk_tier ?? "low") as RiskTier;
+    const floor = ruleFloor(d.confidence, d.open_drift_count);
+    return { d, riskTier: maxTier(llmTier, floor), reason: assess?.reason ?? "" };
   });
+
+  // Remainder decisions: floor-only, explicit reason so callers know they weren't LLM-assessed
+  const flooredRemainder = remainderDecisions.map((d) => {
+    const floor = ruleFloor(d.confidence, d.open_drift_count);
+    return { d, riskTier: floor, reason: "Not individually assessed — deterministic floor applied (confidence/drift)." };
+  });
+
+  const overall_risk = [...floored, ...flooredRemainder].reduce<RiskTier>(
+    (acc, { riskTier }) => maxTier(acc, riskTier),
+    assessment.overall_risk as RiskTier
+  );
 
   return {
     change_description: changeDescription,
     overall_risk,
     summary: assessment.summary,
-    affected_decisions: affectedDecisions,
+    affected_decisions: floored.map(({ d, riskTier, reason }) => buildDecision(d, riskTier, reason)),
+    not_assessed_decisions: flooredRemainder.length > 0
+      ? flooredRemainder.map(({ d, riskTier, reason }) => buildDecision(d, riskTier, reason))
+      : undefined,
+    assessment_degraded: assessmentDegraded || undefined,
     latency_ms: Date.now() - startMs,
   };
 }
