@@ -238,7 +238,7 @@ services:
       start_period: 5s
 
   web:
-    image: ghcr.io/skalrn/purpl-brain-web:demo-latest
+    image: ghcr.io/skalrn/purpl-brain:demo-latest
     ports:
       - "${WEB_HOST_PORT:-3740}:3000"
     depends_on:
