@@ -92,6 +92,9 @@ export async function chatJSON<T>(
   messages: Message[],
   options: LLMOptions = {}
 ): Promise<T> {
+  // Higher default than chat() — JSON responses need room for full structured output
+  const mergedOptions: LLMOptions = { maxTokens: 4096, ...options };
+
   const systemMsg = messages.find((m) => m.role === "system");
   const jsonInstruction = "Respond with valid JSON only. No markdown, no explanation, no code fences.";
 
@@ -103,12 +106,16 @@ export async function chatJSON<T>(
       )
     : [{ role: "system", content: jsonInstruction }, ...messages];
 
-  const raw = await chat(model, augmented, options);
+  const raw = await chat(model, augmented, mergedOptions);
 
   // Strip markdown code fences if model wraps output anyway
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
 
-  return JSON.parse(cleaned) as T;
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (e) {
+    throw new Error(`chatJSON parse failed (raw length ${cleaned.length}): ${(e as Error).message}`);
+  }
 }
 
 /**

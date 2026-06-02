@@ -184,6 +184,8 @@ export interface ImpactResponse {
   overall_risk: "critical" | "high" | "medium" | "low";
   summary: string;
   affected_decisions: ImpactDecision[];
+  not_assessed_decisions?: ImpactDecision[];  // decisions beyond LLM cap — floor applied, no per-decision reasoning
+  assessment_degraded?: boolean;              // true when LLM assessment failed or was capped
   latency_ms: number;
 }
 
