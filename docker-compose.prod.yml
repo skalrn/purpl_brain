@@ -57,7 +57,7 @@ services:
       - "3741:3001"
     env_file: .env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       REDIS_URL: redis://redis:6379
       NEO4J_URI: bolt://neo4j:7687
       QDRANT_URL: http://qdrant:6333
