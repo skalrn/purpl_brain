@@ -153,21 +153,19 @@ echo -e "${GREEN}✓ .claude/settings.json written — Stop hook wired${RESET}"
 
 # ── Write CLAUDE.md ───────────────────────────────────────────────────────────
 cat > "CLAUDE.md" << CLAUDEMD
-# Orion Commerce — Brain-connected demo
-
-This folder contains the purpl-brain demo pre-loaded with 8 weeks of Orion Commerce engineering decisions.
-
-## Brain tool usage
+# purpl-brain MCP
 
 The purpl-brain MCP is connected as \`purpl-brain-demo\`. Use \`project_id: ${PROJECT_ID}\` in all tool calls.
 
-**Before any significant change:** call \`brain_analyze_impact\` with a plain-English description of what you are about to do. This checks the decision graph for conflicts, downstream dependencies, and open drift alerts.
+## When to use the brain
 
-**To query past decisions:** call \`brain_query\` with a natural language question.
+**Before any significant change** — call \`brain_analyze_impact\` with a plain-English description of what you are about to do. If the verdict is BLOCK or FLAG, stop and report back. Do not proceed, and do not log a decision or signal.
 
-**When a decision is made:** call \`brain_log_decision\` to write it back so future sessions can see it.
+**To recall past decisions** — call \`brain_query\` with a natural language question.
 
-**When something unexpected surfaces:** call \`brain_log_signal\` to report a finding that may contradict an existing decision.
+**When a decision is made** — call \`brain_log_decision\` so future sessions can see it. Only log once a decision is actually confirmed, not during analysis.
+
+**When something unexpected surfaces while implementing** — call \`brain_log_signal\` to flag a finding that contradicts an existing decision. Do not use this to report what \`brain_analyze_impact\` already returned.
 CLAUDEMD
 echo -e "${GREEN}✓ CLAUDE.md written — brain tool instructions loaded at session start${RESET}"
 
