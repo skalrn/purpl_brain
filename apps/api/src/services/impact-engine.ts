@@ -21,6 +21,8 @@ function ruleFloor(confidence: string, openDriftCount: number): RiskTier {
 }
 
 const TOP_K = 15;
+// Cap decisions sent to LLM — avoids token overflow on large corpora
+const LLM_DECISION_CAP = 10;
 
 // Minimum Qdrant score to treat a chunk as relevant to the change
 const RELEVANCE_THRESHOLD = 0.55;
@@ -114,7 +116,10 @@ async function assessImpact(
     };
   }
 
-  const decisionList = decisions
+  // Cap to most relevant decisions to avoid token overflow
+  const capped = decisions.slice(0, LLM_DECISION_CAP);
+
+  const decisionList = capped
     .map((d, i) => `${i + 1}. [${d.decision_id}] ${d.summary}${d.rationale ? ` (rationale: ${d.rationale})` : ""} [status: ${d.status}]`)
     .join("\n");
 
@@ -128,9 +133,10 @@ async function assessImpact(
           content: `Proposed change: ${changeDescription}\n\nExisting decisions that may be affected:\n${decisionList}`,
         },
       ],
-      { maxTokens: 1024, temperature: 0 }
+      { maxTokens: 2048, temperature: 0 }
     );
-  } catch {
+  } catch (err) {
+    console.error("[impact-engine] LLM assessment failed:", (err as Error).message ?? err);
     // Fallback: mark all as medium risk without LLM
     return {
       overall_risk: "medium",
