@@ -204,7 +204,7 @@ echo ""
 echo -e "${YELLOW}── Claude Code ──────────────────────────────────────────${RESET}"
 echo ""
 echo "  Open Claude Code from this folder — MCP and Stop hook are already wired."
-echo "  Try: brain_query 'What did Priya decide about refunds?' project_id=orion_commerce"
+echo "  Try: brain_analyze_impact 'Move inventory reservation step into an async call from the order flow to simplify checkout latency' project_id=orion_commerce"
 echo ""
 if [[ "$LLM_PROVIDER" == "ollama" ]]; then
   echo -e "${YELLOW}  ⏱  Ollama query latency: ~14s p50, ~28s p95. This is normal.${RESET}"
