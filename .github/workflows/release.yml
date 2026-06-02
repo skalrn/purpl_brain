@@ -166,7 +166,7 @@ jobs:
             echo "| Image | Tags | Platforms |"
             echo "|-------|------|-----------|"
             echo "| API | \`${{ steps.meta.outputs.api_version_tag }}\`, \`${{ steps.meta.outputs.latest_tag }}\` | linux/amd64, linux/arm64 |"
-            echo "| Web (demo) | \`web-demo-latest\` | linux/amd64, linux/arm64 |"
+            echo "| Web (demo) | \`demo-latest\` | linux/amd64, linux/arm64 |"
             echo
             echo "Pull command:"
             echo "\`\`\`bash"
@@ -239,7 +239,7 @@ jobs:
             NEXT_PUBLIC_API_URL=http://localhost:3741
             NEXT_PUBLIC_API_KEY=demo-key
           tags: |
-            ${{ env.WEB_IMAGE }}:web-${{ steps.meta.outputs.version_tag }}
-            ${{ env.WEB_IMAGE }}:web-${{ steps.meta.outputs.latest_tag }}
+            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.version_tag }}
+            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.latest_tag }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
