@@ -257,13 +257,16 @@ export async function analyzeImpact(
     assessment.overall_risk as RiskTier
   );
 
+  const sortByRisk = (items: typeof floored) =>
+    [...items].sort((a, b) => (TIER_RANK[b.riskTier] ?? 0) - (TIER_RANK[a.riskTier] ?? 0));
+
   return {
     change_description: changeDescription,
     overall_risk,
     summary: assessment.summary,
-    affected_decisions: floored.map(({ d, riskTier, reason }) => buildDecision(d, riskTier, reason)),
+    affected_decisions: sortByRisk(floored).map(({ d, riskTier, reason }) => buildDecision(d, riskTier, reason)),
     not_assessed_decisions: flooredRemainder.length > 0
-      ? flooredRemainder.map(({ d, riskTier, reason }) => buildDecision(d, riskTier, reason))
+      ? sortByRisk(flooredRemainder).map(({ d, riskTier, reason }) => buildDecision(d, riskTier, reason))
       : undefined,
     assessment_degraded: assessmentDegraded || undefined,
     latency_ms: Date.now() - startMs,
