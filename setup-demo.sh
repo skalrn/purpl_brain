@@ -124,7 +124,7 @@ done
 cat > ".claude/settings.json" << CLAUDESETTINGS
 {
   "mcpServers": {
-    "purpl-brain": {
+    "purpl-brain-demo": {
       "url": "http://localhost:${MCP_PORT}/mcp"
     }
   },
