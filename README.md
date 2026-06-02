@@ -216,17 +216,16 @@ Two paths: **pre-built images** (fastest, no Node.js required, MCP included) or 
 #### Try the demo (2 minutes, zero config)
 
 ```bash
-mkdir -p ~/purpl-brain-demo && cd ~/purpl-brain-demo
-curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/docker-compose.demo.yml
+mkdir ~/purpl-brain-demo && cd ~/purpl-brain-demo
+curl -fsSL https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-demo.sh | bash
 
-# Ollama (default, ~14s queries):
-docker compose -f docker-compose.demo.yml up
-
-# Anthropic (~2s queries) — alternative to the line above:
-ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic docker compose -f docker-compose.demo.yml up
+# Anthropic (~2s queries instead of ~14s) — optional:
+ANTHROPIC_API_KEY=sk-ant-... LLM_PROVIDER=anthropic bash setup-demo.sh
 ```
 
-No `.env`, no seed commands. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · MCP on port 3742.
+No `.env`, no seed commands, no manual config. Pre-loaded with **Orion Commerce** — a synthetic e-commerce dataset (fictional company, fictional people, realistic decisions). API key: `demo-key` · Project ID: `orion_commerce` · Web UI on port 3740 · MCP on port 3742.
+
+`setup-demo.sh` downloads the compose file, writes `.claude/settings.json` and Stop hooks scoped to the demo folder, and starts all services. Open Claude Code from `~/purpl-brain-demo` — MCP and hooks are already wired.
 
 #### Connect your own project (~5 minutes)
 
@@ -236,7 +235,7 @@ curl -O https://raw.githubusercontent.com/skalrn/purpl_brain/main/setup-prebuilt
 bash setup-prebuilt.sh
 ```
 
-`setup-prebuilt.sh` generates credentials, writes `.env`, downloads the Claude Code Stop hooks into `~/.claude/hooks/` (scripts that run when a Claude Code session ends and prompt the agent to log decisions if it hasn't), starts all services, and prints a ready-to-paste MCP config and CLAUDE.md snippet. No Node.js needed.
+`setup-prebuilt.sh` generates credentials, writes `.env`, downloads the Claude Code Stop hooks into `.claude/hooks/` (scoped to this folder — they only fire when Claude Code is opened here), writes `.claude/settings.json` wiring the MCP and Stop hook, and starts all services. No Node.js needed.
 
 - **Port conflict:** if 3742 is busy: `MCP_HOST_PORT=3743 docker compose -f docker-compose.prod.yml up -d`
 
@@ -345,19 +344,9 @@ In practice, twenty well-chosen decisions from an internal project are likely to
 
 ## Wiring the MCP server
 
-**If you used `docker-compose.demo.yml` (pre-built image):** the MCP server is already running on port 3742 (or whichever port you set via `MCP_HOST_PORT`). Paste into `~/.claude/settings.json`:
+**If you used `setup-demo.sh`:** the MCP server is already running on port 3742 and `.claude/settings.json` is already written in your demo folder. Open Claude Code from that folder — no further config needed.
 
-```json
-{
-  "mcpServers": {
-    "purpl-brain": {
-      "url": "http://localhost:3742/mcp"
-    }
-  }
-}
-```
-
-Then add this to `CLAUDE.md` in whichever repo you want to use the brain from:
+Add this to `CLAUDE.md` in whichever repo you want to use the brain from:
 
 ```markdown
 ## Brain (purpl-brain MCP)
