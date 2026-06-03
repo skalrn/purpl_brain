@@ -68,7 +68,7 @@ A four-agent scenario (caching architecture migration, Slack signal, GitHub PR c
 
 ## How it works on day one
 
-The guardrail works immediately, without seeding historical context.
+The guardrail works immediately — it requires at least one logged decision to return a meaningful assessment, but no historical seeding beyond that.
 
 **Step 1 — Agents log decisions as they make them.**
 
@@ -92,7 +92,7 @@ Any agent in any session, hours or weeks later, checks the brain before a signif
 
 **Step 3 — Drift alerts fire when signals contradict existing decisions.**
 
-When a Slack message, GitHub PR, or agent signal contradicts a prior decision, the drift detector surfaces a confirmed alert. Agents query it at session start. The alert is visible in the web UI. A webhook delivers it to Slack or a coordinator agent in real time.
+When a Slack message, meeting signal, or agent signal contradicts a prior decision, the drift detector surfaces a confirmed alert. Agents query it at session start. The alert is visible in the web UI. A webhook delivers it to Slack or a coordinator agent in real time. (GitHub PR events are ingested but skipped by drift detection to reduce false positives from PR debate — see Known Limitations.)
 
 That is the full loop. It runs on agent write-back alone. No ADR seeding, no GitHub connector, no Slack listener required to start. Those layers make the guardrail stronger. They are not prerequisites.
 
@@ -444,7 +444,7 @@ def run_task(task: str) -> str:
 
 **Key rules:**
 - Use the task description as the query, not a generic "recent decisions". Specific queries return what matters; broad queries flood context.
-- Log immediately after each task, not just at session end. A decision lost when a session crashes is unrecoverable.
+- Log immediately after each task, not just at session end. A decision lost when a session crashes is unrecoverable. Use a distinct `session_id` per task — the endpoint is immutable, a second call with the same `session_id` returns 409.
 - Never raise on brain failure. The brain enhances context; it is not a dependency.
 
 
@@ -505,7 +505,7 @@ Payload includes: `alert_id`, `project_id`, `risk`, `challenged_decision_summary
 
 | | Ollama (default) | Anthropic |
 |---|---|---|
-| LLM | qwen2.5:7b (extraction) + llama3.1:8b (query) | Claude Haiku |
+| LLM | llama3.1:8b (extraction + query) | Claude Haiku 4.5 (extraction) + Claude Sonnet 4.6 (query) |
 | Embeddings | nomic-embed-text:v1.5 | nomic-embed-text:v1.5 (Ollama still required) |
 | Avg query latency | ~14s p50, ~28s p95 | ~2s |
 | Cost | Free | ~$5–15/month |
@@ -553,7 +553,7 @@ At small scale that works. As the number of agents, sessions, and decisions grow
 ## Known limitations
 
 - **Impact analysis uses a hybrid risk floor.** Any decision with an open drift alert is floored at `high`; any high-confidence decision is floored at `medium`. The LLM can raise tiers above the floor but cannot lower them below it. Decision age and downstream reference count are not yet used as floor inputs.
-- **Drift detection skips GitHub-sourced decisions** to reduce false positives from PR noise.
+- **Drift detection skips GitHub-sourced events** to reduce false positives from PR debate noise. GitHub events are ingested and queryable but do not trigger drift alerts.
 - **Human communication ingestion is partial.** Agent write-back and document ingestion are tested. GitHub webhook ingestion is implemented. Slack ingestion is implemented but thread replies are not fetched, and decision extraction yield from conversational PR threads is low.
 - **The Stop hook catches sessions that close cleanly.** Crashed or force-killed sessions do not fire the hook. Mid-session compaction before close is an open problem.
 - **Logged decision quality depends on timing.** A decision logged when it is made is more complete than one reconstructed at session close.

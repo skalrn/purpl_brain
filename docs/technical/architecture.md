@@ -122,10 +122,10 @@ The persistent knowledge state. Hybrid architecture: a vector store for semantic
 - Used for: impact analysis (INFORMS traversal from Decision → Ticket), drift alert linking, person identity resolution
 
 
-**Temporal Index**
-- Every node and edge carries a `valid_from` / `valid_to` timestamp
-- Enables point-in-time queries: "what was the plan as of last Monday"
-- Updates create new node versions rather than mutating existing ones
+**Temporal Filtering**
+- Every node carries a `valid_from` timestamp recording when it was ingested or last updated
+- Enables time-bounded queries: filter decisions and events by ingestion date range
+- Note: full bitemporal versioning (node snapshots, point-in-time graph state) is not yet implemented — nodes are mutated in place; `valid_from` is used for ordering and range filtering only
 
 ---
 
@@ -143,13 +143,13 @@ Serves natural language queries from humans and agents. Combines vector similari
 
 **Query modes:**
 
-| Mode | Filter | Graph expansion |
-|---|---|---|
-| Project-scoped | Single project namespace | Within-project only |
-| Temporal | Date range on `valid_from` | Within-project, time-bounded |
-| Expertise-scoped | Domain tag across namespaces | Cross-project, domain-filtered |
-| Agent resume | task_id or codebase filter | Prior agent sessions only |
-| Impact analysis | Starting node (event, ticket, PR) | Full downstream traversal |
+| Mode | Status | Filter | Graph expansion |
+|---|---|---|---|
+| Project-scoped | **Implemented** | Single project namespace | Within-project only |
+| Temporal | **Implemented** | Date range on `valid_from` | Within-project, time-bounded |
+| Impact analysis | **Implemented** | Change description (semantic) | Full downstream traversal |
+| Expertise-scoped | Not yet implemented — degrades to project-scoped | Domain tag across namespaces | Cross-project, domain-filtered |
+| Agent resume | Not yet implemented — degrades to project-scoped | task_id or codebase filter | Prior agent sessions only |
 
 ---
 
@@ -157,16 +157,17 @@ Serves natural language queries from humans and agents. Combines vector similari
 
 Runs asynchronously after every ingestion event. Two modes:
 
-**Proactive (continuous):**
-- After each brain update, evaluates: does any new node have a `contradicts` edge to an existing node?
-- Checks: are two concurrent tickets modifying the same codebase module (detected via shared file paths in PR diffs)?
-- Checks: does a new Jira epic reference a technology that was explicitly rejected in a prior ADR or design decision?
-- Generates an anomaly record with: affected nodes, contradiction description, severity, recommended action
+**Proactive (continuous) — drift-detector worker:**
+- Runs on every event that reaches the `events:extracted` stream (Slack, meeting, Jira, agent sources — GitHub and document sources are skipped to reduce false positives)
+- Stage A: embeds the incoming event text and searches Qdrant for confirmed decisions with cosine similarity ≥ 0.55
+- Stage C: LLM confirmation pass — classifies each candidate as `conflicts`, `confirms`, or neither
+- Confirmed conflicts write a `DriftAlert` node with a `CHALLENGES` edge to the affected `Decision`; a webhook fires to `DRIFT_WEBHOOK_URL` if configured
 
-**Reactive (on-demand):**
-- `POST /brain/impact-analysis` with a source event ID
-- Traverses the graph from that node: find all downstream `affects` and `implements` edges
-- Returns: list of affected tickets, decisions, agents, people, with citation of the dependency path
+**Reactive (on-demand) — impact analysis:**
+- `POST /brain/query` with `mode: "impact"` and `change_description`
+- Embeds the change description, retrieves semantically relevant decisions from Qdrant, expands via Neo4j graph traversal
+- LLM assigns risk tier (critical / high / medium / low) per decision; deterministic floor ensures open drift alerts are never rated below `high`
+- Returns: overall risk, per-decision assessments with citations, linked Jira ticket status
 
 ---
 
