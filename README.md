@@ -524,11 +524,14 @@ bash demo.sh verify    # checks all services, auth, query, CORS
 End-to-end evals:
 
 ```bash
-npm run eval:integration -w apps/api   # 33 checks, full pipeline
-npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
-npm run eval:cross-session -w apps/api # 5 queries, cross-session recall
-npm run eval:multi-agent -w apps/api   # 58 checks, guardrail scenario (~4 min)
+npm run eval:integration -w apps/api    # 33 checks, full pipeline (pre-demo smoke test)
+npm run eval:mcp -w apps/mcp            # 8 checks, all MCP tools
+npm run eval:cross-session -w apps/api  # 5 queries, cross-session recall
+npm run eval:multi-agent -w apps/api    # guardrail scenario, 4 agents (~4 min)
+npm run eval:enterprise -w apps/api     # 3 tenants, all ingest paths, isolation (~8 min)
 ```
+
+The load-bearing checks across the suite: `eval-multi-agent` A7 (LLM-confirmed drift alert), A8 (alert challenges ≥2 decisions via graph traversal), A_FR3/A_FR4 (impact analysis surfaces a contradiction for an agent that skipped pre-flight). `eval-enterprise` A23/A24/A42 (cross-tenant isolation on both read paths), A16 (GitHub webhook with bad HMAC → 401). These are the checks hardest to pass with a broken core mechanism.
 
 ---
 

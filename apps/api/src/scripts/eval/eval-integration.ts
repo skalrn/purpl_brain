@@ -443,25 +443,33 @@ async function main() {
       ...AGENT_LOG_S2,
       session_id: `sess_int_s2_dedup_${RUN_ID}`,
     };
+    // Capture alert count before re-ingest so we can compare after
+    const alertCountBefore = (await get<{ alerts: Array<Record<string, unknown>> }>(
+      `/brain/drift-alerts?project_id=${encodeURIComponent(PROJECT_ID)}`
+    )).body.alerts?.length ?? 0;
+
     const reingest = await post<{ ok: boolean }>(
       "/brain/agent-log", dedupeLog, true
     );
     check("re-ingest of identical content returns 200 or 202", [200, 202].includes(reingest.status),
       `status=${reingest.status}`);
 
-    // Short wait for the drift detector to process
+    // Wait for the drift detector to process the re-ingested content
     await sleep(30000);
 
-    const alertsAfter = await get<{ alerts: Array<Record<string, unknown>> }>(
-      `/brain/drift-alerts?project_id=${encodeURIComponent(PROJECT_ID)}`
-    );
-    const alertsBefore = (await get<{ alerts: Array<Record<string, unknown>> }>(
+    const alertsAfterBody = (await get<{ alerts: Array<Record<string, unknown>> }>(
       `/brain/drift-alerts?project_id=${encodeURIComponent(PROJECT_ID)}`
     )).body.alerts ?? [];
+    const alertCountAfter = alertsAfterBody.length;
 
-    const fingerprints = alertsBefore.map((a) => a.fingerprint as string);
+    // Fingerprint dedup: re-ingesting the same content should produce zero new alerts
+    check("re-ingest does not create new drift alerts (fingerprint dedup working)",
+      alertCountAfter <= alertCountBefore,
+      `before=${alertCountBefore} after=${alertCountAfter} — new alerts=${alertCountAfter - alertCountBefore}`);
+
+    const fingerprints = alertsAfterBody.map((a) => a.fingerprint as string).filter(Boolean);
     const unique = new Set(fingerprints);
-    check("no duplicate fingerprints after re-ingest", fingerprints.length === unique.size,
+    check("no duplicate fingerprints in alert list", fingerprints.length === unique.size,
       `total=${fingerprints.length} unique=${unique.size}`);
   }
 
