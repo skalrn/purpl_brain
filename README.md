@@ -565,6 +565,7 @@ At small scale that works. As the number of agents, sessions, and decisions grow
 | Audience | Document |
 |----------|----------|
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
+| Drift detection workflow | [docs/technical/drift-workflow.md](docs/technical/drift-workflow.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
 | Embedding model selection | [docs/technical/adrs/005-embedding-model.md](docs/technical/adrs/005-embedding-model.md) |
 

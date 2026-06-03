@@ -157,6 +157,8 @@ Serves natural language queries from humans and agents. Combines vector similari
 
 Runs asynchronously after every ingestion event. Two modes:
 
+See [drift-workflow.md](drift-workflow.md) for the full end-to-end sequence with sequence diagrams and configuration reference.
+
 **Proactive (continuous) — drift-detector worker:**
 - Runs on every event that reaches the `events:extracted` stream (Slack, meeting, Jira, agent sources — GitHub and document sources are skipped to reduce false positives)
 - Stage A: embeds the incoming event text and searches Qdrant for confirmed decisions with cosine similarity ≥ 0.55
