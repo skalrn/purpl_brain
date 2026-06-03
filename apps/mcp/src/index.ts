@@ -226,6 +226,7 @@ function buildServer(): McpServer {
           decision_id: string;
           summary: string;
           status: string;
+          risk_tier: string;
           affected_tickets: Array<{
             ticket_ref: string;
             jira_summary?: string;
@@ -275,8 +276,7 @@ function buildServer(): McpServer {
               lines.push(`  • ${t.ticket_ref}${jiraInfo}${assignee} [${t.risk_tier}] ${t.reason}`);
             }
           } else {
-            const assess = response.affected_decisions.find((x) => x.decision_id === d.decision_id);
-            lines.push(`  Risk: ${assess?.affected_tickets[0]?.risk_tier ?? "low"}`);
+            lines.push(`  Risk: ${d.risk_tier}`);
           }
         }
       } else {
