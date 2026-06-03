@@ -176,6 +176,7 @@ export interface ImpactDecision {
   summary: string;
   rationale: string | null;
   status: string;
+  risk_tier: "critical" | "high" | "medium" | "low";
   affected_tickets: ImpactTask[];
 }
 

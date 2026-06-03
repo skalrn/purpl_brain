@@ -235,7 +235,7 @@ export async function analyzeImpact(
         reason,
       };
     });
-    return { decision_id: d.decision_id, summary: d.summary, rationale: d.rationale, status: d.status, affected_tickets: affectedTickets };
+    return { decision_id: d.decision_id, summary: d.summary, rationale: d.rationale, status: d.status, risk_tier: riskTier, affected_tickets: affectedTickets };
   }
 
   // 5. Apply deterministic floor over LLM tier — LLM-assessed decisions only
