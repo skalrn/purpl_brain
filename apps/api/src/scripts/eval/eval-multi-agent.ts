@@ -688,14 +688,6 @@ async function main() {
           distinctDecisions >= 2,
           `distinct decisions challenged=${distinctDecisions} decisions=${[...new Set(alertLinks.map((r) => r.decision_id))].join(",")}`
         );
-        // Specifically check that the RefactorAgent's decision is also challenged
-        const challengesRefactor = alertLinks.some((r) =>
-          String(r.decision_id ?? "").includes("refactor") ||
-          alertLinks.some(() => refactorLogOk) // softer: if refactor logged, at least check alert exists
-        );
-        check("A8: Neo4j has ≥1 CHALLENGES relationship from a DriftAlert",
-          alertLinks.length >= 1,
-          `alert_links=${alertLinks.length}`);
       } catch (e) {
         check("A8: Neo4j drift alert linkage query succeeded", false, String(e));
       }
@@ -764,10 +756,9 @@ async function main() {
     check("A11: SecurityAuditAgent rejection decision logged (200 or 202)",
       [200, 202].includes(secRejection.status),
       `status=${secRejection.status} body=${JSON.stringify(secRejection.body).slice(0, 80)}`);
-    check("A11: rejection decision has 'REJECT' or 'defer' keyword in body",
-      SECURITY_REJECTION_LOG.decisions[0].description.toLowerCase().includes("reject") ||
-      SECURITY_REJECTION_LOG.decisions[0].rationale.toLowerCase().includes("defer"),
-      "decision description should contain REJECT and rationale should contain defer");
+    check("A11: API reports 1 decision logged",
+      secRejection.body.decisions_logged === 1,
+      `decisions_logged=${secRejection.body.decisions_logged}`);
     securityRejectionOk = [200, 202].includes(secRejection.status);
 
     // A12: Session timeline — query + signal observed + rejection logged in order
@@ -833,9 +824,9 @@ async function main() {
       .join(" ");
     const seesRefactorDecision = /acme.cache|extract|refactor|package/i.test(citationText) ||
       (prQuery.body.citations ?? []).some((c) => String(c.source_url ?? "").includes(REFACTOR_SESSION));
-    check("A13: PRReviewAgent sees RefactorAgent's @acme/cache package decision",
-      seesRefactorDecision || refactorLogOk, // relax if pipeline hasn't propagated yet
-      `citation_text=${citationText.slice(0, 150)}`);
+    check("A13: PRReviewAgent sees RefactorAgent's @acme/cache package decision (cross-agent visibility)",
+      seesRefactorDecision,
+      `citation_text=${citationText.slice(0, 150)} — if FAIL: cross-agent pipeline propagation did not complete in time; increase PIPELINE_WAIT_MS`);
 
     // A14: impact analysis — should name the package extraction as affected
     const prImpact = await post<{
@@ -857,9 +848,9 @@ async function main() {
     check("A14: overall_risk is high or critical",
       ["high", "critical"].includes(prImpact.body.overall_risk ?? ""),
       `overall_risk=${prImpact.body.overall_risk}`);
-    check("A14: ≥3 affected decisions (Redis ADR + ioredis + cache key format at minimum)",
-      (prImpact.body.affected_decisions ?? []).length >= 2,
-      `affected=${prImpact.body.affected_decisions?.length}`);
+    check("A14: ≥3 affected decisions (cache-001 Redis ADR + cache-002 key format + cache-003 ioredis)",
+      (prImpact.body.affected_decisions ?? []).length >= 3,
+      `affected=${prImpact.body.affected_decisions?.length} — if FAIL: one of the three seeded cache decisions was not retrieved; check RELEVANCE_THRESHOLD and PIPELINE_WAIT_MS`);
 
     // A14: PRReviewAgent logs its decision
     const prLog = await post<{ ok: boolean; event_id: string; decisions_logged: number }>(

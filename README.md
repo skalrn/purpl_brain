@@ -68,7 +68,7 @@ A four-agent scenario (caching architecture migration, Slack signal, GitHub PR c
 
 ## How it works on day one
 
-The guardrail works immediately, without seeding historical context.
+The guardrail works immediately — it requires at least one logged decision to return a meaningful assessment, but no historical seeding beyond that.
 
 **Step 1 — Agents log decisions as they make them.**
 
@@ -92,7 +92,7 @@ Any agent in any session, hours or weeks later, checks the brain before a signif
 
 **Step 3 — Drift alerts fire when signals contradict existing decisions.**
 
-When a Slack message, GitHub PR, or agent signal contradicts a prior decision, the drift detector surfaces a confirmed alert. Agents query it at session start. The alert is visible in the web UI. A webhook delivers it to Slack or a coordinator agent in real time.
+When a Slack message, meeting signal, or agent signal contradicts a prior decision, the drift detector surfaces a confirmed alert. Agents query it at session start. The alert is visible in the web UI. A webhook delivers it to Slack or a coordinator agent in real time. (GitHub PR events are ingested but skipped by drift detection to reduce false positives from PR debate — see Known Limitations.)
 
 That is the full loop. It runs on agent write-back alone. No ADR seeding, no GitHub connector, no Slack listener required to start. Those layers make the guardrail stronger. They are not prerequisites.
 
@@ -144,10 +144,10 @@ A/B comparison: same model, same 3 tasks, same LLM judge. The only difference is
 
 | Metric | Cold start | Brain-assisted | Delta |
 |---|---|---|---|
-| Decision alignment rate | 17% (1/6) | **100% (6/6)** | +5 decisions |
-| Contradiction rate | 67% (4/6) | **0% (0/6)** | −4 contradictions |
+| Decision alignment rate | 17% (1/6) | 100% (6/6) | +5 decisions |
+| Contradiction rate | 67% (4/6) | 0% (0/6) | −4 contradictions |
 
-Without context the agent picked the wrong validation library, wrong rate limiting layer, wrong error format, and wrong auth approach on 4 of 6 relevant decisions. With brain context, all 6 were correct. Caveat: several seeded decisions (JWT auth, Zod validation, RFC 7807 error format) are established best practices the model may already lean toward; the delta may partially reflect model priors, not brain context alone.
+**Interpret with caution.** This eval uses n=6 seeded decisions, several of which (JWT auth, Zod validation, RFC 7807 error format) are established best practices that the model may already lean toward. The delta conflates brain contribution with model prior — a controlled experiment isolating the two would require seeding decisions that contradict the model's defaults. This eval demonstrates the mechanism works; it does not measure production efficacy.
 
 ### Pipeline and retrieval
 
@@ -444,7 +444,7 @@ def run_task(task: str) -> str:
 
 **Key rules:**
 - Use the task description as the query, not a generic "recent decisions". Specific queries return what matters; broad queries flood context.
-- Log immediately after each task, not just at session end. A decision lost when a session crashes is unrecoverable.
+- Log immediately after each task, not just at session end. A decision lost when a session crashes is unrecoverable. Use a distinct `session_id` per task — the endpoint is immutable, a second call with the same `session_id` returns 409.
 - Never raise on brain failure. The brain enhances context; it is not a dependency.
 
 
@@ -505,7 +505,7 @@ Payload includes: `alert_id`, `project_id`, `risk`, `challenged_decision_summary
 
 | | Ollama (default) | Anthropic |
 |---|---|---|
-| LLM | qwen2.5:7b (extraction) + llama3.1:8b (query) | Claude Haiku |
+| LLM | llama3.1:8b (extraction + query) | Claude Haiku 4.5 (extraction) + Claude Sonnet 4.6 (query) |
 | Embeddings | nomic-embed-text:v1.5 | nomic-embed-text:v1.5 (Ollama still required) |
 | Avg query latency | ~14s p50, ~28s p95 | ~2s |
 | Cost | Free | ~$5–15/month |
@@ -524,11 +524,14 @@ bash demo.sh verify    # checks all services, auth, query, CORS
 End-to-end evals:
 
 ```bash
-npm run eval:integration -w apps/api   # 33 checks, full pipeline
-npm run eval:mcp -w apps/mcp           # 8 checks, all MCP tools
-npm run eval:cross-session -w apps/api # 5 queries, cross-session recall
-npm run eval:multi-agent -w apps/api   # 58 checks, guardrail scenario (~4 min)
+npm run eval:integration -w apps/api    # 33 checks, full pipeline (pre-demo smoke test)
+npm run eval:mcp -w apps/mcp            # 8 checks, all MCP tools
+npm run eval:cross-session -w apps/api  # 5 queries, cross-session recall
+npm run eval:multi-agent -w apps/api    # guardrail scenario, 4 agents (~4 min)
+npm run eval:enterprise -w apps/api     # 3 tenants, all ingest paths, isolation (~8 min)
 ```
+
+The load-bearing checks across the suite: `eval-multi-agent` A7 (LLM-confirmed drift alert), A8 (alert challenges ≥2 decisions via graph traversal), A_FR3/A_FR4 (impact analysis surfaces a contradiction for an agent that skipped pre-flight). `eval-enterprise` A23/A24/A42 (cross-tenant isolation on both read paths), A16 (GitHub webhook with bad HMAC → 401). These are the checks hardest to pass with a broken core mechanism.
 
 ---
 
@@ -553,7 +556,7 @@ At small scale that works. As the number of agents, sessions, and decisions grow
 ## Known limitations
 
 - **Impact analysis uses a hybrid risk floor.** Any decision with an open drift alert is floored at `high`; any high-confidence decision is floored at `medium`. The LLM can raise tiers above the floor but cannot lower them below it. Decision age and downstream reference count are not yet used as floor inputs.
-- **Drift detection skips GitHub-sourced decisions** to reduce false positives from PR noise.
+- **Drift detection skips GitHub-sourced events** to reduce false positives from PR debate noise. GitHub events are ingested and queryable but do not trigger drift alerts.
 - **Human communication ingestion is partial.** Agent write-back and document ingestion are tested. GitHub webhook ingestion is implemented. Slack ingestion is implemented but thread replies are not fetched, and decision extraction yield from conversational PR threads is low.
 - **The Stop hook catches sessions that close cleanly.** Crashed or force-killed sessions do not fire the hook. Mid-session compaction before close is an open problem.
 - **Logged decision quality depends on timing.** A decision logged when it is made is more complete than one reconstructed at session close.
@@ -565,6 +568,7 @@ At small scale that works. As the number of agents, sessions, and decisions grow
 | Audience | Document |
 |----------|----------|
 | Architecture deep dive | [docs/technical/architecture.md](docs/technical/architecture.md) |
+| Drift detection workflow | [docs/technical/drift-workflow.md](docs/technical/drift-workflow.md) |
 | Agent write-back design | [docs/technical/adrs/004-agent-decision-trails.md](docs/technical/adrs/004-agent-decision-trails.md) |
 | Embedding model selection | [docs/technical/adrs/005-embedding-model.md](docs/technical/adrs/005-embedding-model.md) |
 

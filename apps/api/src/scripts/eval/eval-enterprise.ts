@@ -972,12 +972,21 @@ async function main() {
     // we wait one more tick to be sure the extractor has finished.
     await sleep(15000, "extraction + drift settling");
     const whAlerts = await pollForDriftAlerts(TENANT_WAREHOUSE, 1, 20000);
-    // Don't fail hard if extraction didn't pull a Decision from the transcript —
-    // this is best-effort. Assert ≥0 and report what we found.
+    // Hard gate: the endpoint must return a valid response.
     check(
-      "A31: warehouse tenant drift-alerts endpoint returns successfully",
+      "A31: warehouse tenant drift-alerts endpoint returns valid response",
       Array.isArray(whAlerts),
       `alerts=${whAlerts.length}`,
+    );
+    // Behavioral gate: at least one drift alert should have fired from the
+    // meeting decision vs. Jira ticket contradiction. This requires the
+    // transcript extractor to have yielded a confirmed Decision node — if
+    // extraction failed (thin corpus, low-signal transcript), this check
+    // will fail and surface the gap.
+    check(
+      "A31: ≥1 drift alert fires from meeting-transcript decision contradicted by Jira",
+      whAlerts.length >= 1,
+      `alerts=${whAlerts.length} — if FAIL: transcript extraction did not yield a confirmed Decision; check corpus stats and extraction yield`
     );
   }
 
