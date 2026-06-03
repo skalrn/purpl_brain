@@ -184,6 +184,11 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await redis.sadd(PROCESSED_SET, sourceId);
+      // Keep PROCESSED_SET TTL in sync with the webhook dedup path (30 days).
+      // PROCESSED_SET is a shared key — expire resets TTL on the whole set, not
+      // per member. Consistent across all write paths so expiry doesn't depend
+      // on webhook activity alone.
+      await redis.expire(PROCESSED_SET, 60 * 60 * 24 * 30);
 
       fastify.log.info(
         { project_id, title, chunks: chunks.length, format: parsed.format, speakers: parsed.speakers },
@@ -357,7 +362,13 @@ export const brainRoutes: FastifyPluginAsync = async (fastify) => {
       };
 
       await redis.xadd(STREAMS.EXTRACTED, "*", "result", JSON.stringify(extractionResult));
+      // Agent-log dedup is intentionally 409 (not REPLACE like documents) because
+      // a session_id represents a completed reasoning trace — overwriting it would
+      // silently discard the original decisions. Callers that need to update a
+      // session should log a new session with a new session_id and a SUPERSEDES
+      // decision referencing the old one.
       await redis.sadd(PROCESSED_SET, sourceId);
+      await redis.expire(PROCESSED_SET, 60 * 60 * 24 * 30);
 
       fastify.log.info(
         { session_id: log.session_id, decisions: log.decisions.length, project_id: log.project_id },

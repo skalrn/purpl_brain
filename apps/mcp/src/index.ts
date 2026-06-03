@@ -114,10 +114,8 @@ function buildServer(): McpServer {
         "Project namespace to search (e.g. 'my_org_my_repo'). " +
         "Use underscore-separated org_repo format matching how the project was registered."
       ),
-      mode: z.enum(["project", "expertise", "agent_resume"]).optional().describe(
-        "Query mode: 'project' (default) for general project context, " +
-        "'expertise' for cross-project domain knowledge, " +
-        "'agent_resume' to recall what a previous agent session decided."
+      mode: z.enum(["project"]).optional().describe(
+        "Query mode. Currently only 'project' is active — scopes the query to the given project_id."
       ),
     },
     async ({ query, project_id, mode }) => {
@@ -266,7 +264,7 @@ function buildServer(): McpServer {
 
       if (response.affected_decisions.length > 0) {
         lines.push(`### Affected decisions (${response.affected_decisions.length})`);
-        for (const d of response.affected_decisions) {
+        for (const d of response.affected_decisions.slice(0, 3)) {
           lines.push(`\n**${d.summary}** [${d.status}]`);
           if (d.affected_tickets.length > 0) {
             for (const t of d.affected_tickets) {

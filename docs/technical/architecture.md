@@ -13,7 +13,7 @@ Project Brain is an event-driven knowledge system that ingests signals from mult
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         INGESTION LAYER                         │
-│  GitHub  │  Slack  │  Jira/Linear  │  Meetings  │  AI Agents   │
+│  GitHub  │  Slack  │     Jira      │  Meetings  │  AI Agents   │
 │  webhook │ webhook │    webhook    │    API     │  write-back   │
 └────────────────────────────┬────────────────────────────────────┘
                              │ events
@@ -58,7 +58,7 @@ Responsible for receiving signals from all source systems and normalizing them i
 ```json
 {
   "event_id": "uuid",
-  "source": "github | slack | jira | linear | meeting | agent",
+  "source": "github | slack | jira | meeting | agent | document",
   "source_id": "original ID in the source system",
   "project_id": "project namespace in the brain",
   "actor": { "type": "human | agent | collective", "id": "...", "name": "..." },
@@ -76,6 +76,7 @@ Responsible for receiving signals from all source systems and normalizing them i
 | GitHub | Webhooks (push, PR, issue, review events) | `seed:github` CLI (fetches last N PRs/issues) |
 | Slack | Socket Mode (Bolt SDK) | `seed:slack` CLI |
 | Jira | Webhooks (issue created/updated/transitioned) | `seed:jira` CLI |
+| Linear | Not yet implemented — connector planned | — |
 | Meetings | `POST /brain/ingest/transcript` (VTT/SRT/text) | — |
 | Documents | `seed:local-docs` CLI (git-history attribution) | `POST /brain/ingest/crawl-docs` (GitHub API) |
 | AI Agents | `POST /brain/agent-log` write-back API; also via `brain_log_decision` MCP tool | — |

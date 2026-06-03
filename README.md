@@ -144,10 +144,10 @@ A/B comparison: same model, same 3 tasks, same LLM judge. The only difference is
 
 | Metric | Cold start | Brain-assisted | Delta |
 |---|---|---|---|
-| Decision alignment rate | 17% (1/6) | **100% (6/6)** | +5 decisions |
-| Contradiction rate | 67% (4/6) | **0% (0/6)** | −4 contradictions |
+| Decision alignment rate | 17% (1/6) | 100% (6/6) | +5 decisions |
+| Contradiction rate | 67% (4/6) | 0% (0/6) | −4 contradictions |
 
-Without context the agent picked the wrong validation library, wrong rate limiting layer, wrong error format, and wrong auth approach on 4 of 6 relevant decisions. With brain context, all 6 were correct. Caveat: several seeded decisions (JWT auth, Zod validation, RFC 7807 error format) are established best practices the model may already lean toward; the delta may partially reflect model priors, not brain context alone.
+**Interpret with caution.** This eval uses n=6 seeded decisions, several of which (JWT auth, Zod validation, RFC 7807 error format) are established best practices that the model may already lean toward. The delta conflates brain contribution with model prior — a controlled experiment isolating the two would require seeding decisions that contradict the model's defaults. This eval demonstrates the mechanism works; it does not measure production efficacy.
 
 ### Pipeline and retrieval
 

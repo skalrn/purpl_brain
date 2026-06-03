@@ -93,6 +93,7 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       await redis.sadd(PROCESSED_SET, sourceId);
+      await redis.expire(PROCESSED_SET, 60 * 60 * 24 * 30);
 
       fastify.log.info(
         { project_id, title: resolvedTitle, chunks: chunks.length, type: resolvedType },
@@ -178,6 +179,7 @@ export const ingestRoutes: FastifyPluginAsync = async (fastify) => {
         for (const sid of uniqueSourceIds) {
           await redis.sadd(PROCESSED_SET, sid);
         }
+        await redis.expire(PROCESSED_SET, 60 * 60 * 24 * 30);
 
         fastify.log.info(
           { repo, project_id, files: uniqueSourceIds.length, chunks: events.length },

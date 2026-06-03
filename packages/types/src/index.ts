@@ -123,8 +123,9 @@ export interface ExtractionResult {
 
 // Query layer
 
-// "project" and "temporal" are fully implemented.
-// "expertise", "agent-resume", "impact" are spec-defined, degrade to "project" until implemented.
+// Active modes: "project", "temporal", "impact", "plain-rag".
+// "expertise" and "agent-resume" are spec-defined but not yet implemented — they
+// degrade silently to "project" and are excluded from the MCP tool enum until built.
 export type QueryMode = "project" | "temporal" | "expertise" | "agent-resume" | "impact" | "plain-rag";
 
 export interface QueryRequest {
